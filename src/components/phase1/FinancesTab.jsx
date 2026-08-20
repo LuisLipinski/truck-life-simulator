@@ -1,5 +1,10 @@
 import { useMemo, useState } from 'react'
-import { EXPENSE_LABELS, monthlyExpenseTotal } from '../../lib/phase1.js'
+import {
+  EMERGENCY_RESERVE_ANNUAL_YIELD,
+  EXPENSE_LABELS,
+  emergencyReserveContribution,
+  monthlyExpenseTotal,
+} from '../../lib/phase1.js'
 
 const EXPENSE_TIPS = {
   rent: 'Aluguel mensal da moradia do motorista. Ajuste quando houver mudança de apartamento ou de valor.',
@@ -7,6 +12,7 @@ const EXPENSE_TIPS = {
   phone: 'Plano de celular e linha telefônica usados pelo motorista.',
   internet: 'Internet residencial mensal da simulação.',
   transit: 'Transporte pessoal fora do caminhão da empresa, como ônibus, metrô ou corridas ocasionais.',
+  emergency: 'Este valor não é uma despesa perdida. Ao aplicar as despesas mensais, ele é transferido do saldo disponível para a Reserva de Emergência.',
 }
 
 function money(value) {
@@ -30,9 +36,14 @@ export default function FinancesTab({ state, commit }) {
   const [customName, setCustomName] = useState('')
   const [customValue, setCustomValue] = useState('')
   const [customMonthly, setCustomMonthly] = useState(true)
+  const [reserveDeposit, setReserveDeposit] = useState('')
+  const [reserveUseAmount, setReserveUseAmount] = useState('')
+  const [reserveUseReason, setReserveUseReason] = useState('')
 
+  const reserve = Math.max(0, Number(state.emergencyReserve || 0))
+  const reserveContribution = emergencyReserveContribution(state)
   const baseMonthly = useMemo(
-    () => Object.values(state.expenses || {}).reduce((sum, value) => sum + Number(value || 0), 0),
+    () => Object.entries(state.expenses || {}).filter(([key]) => key !== 'emergency').reduce((sum, [, value]) => sum + Number(value || 0), 0),
     [state.expenses],
   )
   const customMonthlyTotal = useMemo(
@@ -40,6 +51,7 @@ export default function FinancesTab({ state, commit }) {
     [state.customExpenses],
   )
   const totalMonthly = monthlyExpenseTotal(state)
+  const totalAssets = Number(state.balance || 0) + reserve
 
   function updateExpense(key, value) {
     commit({ ...state, expenses: { ...state.expenses, [key]: Math.max(0, Number(value) || 0) } })
@@ -60,6 +72,48 @@ export default function FinancesTab({ state, commit }) {
         { date: now(), type: 'Ajuste', desc: 'Ajuste manual de saldo', value: difference, amount: difference, balance: nextBalance },
       ],
     })
+  }
+
+  function addToReserve() {
+    const amount = Number(reserveDeposit)
+    if (!Number.isFinite(amount) || amount <= 0) return window.alert('Informe um valor válido para adicionar à reserva.')
+    if (amount > Number(state.balance || 0)) return window.alert('Saldo disponível insuficiente para esse aporte.')
+    const nextBalance = Number(state.balance || 0) - amount
+    const nextReserve = reserve + amount
+    commit({
+      ...state,
+      balance: nextBalance,
+      emergencyReserve: nextReserve,
+      history: [
+        ...(state.history || []),
+        { date: now(), type: 'Reserva', desc: 'Aporte manual à reserva de emergência', value: -amount, amount: -amount, balance: nextBalance, reserve: nextReserve },
+      ],
+    })
+    setManualBalance(nextBalance)
+    setReserveDeposit('')
+  }
+
+  function useReserve(event) {
+    event.preventDefault()
+    const amount = Number(reserveUseAmount)
+    const reason = reserveUseReason.trim()
+    if (!Number.isFinite(amount) || amount <= 0) return window.alert('Informe um valor válido para usar da reserva.')
+    if (!reason) return window.alert('Informe o motivo do uso da reserva.')
+    if (amount > reserve) return window.alert('O valor informado é maior que o saldo da reserva.')
+    const nextReserve = reserve - amount
+    const nextBalance = Number(state.balance || 0) + amount
+    commit({
+      ...state,
+      balance: nextBalance,
+      emergencyReserve: nextReserve,
+      history: [
+        ...(state.history || []),
+        { date: now(), type: 'Reserva', desc: `Resgate da reserva — ${reason}`, value: amount, amount, balance: nextBalance, reserve: nextReserve },
+      ],
+    })
+    setManualBalance(nextBalance)
+    setReserveUseAmount('')
+    setReserveUseReason('')
   }
 
   function addCustomExpense(event) {
@@ -93,14 +147,18 @@ export default function FinancesTab({ state, commit }) {
   }
 
   function applyMonthlyExpenses() {
-    if (!window.confirm(`Aplicar ${money(totalMonthly)} de despesas mensais agora? Esse valor será descontado do saldo.`)) return
-    const nextBalance = Number(state.balance || 0) - totalMonthly
+    const totalOutflow = totalMonthly + reserveContribution
+    if (!window.confirm(`Aplicar ${money(totalMonthly)} de despesas mensais e transferir ${money(reserveContribution)} para a reserva? Saída total da conta: ${money(totalOutflow)}.`)) return
+    const nextBalance = Number(state.balance || 0) - totalOutflow
+    const nextReserve = reserve + reserveContribution
     commit({
       ...state,
       balance: nextBalance,
+      emergencyReserve: nextReserve,
       history: [
         ...(state.history || []),
         { date: now(), type: 'Despesa', desc: 'Despesas mensais aplicadas', value: -totalMonthly, amount: -totalMonthly, balance: nextBalance },
+        ...(reserveContribution > 0 ? [{ date: now(), type: 'Reserva', desc: 'Aporte mensal à reserva de emergência', value: -reserveContribution, amount: -reserveContribution, balance: nextBalance, reserve: nextReserve }] : []),
       ],
     })
     setManualBalance(nextBalance)
@@ -109,10 +167,10 @@ export default function FinancesTab({ state, commit }) {
   return (
     <>
       <section className="phase1-status-grid finance-summary-grid">
-        <article className="panel phase1-metric"><span className="metric-label">Saldo atual</span><strong className="metric-value">{money(state.balance)}</strong><span className="metric-detail">Conta pessoal da carreira</span></article>
-        <article className="panel phase1-metric"><span className="metric-label">Despesas padrão</span><strong className="metric-value">{money(baseMonthly)}</strong><span className="metric-detail">Por mês</span></article>
-        <article className="panel phase1-metric"><span className="metric-label">Personalizadas mensais</span><strong className="metric-value">{money(customMonthlyTotal)}</strong><span className="metric-detail">Por mês</span></article>
-        <article className="panel phase1-metric"><span className="metric-label">Total mensal</span><strong className="metric-value">{money(totalMonthly)}</strong><span className="metric-detail">Estimativa atual</span></article>
+        <article className="panel phase1-metric"><span className="metric-label">Saldo disponível</span><strong className="metric-value">{money(state.balance)}</strong><span className="metric-detail">Conta pessoal da carreira</span></article>
+        <article className="panel phase1-metric"><span className="metric-label">Reserva de emergência</span><strong className="metric-value">{money(reserve)}</strong><span className="metric-detail">Rende {(EMERGENCY_RESERVE_ANNUAL_YIELD * 100).toFixed(2)}% a.a.</span></article>
+        <article className="panel phase1-metric"><span className="metric-label">Patrimônio pessoal</span><strong className="metric-value">{money(totalAssets)}</strong><span className="metric-detail">Saldo + reserva</span></article>
+        <article className="panel phase1-metric"><span className="metric-label">Despesas mensais</span><strong className="metric-value">{money(totalMonthly)}</strong><span className="metric-detail">Não inclui o aporte à reserva</span></article>
       </section>
 
       <div className="phase1-two-panel finance-layout">
@@ -127,22 +185,39 @@ export default function FinancesTab({ state, commit }) {
           <button className="button secondary full-button" type="button" onClick={applyManualBalance}>Atualizar saldo</button>
         </section>
 
-        <section className="panel finance-card expenses-card">
+        <section className="panel finance-card reserve-card">
           <div className="section-heading compact-heading">
-            <span className="eyebrow">Vida pessoal</span>
-            <h2>Despesas mensais</h2>
-            <p>Edite os valores que representam o custo de vida atual do motorista.</p>
+            <span className="eyebrow">Reserva de emergência</span>
+            <h2>{money(reserve)}</h2>
+            <p>Dinheiro separado do saldo disponível. O rendimento é creditado semanalmente quando o holerite é fechado.</p>
           </div>
-          <div className="expense-fields-grid">
-            {Object.entries(state.expenses || {}).map(([key, value]) => (
-              <div key={key} className="expense-field">
-                <TipLabel tip={EXPENSE_TIPS[key] || 'Valor mensal desta despesa pessoal. Ele entra no total quando você aplicar as despesas mensais.'}>{EXPENSE_LABELS[key] || key}</TipLabel>
-                <input type="number" min="0" step="0.01" value={value} onChange={(event) => updateExpense(key, event.target.value)} />
-              </div>
-            ))}
-          </div>
+          <div className="reserve-rate-note">Taxa simulada: <strong>{(EMERGENCY_RESERVE_ANNUAL_YIELD * 100).toFixed(2)}% ao ano</strong> ≈ <strong>{(EMERGENCY_RESERVE_ANNUAL_YIELD / 52 * 100).toFixed(4)}% por semana</strong>.</div>
+          <TipLabel tip="Transfere dinheiro da conta pessoal para a reserva. É uma transferência interna e não reduz seu patrimônio total.">Adicionar à reserva</TipLabel>
+          <div className="reserve-inline-action"><input type="number" min="0" step="0.01" value={reserveDeposit} onChange={(event) => setReserveDeposit(event.target.value)} placeholder="0.00" /><button className="button secondary" type="button" onClick={addToReserve}>Adicionar</button></div>
+          <form className="reserve-use-form" onSubmit={useReserve}>
+            <TipLabel tip="O valor sai da reserva e volta para o saldo disponível. O motivo é obrigatório para manter o histórico da carreira organizado.">Usar reserva</TipLabel>
+            <div className="reserve-inline-action"><input type="number" min="0" step="0.01" value={reserveUseAmount} onChange={(event) => setReserveUseAmount(event.target.value)} placeholder="Valor" /><button className="button primary" type="submit">Usar reserva</button></div>
+            <input value={reserveUseReason} onChange={(event) => setReserveUseReason(event.target.value)} placeholder="Motivo do resgate" />
+          </form>
         </section>
       </div>
+
+      <section className="panel finance-card expenses-card monthly-expenses-card">
+        <div className="section-heading compact-heading">
+          <span className="eyebrow">Vida pessoal</span>
+          <h2>Despesas mensais</h2>
+          <p>Edite os valores do custo de vida. O campo de reserva é um aporte, não uma despesa perdida.</p>
+        </div>
+        <div className="expense-fields-grid">
+          {Object.entries(state.expenses || {}).map(([key, value]) => (
+            <div key={key} className="expense-field">
+              <TipLabel tip={EXPENSE_TIPS[key] || 'Valor mensal desta despesa pessoal. Ele entra no total quando você aplicar as despesas mensais.'}>{EXPENSE_LABELS[key] || key}</TipLabel>
+              <input type="number" min="0" step="0.01" value={value} onChange={(event) => updateExpense(key, event.target.value)} />
+            </div>
+          ))}
+        </div>
+        <div className="reserve-transfer-preview"><span>Despesas reais: <strong>{money(totalMonthly)}</strong></span><span>Aporte à reserva: <strong>{money(reserveContribution)}</strong></span><span>Saída total da conta: <strong>{money(totalMonthly + reserveContribution)}</strong></span></div>
+      </section>
 
       <section className="panel custom-expenses-panel">
         <div className="section-heading compact-heading">
@@ -176,7 +251,7 @@ export default function FinancesTab({ state, commit }) {
         )}
 
         <div className="monthly-action-row">
-          <div><span className="metric-label">Total a descontar</span><strong>{money(totalMonthly)}</strong></div>
+          <div><span className="metric-label">Saída mensal da conta</span><strong>{money(totalMonthly + reserveContribution)}</strong><small>{money(totalMonthly)} em despesas + {money(reserveContribution)} para a reserva</small></div>
           <button className="button danger" type="button" onClick={applyMonthlyExpenses}>Aplicar despesas mensais</button>
         </div>
       </section>
