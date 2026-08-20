@@ -9,6 +9,7 @@ import {
   perDiemDaysForTrips,
   weeklyEmergencyReserveYield,
 } from '../../lib/phase1.js'
+import { useToast } from '../ToastProvider.jsx'
 
 function money(value) {
   return Number(value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
@@ -41,6 +42,7 @@ function LineLabel({ children, tip }) {
 }
 
 export default function PayslipTab({ state, commit }) {
+  const toast = useToast()
   const [level1Gross, setLevel1Gross] = useState(850)
   const [overrunHours, setOverrunHours] = useState(0)
   const [overrunRate, setOverrunRate] = useState(21.25)
@@ -103,11 +105,11 @@ export default function PayslipTab({ state, commit }) {
 
     const reserveContribution = autoReserveEnabled ? Math.max(0, Number(autoReserveAmount) || 0) : 0
     if (autoReserveEnabled && reserveContribution <= 0) {
-      window.alert('Informe um valor maior que zero para o aporte automático à reserva.')
+      toast.error('Informe um valor maior que zero para o aporte automático à reserva.')
       return
     }
     if (reserveContribution > result.deposit) {
-      window.alert(`O aporte automático não pode ser maior que o depósito desta semana (${money(result.deposit)}).`)
+      toast.error(`O aporte automático não pode ser maior que o depósito desta semana (${money(result.deposit)}).`)
       return
     }
 
@@ -177,6 +179,7 @@ export default function PayslipTab({ state, commit }) {
       history: historyEntries,
     })
     setPreview(result)
+    toast.success(`Semana ${weekNumber} fechada. ${money(result.deposit)} creditados${reserveContribution > 0 ? ` e ${money(reserveContribution)} enviados para a reserva` : ''}.`, { title: 'Holerite gerado' })
   }
 
   const shown = preview || calculate()
