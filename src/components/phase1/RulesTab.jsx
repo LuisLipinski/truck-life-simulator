@@ -68,7 +68,7 @@ export default function RulesTab() {
           <li>Jogue a rota no ATS e registre todos os trechos em Registro de Viagens.</li>
           <li>Registre infrações ou acidentes antes de fechar a semana.</li>
           <li>Confira milhas, categorias e per diem no Holerite.</li>
-          <li>Gere o holerite; isso fecha a semana e inicia a próxima.</li>
+          <li>Gere o holerite; isso fecha a semana, credita o rendimento da reserva e inicia a próxima.</li>
           <li>Aplique as despesas mensais apenas quando chegar o vencimento na simulação.</li>
           <li>Faça promoções e qualificações quando as metas forem liberadas.</li>
         </ol>
@@ -77,6 +77,7 @@ export default function RulesTab() {
       <section className="rules-grid compact-rules">
         <article className="panel rule-card"><span className="eyebrow">Nível 1</span><h2 className="line-label-with-tip">Origem e retorno <Tip text="Novas cargas começam em filiais da empregadora. Sem carga de retorno, volte vazio ou faça deadhead regional até uma filial próxima." /></h2><p>Novas cargas são retiradas em filial da empregadora. Se houver carga de retorno em uma filial de destino, use-a; caso contrário, retorne vazio ou faça deadhead regional até uma filial próxima.</p></article>
         <article className="panel rule-card"><span className="eyebrow">ATS Skills</span><h2 className="line-label-with-tip">Progressão sugerida <Tip text="É uma recomendação de distribuição de pontos no ATS para combinar com a carreira; não bloqueia o aplicativo." /></h2><p>Nível 1 prioriza Fuel Economy e, se desejar, High-Value. Nível 2 adiciona Long Distance, Fragile, Just-in-Time e HazMat após qualificação. Nível 3 libera a progressão avançada.</p></article>
+        <article className="panel rule-card"><span className="eyebrow">Reserva financeira</span><h2 className="line-label-with-tip">Reserva de emergência <Tip text="A reserva é patrimônio do motorista, separado do saldo disponível. O aporte mensal é uma transferência interna e o rendimento é aplicado a cada fechamento semanal." /></h2><p>O aporte mensal não é uma despesa perdida: ele sai do saldo disponível e entra na reserva. A reserva rende 3,25% ao ano na simulação, proporcionalmente por semana, e o rendimento é creditado quando o holerite é fechado. Ao resgatar, o valor volta ao saldo disponível e o motivo fica registrado no Histórico.</p></article>
         <article className="panel rule-card"><span className="eyebrow">Ocorrências</span><h2 className="line-label-with-tip">Multas e acidentes <Tip text="Podem ser pagos imediatamente pelo saldo ou carregados para holerites futuros até que todo o valor seja quitado." /></h2><p>Custos podem sair imediatamente do saldo ou ficar pendentes para holerite. Se o holerite não comportar o valor, o restante continua pendente para a semana seguinte.</p></article>
         <article className="panel rule-card"><span className="eyebrow">Semanas fechadas</span><h2 className="line-label-with-tip">Dados congelados <Tip text="Depois do holerite, os dados daquela semana ficam protegidos para evitar alterações que quebrariam o histórico financeiro." /></h2><p>Depois de gerar o holerite, a semana é considerada fechada. Viagens dessa semana não devem mais ser alteradas ou excluídas.</p></article>
       </section>
