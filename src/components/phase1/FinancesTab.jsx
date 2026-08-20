@@ -1,10 +1,11 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   EMERGENCY_RESERVE_ANNUAL_YIELD,
   EXPENSE_LABELS,
   emergencyReserveContribution,
   monthlyExpenseTotal,
 } from '../../lib/phase1.js'
+import { useToast } from '../ToastProvider.jsx'
 
 const EXPENSE_TIPS = {
   rent: 'Aluguel mensal da moradia do motorista. Ajuste quando houver mudança de apartamento ou de valor.',
@@ -42,6 +43,7 @@ function TipLabel({ children, tip, className = '' }) {
 }
 
 export default function FinancesTab({ state, commit }) {
+  const toast = useToast()
   const [manualBalance, setManualBalance] = useState(state.balance)
   const [customName, setCustomName] = useState('')
   const [customValue, setCustomValue] = useState('')
@@ -49,8 +51,6 @@ export default function FinancesTab({ state, commit }) {
   const [reserveDeposit, setReserveDeposit] = useState('')
   const [reserveUseAmount, setReserveUseAmount] = useState('')
   const [reserveUseReason, setReserveUseReason] = useState('')
-  const [toast, setToast] = useState(null)
-  const toastTimer = useRef(null)
 
   const reserveCents = Math.max(0, toCents(state.emergencyReserve || 0) || 0)
   const reserve = fromCents(reserveCents)
@@ -66,12 +66,6 @@ export default function FinancesTab({ state, commit }) {
   const totalMonthly = monthlyExpenseTotal(state)
   const totalAssets = Number(state.balance || 0) + reserve
 
-  function notify(type, message) {
-    setToast({ type, message })
-    if (toastTimer.current) window.clearTimeout(toastTimer.current)
-    toastTimer.current = window.setTimeout(() => setToast(null), 3600)
-  }
-
   function updateExpense(key, value) {
     commit({ ...state, expenses: { ...state.expenses, [key]: Math.max(0, Number(value) || 0) } })
   }
@@ -79,7 +73,7 @@ export default function FinancesTab({ state, commit }) {
   function applyManualBalance() {
     const nextBalance = Number(manualBalance)
     if (!Number.isFinite(nextBalance)) {
-      notify('error', 'Informe um saldo válido.')
+      toast.error('Informe um saldo válido.')
       return
     }
     const difference = nextBalance - Number(state.balance || 0)
@@ -91,18 +85,18 @@ export default function FinancesTab({ state, commit }) {
         { date: now(), type: 'Ajuste', desc: 'Ajuste manual de saldo', value: difference, amount: difference, balance: nextBalance },
       ],
     })
-    notify('success', `Saldo atualizado para ${money(nextBalance)}.`)
+    toast.success(`Saldo atualizado para ${money(nextBalance)}.`)
   }
 
   function addToReserve() {
     const amountCents = toCents(reserveDeposit)
     const balanceCents = toCents(state.balance || 0)
     if (!Number.isFinite(amountCents) || amountCents <= 0) {
-      notify('error', 'Informe um valor válido para adicionar à reserva.')
+      toast.error('Informe um valor válido para adicionar à reserva.')
       return
     }
     if (!Number.isFinite(balanceCents) || amountCents > balanceCents) {
-      notify('error', 'Saldo disponível insuficiente para esse aporte.')
+      toast.error('Saldo disponível insuficiente para esse aporte.')
       return
     }
     const amount = fromCents(amountCents)
@@ -119,7 +113,7 @@ export default function FinancesTab({ state, commit }) {
     })
     setManualBalance(nextBalance)
     setReserveDeposit('')
-    notify('success', `${money(amount)} adicionados à reserva.`)
+    toast.success(`${money(amount)} adicionados à reserva.`)
   }
 
   function useReserve(event) {
@@ -127,15 +121,15 @@ export default function FinancesTab({ state, commit }) {
     const amountCents = toCents(reserveUseAmount)
     const reason = reserveUseReason.trim()
     if (!Number.isFinite(amountCents) || amountCents <= 0) {
-      notify('error', 'Informe um valor válido para usar da reserva.')
+      toast.error('Informe um valor válido para usar da reserva.')
       return
     }
     if (!reason) {
-      notify('error', 'Informe o motivo do uso da reserva.')
+      toast.error('Informe o motivo do uso da reserva.')
       return
     }
     if (amountCents > reserveCents) {
-      notify('error', `O valor informado é maior que a reserva disponível de ${money(reserve)}.`)
+      toast.error(`O valor informado é maior que a reserva disponível de ${money(reserve)}.`)
       return
     }
     const amount = fromCents(amountCents)
@@ -154,14 +148,14 @@ export default function FinancesTab({ state, commit }) {
     setManualBalance(nextBalance)
     setReserveUseAmount('')
     setReserveUseReason('')
-    notify('success', `${money(amount)} transferidos da reserva para o saldo disponível.`)
+    toast.success(`${money(amount)} transferidos da reserva para o saldo disponível.`)
   }
 
   function addCustomExpense(event) {
     event.preventDefault()
     const value = Number(customValue)
     if (!customName.trim() || !Number.isFinite(value) || value < 0) {
-      notify('error', 'Informe nome e valor válido para o gasto.')
+      toast.error('Informe nome e valor válido para o gasto.')
       return
     }
     const expenseName = customName.trim()
@@ -175,7 +169,7 @@ export default function FinancesTab({ state, commit }) {
     setCustomName('')
     setCustomValue('')
     setCustomMonthly(true)
-    notify('success', `Gasto “${expenseName}” adicionado.`)
+    toast.success(`Gasto “${expenseName}” adicionado.`)
   }
 
   function toggleCustom(id, monthly) {
@@ -188,7 +182,7 @@ export default function FinancesTab({ state, commit }) {
   function deleteCustom(id) {
     const item = (state.customExpenses || []).find((expense) => expense.id === id)
     commit({ ...state, customExpenses: (state.customExpenses || []).filter((expense) => expense.id !== id) })
-    notify('success', item ? `Gasto “${item.name}” excluído.` : 'Gasto excluído.')
+    toast.success(item ? `Gasto “${item.name}” excluído.` : 'Gasto excluído.')
   }
 
   function applyMonthlyExpenses() {
@@ -207,19 +201,11 @@ export default function FinancesTab({ state, commit }) {
       ],
     })
     setManualBalance(nextBalance)
-    notify('success', `Despesas mensais aplicadas. ${reserveContribution > 0 ? `${money(reserveContribution)} foram para a reserva.` : ''}`.trim())
+    toast.success(`Despesas mensais aplicadas. ${reserveContribution > 0 ? `${money(reserveContribution)} foram para a reserva.` : ''}`.trim())
   }
 
   return (
     <>
-      {toast && (
-        <div className={`app-toast app-toast-${toast.type}`} role="status" aria-live="polite">
-          <span className="app-toast-icon" aria-hidden="true">{toast.type === 'success' ? '✓' : '!'}</span>
-          <span>{toast.message}</span>
-          <button type="button" aria-label="Fechar notificação" onClick={() => setToast(null)}>×</button>
-        </div>
-      )}
-
       <section className="phase1-status-grid finance-summary-grid">
         <article className="panel phase1-metric"><span className="metric-label">Saldo disponível</span><strong className="metric-value">{money(state.balance)}</strong><span className="metric-detail">Conta pessoal da carreira</span></article>
         <article className="panel phase1-metric"><span className="metric-label">Reserva de emergência</span><strong className="metric-value">{money(reserve)}</strong><span className="metric-detail">Rende {(EMERGENCY_RESERVE_ANNUAL_YIELD * 100).toFixed(2)}% a.a.</span></article>
