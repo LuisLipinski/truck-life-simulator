@@ -7,12 +7,20 @@ import {
   PAY_LABELS,
   PAY_RATES,
   perDiemDaysForTrips,
+  routeOverrunSummary,
   weeklyEmergencyReserveYield,
 } from '../../lib/phase1.js'
 import { useToast } from '../ToastProvider.jsx'
 
 function money(value) {
   return Number(value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+}
+
+function formatHours(hours) {
+  const totalMinutes = Math.round(Number(hours || 0) * 60)
+  const wholeHours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  return minutes ? `${wholeHours}h ${minutes}min` : `${wholeHours}h`
 }
 
 function InfoTip({ text }) {
@@ -44,8 +52,6 @@ function LineLabel({ children, tip }) {
 export default function PayslipTab({ state, commit }) {
   const toast = useToast()
   const [level1Gross, setLevel1Gross] = useState(850)
-  const [overrunHours, setOverrunHours] = useState(0)
-  const [overrunRate, setOverrunRate] = useState(21.25)
   const [benefits, setBenefits] = useState(36)
   const [perDiemRate, setPerDiemRate] = useState(80)
   const [autoReserveEnabled, setAutoReserveEnabled] = useState(Boolean(state.autoReserveContribution?.enabled))
@@ -55,6 +61,7 @@ export default function PayslipTab({ state, commit }) {
   const weekTrips = useMemo(() => currentWeekTrips(state), [state])
   const mileage = useMemo(() => mileagePaySummary(weekTrips), [weekTrips])
   const perDiemDays = useMemo(() => perDiemDaysForTrips(weekTrips), [weekTrips])
+  const routeOverrun = useMemo(() => routeOverrunSummary(weekTrips), [weekTrips])
   const weekMiles = useMemo(() => weekTrips.reduce((sum, trip) => sum + Number(trip.miles || 0), 0), [weekTrips])
 
   function calculate() {
@@ -63,8 +70,8 @@ export default function PayslipTab({ state, commit }) {
     let perDiem = 0
     let desc = ''
     if (level === 1) {
-      gross = Math.max(0, Number(level1Gross) || 0) + Math.max(0, Number(overrunHours) || 0) * Math.max(0, Number(overrunRate) || 0)
-      desc = `Nível 1 — salário semanal${Number(overrunHours) ? ` + ${Number(overrunHours)}h overrun` : ''}`
+      gross = Math.max(0, Number(level1Gross) || 0) + routeOverrun.pay
+      desc = `Nível 1 — salário semanal${routeOverrun.overrunMinutes ? ` + ${formatHours(routeOverrun.overrunHours)} Route Overrun automático` : ''}`
     } else {
       gross = mileage.gross
       perDiem = perDiemDays.days * Math.max(0, Number(perDiemRate) || 0)
@@ -95,6 +102,8 @@ export default function PayslipTab({ state, commit }) {
       incidents: deductions.incidents,
       deposit,
       reserveInterest,
+      routeOverrunPay: level === 1 ? routeOverrun.pay : 0,
+      routeOverrunHours: level === 1 ? routeOverrun.overrunHours : 0,
       desc,
     }
   }
@@ -200,16 +209,23 @@ export default function PayslipTab({ state, commit }) {
           <>
             <TipLabel tip="Salário bruto base do motorista local no Nível 1. O valor padrão da carreira é US$ 850 por semana antes de impostos, benefícios e outros descontos.">Salário semanal bruto</TipLabel>
             <input type="number" min="0" step="0.01" value={level1Gross} onChange={(event) => setLevel1Gross(event.target.value)} />
-            <div className="two-columns">
-              <div>
-                <TipLabel tip="Use somente quando uma rota local/regional ultrapassar a jornada planejada. Na simulação, essas horas representam tempo adicional trabalhado além da escala normal.">Horas de Route Overrun</TipLabel>
-                <input type="number" min="0" step="0.25" value={overrunHours} onChange={(event) => setOverrunHours(event.target.value)} />
-              </div>
-              <div>
-                <TipLabel tip="Valor pago por cada hora de Route Overrun. O padrão fictício desta carreira é US$ 21,25 por hora.">Valor por hora extra</TipLabel>
-                <input type="number" min="0" step="0.01" value={overrunRate} onChange={(event) => setOverrunRate(event.target.value)} />
-              </div>
+
+            <div className="readout-box">
+              <span>Route Overrun automático</span>
+              <strong>{formatHours(routeOverrun.overrunHours)} • {money(routeOverrun.pay)}</strong>
+              <small>O sistema soma o tempo das viagens por dia. Até 8h/dia fazem parte da jornada normal; somente o excedente recebe {money(routeOverrun.rate)}/h.</small>
             </div>
+
+            {routeOverrun.days.length > 0 && (
+              <div className="breakdown-list compact-breakdown">
+                {routeOverrun.days.map((day) => (
+                  <div key={day.date}>
+                    <span>{day.date}</span>
+                    <strong>{formatHours(day.hours)} trabalhadas{day.overrunMinutes > 0 ? ` • +${formatHours(day.overrunHours)} extra` : ' • sem extra'}</strong>
+                  </div>
+                ))}
+              </div>
+            )}
           </>
         ) : (
           <>
@@ -259,7 +275,8 @@ export default function PayslipTab({ state, commit }) {
           <p>Estimativa de simulação; retenções reais podem variar.</p>
         </div>
         <div className="payslip-lines">
-          <div><LineLabel tip="Total antes de impostos e benefícios. No Nível 1 inclui salário base e Route Overrun; nos Níveis 2/3 vem das milhas pagas.">Salário bruto</LineLabel><strong>{money(shown.gross)}</strong></div>
+          {shown.level === 1 && <div><LineLabel tip="Calculado automaticamente pelas datas e horários das viagens da semana. O sistema soma o tempo por dia e paga somente o que ultrapassar 8 horas naquele dia.">Route Overrun</LineLabel><strong>+{money(shown.routeOverrunPay)} ({formatHours(shown.routeOverrunHours)})</strong></div>}
+          <div><LineLabel tip="Total antes de impostos e benefícios. No Nível 1 inclui salário base e Route Overrun calculado automaticamente; nos Níveis 2/3 vem das milhas pagas.">Salário bruto</LineLabel><strong>{money(shown.gross)}</strong></div>
           <div><LineLabel tip="Retenção federal estimada pela fórmula simplificada da simulação. Não representa cálculo fiscal oficial.">Federal</LineLabel><strong>-{money(shown.taxes.federal)}</strong></div>
           <div><LineLabel tip="Contribuição estimada de Social Security calculada sobre o salário bruto da semana.">Social Security</LineLabel><strong>-{money(shown.taxes.ss)}</strong></div>
           <div><LineLabel tip="Contribuição estimada do Medicare calculada sobre o salário bruto da semana.">Medicare</LineLabel><strong>-{money(shown.taxes.medicare)}</strong></div>
