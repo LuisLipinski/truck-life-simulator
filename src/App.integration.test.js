@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act } from 'react'
+import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App.jsx'
@@ -27,11 +27,7 @@ function seedCareer() {
 async function renderCareers() {
   window.location.hash = '#/ats'
   await act(async () => {
-    root.render(
-      <ToastProvider>
-        <App />
-      </ToastProvider>,
-    )
+    root.render(createElement(ToastProvider, null, createElement(App)))
   })
 }
 
