@@ -37,21 +37,25 @@ const levels = [
   },
 ]
 
+function Tip({ text }) {
+  return <button className="react-info-tip" type="button" aria-label="Mais informações" data-tip={text}>i</button>
+}
+
 export default function RulesTab() {
   return (
     <>
       <section className="panel rules-intro">
         <span className="eyebrow">Fase 1 — Company Driver</span>
-        <h2>Regras operacionais da carreira</h2>
+        <h2 className="line-label-with-tip">Regras operacionais da carreira <Tip text="Estas regras definem o roleplay da Fase 1. O aplicativo usa essas regras para manter salário, progressão e qualificações coerentes." /></h2>
         <p>Você trabalha como empregado e não possui caminhão próprio. Diesel, manutenção, pneus, seguro comercial, licenciamento, reparos e pedágios autorizados são custos da empresa.</p>
-        <div className="notice-box"><strong>Economia do ATS</strong><span>O valor da carga mostrado pelo jogo é ignorado. A economia pessoal é controlada pelo Truck Life Simulator.</span></div>
+        <div className="notice-box"><strong className="line-label-with-tip">Economia do ATS <Tip text="Os valores pagos pelo próprio ATS não entram na economia pessoal do aplicativo. Use apenas os valores calculados pelo Truck Life Simulator." /></strong><span>O valor da carga mostrado pelo jogo é ignorado. A economia pessoal é controlada pelo Truck Life Simulator.</span></div>
       </section>
 
       <section className="rules-grid">
         {levels.map((item) => (
           <article className="panel rule-card" key={item.level}>
             <span className="eyebrow">{item.level}</span>
-            <h2>{item.title}</h2>
+            <h2 className="line-label-with-tip">{item.title} <Tip text={item.level === 'Nível 1' ? 'Operação local/regional com day cab, salário semanal fixo e retorno à base como padrão.' : item.level === 'Nível 2' ? 'Operação OTR com sleeper, viagens longas, pagamento por milha e per diem em dias qualificáveis.' : 'Operação avançada com Doubles, HazMat combinado quando qualificado e trabalhos de maior complexidade.'} /></h2>
             <ul>{item.bullets.map((bullet) => <li key={bullet}>{bullet}</li>)}</ul>
           </article>
         ))}
@@ -59,9 +63,9 @@ export default function RulesTab() {
 
       <section className="panel rule-card">
         <span className="eyebrow">Fluxo semanal</span>
-        <h2>Ordem recomendada</h2>
+        <h2 className="line-label-with-tip">Ordem recomendada <Tip text="Seguir esta ordem reduz divergências: registre viagens e ocorrências antes de fechar o holerite e só depois avance para a próxima semana." /></h2>
         <ol className="workflow-list">
-          <li>Jogue a rota no ATS e registre todos os trechos em Progresso.</li>
+          <li>Jogue a rota no ATS e registre todos os trechos em Registro de Viagens.</li>
           <li>Registre infrações ou acidentes antes de fechar a semana.</li>
           <li>Confira milhas, categorias e per diem no Holerite.</li>
           <li>Gere o holerite; isso fecha a semana e inicia a próxima.</li>
@@ -71,10 +75,10 @@ export default function RulesTab() {
       </section>
 
       <section className="rules-grid compact-rules">
-        <article className="panel rule-card"><span className="eyebrow">Nível 1</span><h2>Origem e retorno</h2><p>Novas cargas são retiradas em filial da empregadora. Se houver carga de retorno em uma filial de destino, use-a; caso contrário, retorne vazio ou faça deadhead regional até uma filial próxima.</p></article>
-        <article className="panel rule-card"><span className="eyebrow">ATS Skills</span><h2>Progressão sugerida</h2><p>Nível 1 prioriza Fuel Economy e, se desejar, High-Value. Nível 2 adiciona Long Distance, Fragile, Just-in-Time e HazMat após qualificação. Nível 3 libera a progressão avançada.</p></article>
-        <article className="panel rule-card"><span className="eyebrow">Ocorrências</span><h2>Multas e acidentes</h2><p>Custos podem sair imediatamente do saldo ou ficar pendentes para holerite. Se o holerite não comportar o valor, o restante continua pendente para a semana seguinte.</p></article>
-        <article className="panel rule-card"><span className="eyebrow">Semanas fechadas</span><h2>Dados congelados</h2><p>Depois de gerar o holerite, a semana é considerada fechada. Viagens dessa semana não devem mais ser alteradas ou excluídas.</p></article>
+        <article className="panel rule-card"><span className="eyebrow">Nível 1</span><h2 className="line-label-with-tip">Origem e retorno <Tip text="Novas cargas começam em filiais da empregadora. Sem carga de retorno, volte vazio ou faça deadhead regional até uma filial próxima." /></h2><p>Novas cargas são retiradas em filial da empregadora. Se houver carga de retorno em uma filial de destino, use-a; caso contrário, retorne vazio ou faça deadhead regional até uma filial próxima.</p></article>
+        <article className="panel rule-card"><span className="eyebrow">ATS Skills</span><h2 className="line-label-with-tip">Progressão sugerida <Tip text="É uma recomendação de distribuição de pontos no ATS para combinar com a carreira; não bloqueia o aplicativo." /></h2><p>Nível 1 prioriza Fuel Economy e, se desejar, High-Value. Nível 2 adiciona Long Distance, Fragile, Just-in-Time e HazMat após qualificação. Nível 3 libera a progressão avançada.</p></article>
+        <article className="panel rule-card"><span className="eyebrow">Ocorrências</span><h2 className="line-label-with-tip">Multas e acidentes <Tip text="Podem ser pagos imediatamente pelo saldo ou carregados para holerites futuros até que todo o valor seja quitado." /></h2><p>Custos podem sair imediatamente do saldo ou ficar pendentes para holerite. Se o holerite não comportar o valor, o restante continua pendente para a semana seguinte.</p></article>
+        <article className="panel rule-card"><span className="eyebrow">Semanas fechadas</span><h2 className="line-label-with-tip">Dados congelados <Tip text="Depois do holerite, os dados daquela semana ficam protegidos para evitar alterações que quebrariam o histórico financeiro." /></h2><p>Depois de gerar o holerite, a semana é considerada fechada. Viagens dessa semana não devem mais ser alteradas ou excluídas.</p></article>
       </section>
     </>
   )
