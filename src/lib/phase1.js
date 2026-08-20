@@ -4,6 +4,8 @@ const LEGACY_STATE_KEY = 'ats_phase1_tabs_v3'
 const OLD_LEGACY_KEY = 'ats_phase1_tabs_v2'
 
 export const EMERGENCY_RESERVE_ANNUAL_YIELD = 0.0325
+export const LEVEL1_ROUTE_OVERRUN_RATE = 21.25
+export const LEVEL1_DAILY_WORK_MINUTES = 8 * 60
 
 export const DEFAULT_EXPENSES = {
   rent: 1650,
@@ -165,6 +167,52 @@ export function mileagePaySummary(trips) {
   }
   const gross = Object.entries(totals).reduce((sum, [key, miles]) => sum + miles * (PAY_RATES[key] || 0), 0)
   return { totals, gross }
+}
+
+function localDayKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+export function routeOverrunSummary(trips, dailyWorkMinutes = LEVEL1_DAILY_WORK_MINUTES) {
+  const minutesByDay = new Map()
+
+  for (const trip of trips || []) {
+    if (!trip.departureAt || !trip.arrivalAt) continue
+    const start = new Date(trip.departureAt)
+    const end = new Date(trip.arrivalAt)
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) continue
+
+    let cursor = new Date(start)
+    while (cursor < end) {
+      const nextMidnight = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 1)
+      const segmentEnd = end < nextMidnight ? end : nextMidnight
+      const minutes = Math.max(0, Math.round((segmentEnd - cursor) / 60000))
+      const key = localDayKey(cursor)
+      minutesByDay.set(key, (minutesByDay.get(key) || 0) + minutes)
+      cursor = segmentEnd
+    }
+  }
+
+  const days = [...minutesByDay.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, minutes]) => ({
+    date,
+    minutes,
+    hours: minutes / 60,
+    overrunMinutes: Math.max(0, minutes - dailyWorkMinutes),
+    overrunHours: Math.max(0, minutes - dailyWorkMinutes) / 60,
+  }))
+  const totalMinutes = days.reduce((sum, day) => sum + day.minutes, 0)
+  const overrunMinutes = days.reduce((sum, day) => sum + day.overrunMinutes, 0)
+  const pay = Math.round((overrunMinutes * LEVEL1_ROUTE_OVERRUN_RATE / 60) * 100) / 100
+
+  return {
+    days,
+    totalMinutes,
+    totalHours: totalMinutes / 60,
+    overrunMinutes,
+    overrunHours: overrunMinutes / 60,
+    rate: LEVEL1_ROUTE_OVERRUN_RATE,
+    pay,
+  }
 }
 
 export function perDiemDaysForTrips(trips) {
