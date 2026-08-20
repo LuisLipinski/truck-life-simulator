@@ -10,6 +10,7 @@ import {
 import { downloadCSVTemplate, importCareerCSVText } from './lib/csv.js'
 import Phase1Page from './components/Phase1Page.jsx'
 import CityAutocomplete from './components/CityAutocomplete.jsx'
+import { useToast } from './components/ToastProvider.jsx'
 
 const ATS_IMAGE = 'https://cdn.cloudflare.steamstatic.com/steam/apps/270880/header.jpg'
 const ETS_IMAGE = 'https://cdn.cloudflare.steamstatic.com/steam/apps/227300/header.jpg'
@@ -83,8 +84,8 @@ function HomePage() {
 }
 
 function CareersPage() {
+  const toast = useToast()
   const [careers, setCareers] = useState(() => loadCareers())
-  const [importStatus, setImportStatus] = useState('')
   const [showCsvHelp, setShowCsvHelp] = useState(false)
   const fileInput = useRef(null)
 
@@ -92,6 +93,7 @@ function CareersPage() {
     if (!window.confirm(`Excluir a carreira de ${career.driverName}? Essa ação não pode ser desfeita.`)) return
     deleteCareer(career.id)
     setCareers(loadCareers())
+    toast.success(`A carreira de ${career.driverName} foi excluída.`)
   }
 
   function openCareer(career) {
@@ -102,14 +104,13 @@ function CareersPage() {
   async function importCsv(event) {
     const file = event.target.files?.[0]
     if (!file) return
-    setImportStatus('Lendo arquivo...')
+    toast.info('Lendo e validando o backup da carreira...', { title: 'Importando CSV', duration: 2200 })
     try {
       const result = importCareerCSVText(await file.text())
       setCareers(loadCareers())
-      setImportStatus(`Carreira “${result.career.driverName}” importada com sucesso (CSV v${result.version}).`)
+      toast.success(`Carreira “${result.career.driverName}” importada com sucesso (CSV v${result.version}).`, { title: 'Importação concluída' })
     } catch (error) {
-      setImportStatus(`Erro: ${error.message}`)
-      window.alert(`Não foi possível importar a carreira: ${error.message}`)
+      toast.error(`Não foi possível importar a carreira: ${error.message}`, { title: 'Erro ao importar CSV' })
     } finally {
       event.target.value = ''
     }
@@ -133,7 +134,6 @@ function CareersPage() {
         <input ref={fileInput} type="file" accept=".csv,text/csv" hidden onChange={importCsv} />
       </div>
 
-      {importStatus && <div className="import-status">{importStatus}</div>}
       {showCsvHelp && (
         <section className="panel csv-help">
           <span className="eyebrow">Backup portátil</span>
@@ -179,6 +179,7 @@ function CareersPage() {
 }
 
 function NewCareerPage() {
+  const toast = useToast()
   const [driverName, setDriverName] = useState('')
   const [city, setCity] = useState('')
   const [company, setCompany] = useState('')
@@ -196,7 +197,7 @@ function NewCareerPage() {
   function submit(event) {
     event.preventDefault()
     if (!driverName.trim() || !city.trim() || !company.trim()) {
-      window.alert('Preencha nome, cidade e empresa.')
+      toast.error('Preencha nome, cidade e empresa antes de criar a carreira.')
       return
     }
     if (remaining < 0 && !window.confirm('Os custos iniciais são maiores que o dinheiro disponível. Criar a carreira com saldo negativo?')) return
@@ -212,6 +213,7 @@ function NewCareerPage() {
       currentBalance: remaining,
       bio: bio.trim(),
     })
+    toast.success(`Carreira de ${career.driverName} criada com sucesso.`, { title: 'Carreira criada' })
     window.location.hash = `#/phases?career=${encodeURIComponent(career.id)}`
   }
 
