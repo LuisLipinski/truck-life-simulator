@@ -17,6 +17,10 @@ import {
 import FinancesTab from './phase1/FinancesTab.jsx'
 import PayslipTab from './phase1/PayslipTab.jsx'
 import IncidentsTab from './phase1/IncidentsTab.jsx'
+import QualificationsTab from './phase1/QualificationsTab.jsx'
+import RulesTab from './phase1/RulesTab.jsx'
+import ModsTab from './phase1/ModsTab.jsx'
+import HistoryTab from './phase1/HistoryTab.jsx'
 
 function money(value) {
   return Number(value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
@@ -54,18 +58,18 @@ function OverviewTab({ career, state, setActiveTab }) {
   return (
     <>
       {promotion.ready && (
-        <button className="promotion-banner" onClick={() => setActiveTab('progress')}>
+        <button className="promotion-banner" onClick={() => setActiveTab('qualifications')}>
           <span className="eyebrow warning-text">Promoção disponível</span>
           <strong>{promotion.title}</strong>
-          <span>{promotion.requirement}. Abra Progresso para continuar a carreira.</span>
+          <span>{promotion.requirement}. Abra Qualificações para concluir.</span>
         </button>
       )}
 
       <section className="phase1-metrics-grid">
         <MetricCard label="Saldo" value={money(state.balance)} detail="Dinheiro pessoal disponível" onClick={() => setActiveTab('finances')} />
-        <MetricCard label="Nível atual" value={`Nível ${state.currentLevel}`} detail={levelName} onClick={() => setActiveTab('progress')} />
+        <MetricCard label="Nível atual" value={`Nível ${state.currentLevel}`} detail={levelName} onClick={() => setActiveTab('qualifications')} />
         <MetricCard label="Despesas mensais" value={money(monthly)} detail="Padrão + personalizadas mensais" onClick={() => setActiveTab('finances')} />
-        <MetricCard label="Progressão" value={state.currentLevel >= 3 ? `${miles.toLocaleString('en-US')} mi` : `${miles.toLocaleString('en-US')} / ${promotion.goal.toLocaleString('en-US')} mi`} detail={promotion.remaining ? `${promotion.remaining.toLocaleString('en-US')} mi para o Nível ${promotion.nextLevel}` : promotion.title} onClick={() => setActiveTab('progress')}>
+        <MetricCard label="Progressão" value={state.currentLevel >= 3 ? `${miles.toLocaleString('en-US')} mi` : `${miles.toLocaleString('en-US')} / ${promotion.goal.toLocaleString('en-US')} mi`} detail={promotion.remaining ? `${promotion.remaining.toLocaleString('en-US')} mi para o Nível ${promotion.nextLevel}` : promotion.title} onClick={() => setActiveTab('qualifications')}>
           <div className="react-progress"><span style={{ width: `${progress}%` }} /></div>
         </MetricCard>
       </section>
@@ -91,11 +95,11 @@ function OverviewTab({ career, state, setActiveTab }) {
 
       <section className="panel legacy-bridge">
         <div>
-          <span className="eyebrow">Migração em andamento</span>
-          <h2>As áreas financeiras principais já estão em React</h2>
-          <p>Visão Geral, Progresso, Finanças, Holerite e Infrações compartilham os mesmos dados com a versão clássica. Regras, Mods, Histórico e CSV ainda serão convertidos.</p>
+          <span className="eyebrow">Migração React</span>
+          <h2>A Fase 1 principal já está em React</h2>
+          <p>Visão Geral, Finanças, Holerite, Progresso, Ocorrências, Qualificações, Regras, Mods e Histórico já compartilham os mesmos dados. O CSV ainda usa a interface clássica durante a migração.</p>
         </div>
-        <a className="button secondary compact" href={`fase1.html?career=${encodeURIComponent(career.id)}`}>Abrir módulo clássico</a>
+        <a className="button secondary compact" href={`fase1.html?career=${encodeURIComponent(career.id)}`}>Abrir módulo clássico / CSV</a>
       </section>
     </>
   )
@@ -240,6 +244,10 @@ export default function Phase1Page({ careerId, onBack }) {
     ['payslip', 'Holerite'],
     ['progress', 'Progresso'],
     ['incidents', 'Infrações e Acidentes'],
+    ['qualifications', 'Qualificações'],
+    ['rules', 'Regras'],
+    ['mods', 'Mods sugeridos'],
+    ['history', 'Histórico'],
   ], [])
 
   useEffect(() => {
@@ -273,9 +281,6 @@ export default function Phase1Page({ careerId, onBack }) {
       <header className="phase1-header"><div className="phase1-header-inner"><button className="back-button" onClick={onBack}>← Voltar para fases</button><span className="eyebrow">Fase 1 • Company Driver</span><h1>{career.driverName}</h1><p>{career.city} • {career.company}</p></div></header>
       <nav className="phase1-tabs-wrap" aria-label="Seções da Fase 1"><div className="phase1-tabs">
         {tabs.map(([id, label]) => <button key={id} className={activeTab === id ? 'active' : ''} onClick={() => setActiveTab(id)}>{label}</button>)}
-        <a href={`fase1.html?career=${encodeURIComponent(career.id)}`}>Regras</a>
-        <a href={`fase1.html?career=${encodeURIComponent(career.id)}`}>Mods sugeridos</a>
-        <a href={`fase1.html?career=${encodeURIComponent(career.id)}`}>Histórico clássico</a>
       </div></nav>
       <main className="phase1-content">
         {activeTab === 'overview' && <OverviewTab career={career} state={state} setActiveTab={setActiveTab} />}
@@ -283,6 +288,10 @@ export default function Phase1Page({ careerId, onBack }) {
         {activeTab === 'payslip' && <PayslipTab state={state} commit={commit} />}
         {activeTab === 'progress' && <TripsTab state={state} onAddTrip={addTrip} onDeleteTrip={deleteTrip} />}
         {activeTab === 'incidents' && <IncidentsTab state={state} commit={commit} />}
+        {activeTab === 'qualifications' && <QualificationsTab state={state} commit={commit} />}
+        {activeTab === 'rules' && <RulesTab />}
+        {activeTab === 'mods' && <ModsTab />}
+        {activeTab === 'history' && <HistoryTab state={state} />}
       </main>
     </div>
   )
