@@ -41,6 +41,7 @@ describe('career and Phase 1 storage integration', () => {
 
     const state = loadPhase1State(career.id)
     expect(state.balance).toBe(793)
+    expect(state.emergencyReserve).toBe(0)
     expect(state.currentLevel).toBe(1)
     expect(state.currentWeek).toBe(1)
     expect(state.trips).toEqual([])
@@ -59,6 +60,8 @@ describe('career and Phase 1 storage integration', () => {
     savePhase1State(career.id, {
       ...state,
       balance: 1540.25,
+      emergencyReserve: 625.40,
+      autoReserveContribution: { enabled: true, amount: 100 },
       currentLevel: 2,
       careerLevel: 2,
       currentWeek: 4,
@@ -69,6 +72,8 @@ describe('career and Phase 1 storage integration', () => {
     const syncedCareer = getCareer(career.id)
 
     expect(restored.balance).toBe(1540.25)
+    expect(restored.emergencyReserve).toBe(625.40)
+    expect(restored.autoReserveContribution).toEqual({ enabled: true, amount: 100 })
     expect(restored.currentLevel).toBe(2)
     expect(restored.currentWeek).toBe(4)
     expect(restored.trips).toHaveLength(1)
@@ -96,10 +101,21 @@ describe('career and Phase 1 storage integration', () => {
     expect(restored.currentLevel).toBe(2)
     expect(restored.careerLevel).toBe(2)
     expect(restored.balance).toBe(900)
+    expect(restored.emergencyReserve).toBe(0)
     expect(restored.currentWeek).toBe(3)
     expect(restored.academy.level2).toBe(true)
     expect(restored.incidents).toEqual([])
     expect(restored.customExpenses).toEqual([])
+  })
+
+  it('clamps a negative imported reserve to zero during normalization', () => {
+    const career = createCareer({ driverName: 'Reserve Clamp', initialBalance: 793 })
+    localStorage.setItem(phase1StorageKey(career.id), JSON.stringify({
+      balance: 793,
+      emergencyReserve: -25,
+    }))
+
+    expect(loadPhase1State(career.id).emergencyReserve).toBe(0)
   })
 
   it('removes the active career pointer when that career is deleted', () => {
