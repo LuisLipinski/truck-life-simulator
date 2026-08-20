@@ -2,7 +2,7 @@
 
 Atualizado em: **20/08/2026**
 
-Branch ativa: **`react-migration`**
+Branch ativa: **`development`**
 
 Aplicação publicada: **https://luislipinski.github.io/truck-life-simulator/**
 
@@ -55,13 +55,14 @@ Versões de Node aceitas pelo projeto:
 | `src/lib/csv.js` | Backup v7, CSV, XLS, XLSX, validação, importação e exportação |
 | `src/data/atsCities.js` | Cidades disponíveis no autocomplete do ATS |
 | `src/components/MobileHelp.jsx` | Exibição dos textos dos ícones de informação no mobile |
-| `.github/workflows/react-migration-ci.yml` | Testes, build e deploy no GitHub Pages |
+| `.github/workflows/delivery-pipeline.yml` | Testes, promoções, rollback e deploy no GitHub Pages |
+| `DEPLOYMENT.md` | Instruções operacionais do fluxo entre branches |
 
 ## 3. Branches e publicação
 
 ### `master`
 
-Continua com a versão clássica baseada em HTML, CSS e JavaScript. É também a branch padrão do repositório.
+É a branch padrão do repositório e mantém o histórico estável das versões React promovidas após a validação em `development`.
 
 ### `node-migration`
 
@@ -69,9 +70,13 @@ Branch intermediária criada durante a discussão inicial sobre a migração. El
 
 ### `react-migration`
 
-Contém a aplicação React atual e é a origem do deploy público no GitHub Pages.
+Permanece como registro histórico do trabalho de migração. Novas alterações devem partir de uma branch de trabalho e seguir para `development`.
 
-O workflow é executado em todo `push` para `react-migration` ou manualmente por `workflow_dispatch` e realiza:
+### `development`
+
+Contém a aplicação React em validação e é a única origem do deploy público no GitHub Pages.
+
+O workflow é executado em todo `push` para `development`, em pull requests direcionados a `development` ou `master` e manualmente por `workflow_dispatch`. O fluxo automático realiza:
 
 1. checkout da branch;
 2. configuração do Node 22;
@@ -80,9 +85,13 @@ O workflow é executado em todo `push` para `react-migration` ou manualmente por
 5. configuração do GitHub Pages;
 6. build de produção com Vite;
 7. upload da pasta `dist`;
-8. deploy no GitHub Pages.
+8. deploy no GitHub Pages, somente quando a origem é `development`.
 
-O fluxo normal da versão React não depende de `ats.html`, `fase1.html` ou das páginas clássicas. Esses arquivos continuam na branch apenas como fallback temporário enquanto a migração não for incorporada à `master`.
+O fluxo manual permite promover uma branch de trabalho para `development`, promover `development` para `master`, executar as duas promoções em conjunto ou criar um rollback seguro de qualquer uma das duas branches. Testes e build precisam passar antes de cada atualização. O rollback restaura a versão anterior em um novo commit, sem reescrever o histórico.
+
+As instruções operacionais completas estão em `DEPLOYMENT.md`.
+
+O fluxo normal da versão React não depende de `ats.html`, `fase1.html` ou das páginas clássicas. Esses arquivos permanecem apenas como fallback legado.
 
 ## 4. Rotas React
 
@@ -844,11 +853,11 @@ O build apresenta apenas um aviso não bloqueante por existir um chunk JavaScrip
 11. remover as chaves de estado órfãs ao excluir uma carreira;
 12. considerar divisão do bundle e carregamento sob demanda do módulo XLSX;
 13. considerar versionar o `package-lock.json` e trocar o CI para `npm ci`;
-14. decidir quando incorporar a `react-migration` à `master`;
-15. remover os arquivos clássicos somente depois da validação e do merge.
+14. remover os arquivos clássicos somente depois de uma validação final do fluxo React;
+15. considerar proteção obrigatória de pull request para `development` e `master`.
 
 ## 28. Status da migração
 
 A migração funcional para React está concluída para o fluxo atualmente existente da Fase 1. A versão React já cria e gerencia carreiras, registra viagens, calcula pagamentos, controla finanças, processa ocorrências, aplica progressões, mantém backups e está publicada no GitHub Pages.
 
-O trabalho restante é principalmente de validação funcional e visual, otimização, consolidação da branch e planejamento das futuras Fases 2 e 3.
+O trabalho restante é principalmente de validação funcional e visual, otimização e planejamento das futuras Fases 2 e 3. O desenvolvimento passa a ser integrado em `development` e promovido para `master` pela pipeline.

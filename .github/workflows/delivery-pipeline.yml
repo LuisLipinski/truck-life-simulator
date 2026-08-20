@@ -1,0 +1,303 @@
+name: Truck Life delivery
+
+on:
+  pull_request:
+    branches:
+      - development
+      - master
+  push:
+    branches:
+      - development
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Operação que a pipeline deve executar
+        required: true
+        default: validate-development
+        type: choice
+        options:
+          - validate-development
+          - promote-source-to-development
+          - promote-development-to-master
+          - promote-source-to-development-and-master
+          - rollback-development
+          - rollback-master
+      source_ref:
+        description: Branch de origem usada nas promoções para development
+        required: false
+        default: react-migration
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: truck-life-${{ github.event_name == 'workflow_dispatch' && 'branch-flow' || github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: 22
+
+jobs:
+  quality:
+    name: Test and build
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run unit and integration tests
+        run: npm test
+
+      - name: Build React app
+        run: npm run build
+
+      - name: Configure Pages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/development'
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/development'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+  deploy-development:
+    name: Deploy development to Pages
+    if: github.event_name == 'push' && github.ref == 'refs/heads/development'
+    needs: quality
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: github-pages
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  validate-development:
+    name: Validate development
+    if: github.event_name == 'workflow_dispatch' && inputs.operation == 'validate-development'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout development
+        uses: actions/checkout@v4
+        with:
+          ref: development
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run unit and integration tests
+        run: npm test
+
+      - name: Build React app
+        run: npm run build
+
+  branch-operation:
+    name: Promote or rollback branches
+    if: github.event_name == 'workflow_dispatch' && inputs.operation != 'validate-development'
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    outputs:
+      deploy_development: ${{ steps.branch-flow.outputs.deploy_development }}
+      summary: ${{ steps.branch-flow.outputs.summary }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Configure automation identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Apply branch flow
+        id: branch-flow
+        env:
+          OPERATION: ${{ inputs.operation }}
+          SOURCE_REF: ${{ inputs.source_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          run_checks() {
+            if [[ -f package-lock.json ]]; then
+              npm ci --no-audit --no-fund
+            else
+              npm install --no-audit --no-fund
+            fi
+            npm test
+            npm run build
+          }
+
+          fetch_branch() {
+            local branch="$1"
+            git fetch --no-tags origin "refs/heads/${branch}:refs/remotes/origin/${branch}"
+          }
+
+          checkout_branch() {
+            local branch="$1"
+            fetch_branch "$branch"
+            git checkout -B "$branch" "refs/remotes/origin/${branch}"
+          }
+
+          validate_source() {
+            if [[ -z "$SOURCE_REF" ]]; then
+              echo "Informe source_ref para promover uma branch." >&2
+              exit 1
+            fi
+            git check-ref-format --branch "$SOURCE_REF" >/dev/null
+            if [[ "$SOURCE_REF" == "development" || "$SOURCE_REF" == "master" ]]; then
+              echo "source_ref deve ser uma branch de trabalho, não development ou master." >&2
+              exit 1
+            fi
+            if ! git ls-remote --exit-code --heads origin "$SOURCE_REF" >/dev/null; then
+              echo "A branch de origem '$SOURCE_REF' não existe." >&2
+              exit 1
+            fi
+          }
+
+          rollback_branch() {
+            local target="$1"
+            checkout_branch "$target"
+            local current previous
+            current=$(git rev-parse HEAD)
+            previous=$(git rev-parse "${current}^1")
+
+            git restore --source="$previous" --staged --worktree -- . ':(exclude).github/workflows/**'
+            git commit --allow-empty -m "Rollback ${target} to ${previous:0:7}"
+            run_checks
+
+            local rollback_sha
+            rollback_sha=$(git rev-parse HEAD)
+            git push origin "${rollback_sha}:refs/heads/${target}"
+            echo "Rollback de ${target} para ${previous:0:7} criado em ${rollback_sha:0:7}."
+          }
+
+          deploy_development=false
+          summary=""
+
+          case "$OPERATION" in
+            promote-source-to-development)
+              validate_source
+              checkout_branch development
+              fetch_branch "$SOURCE_REF"
+              git merge --no-ff --no-edit -m "Promote ${SOURCE_REF} to development" "refs/remotes/origin/${SOURCE_REF}"
+              run_checks
+              development_sha=$(git rev-parse HEAD)
+              git push origin "${development_sha}:refs/heads/development"
+              deploy_development=true
+              summary="${SOURCE_REF} promovida para development em ${development_sha:0:7}."
+              ;;
+            promote-development-to-master)
+              checkout_branch master
+              fetch_branch development
+              git merge --no-ff --no-edit -m "Promote development to master" refs/remotes/origin/development
+              run_checks
+              master_sha=$(git rev-parse HEAD)
+              git push origin "${master_sha}:refs/heads/master"
+              summary="development promovida para master em ${master_sha:0:7}."
+              ;;
+            promote-source-to-development-and-master)
+              validate_source
+              checkout_branch development
+              fetch_branch "$SOURCE_REF"
+              git merge --no-ff --no-edit -m "Promote ${SOURCE_REF} to development" "refs/remotes/origin/${SOURCE_REF}"
+              run_checks
+              development_sha=$(git rev-parse HEAD)
+
+              checkout_branch master
+              git merge --no-ff --no-edit -m "Promote development to master" "$development_sha"
+              run_checks
+              master_sha=$(git rev-parse HEAD)
+
+              git push --atomic origin \
+                "${development_sha}:refs/heads/development" \
+                "${master_sha}:refs/heads/master"
+
+              git checkout --detach "$development_sha"
+              npm run build
+              deploy_development=true
+              summary="${SOURCE_REF} promovida para development (${development_sha:0:7}) e master (${master_sha:0:7})."
+              ;;
+            rollback-development)
+              rollback_branch development
+              deploy_development=true
+              summary="Rollback da development concluído."
+              ;;
+            rollback-master)
+              rollback_branch master
+              summary="Rollback da master concluído."
+              ;;
+            *)
+              echo "Operação inválida: $OPERATION" >&2
+              exit 1
+              ;;
+          esac
+
+          echo "deploy_development=$deploy_development" >> "$GITHUB_OUTPUT"
+          echo "summary=$summary" >> "$GITHUB_OUTPUT"
+          printf '### Resultado\n\n%s\n' "$summary" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Configure Pages
+        if: steps.branch-flow.outputs.deploy_development == 'true'
+        uses: actions/configure-pages@v5
+
+      - name: Upload development artifact
+        if: steps.branch-flow.outputs.deploy_development == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+  deploy-after-operation:
+    name: Deploy promoted or rolled back development
+    if: needs.branch-operation.outputs.deploy_development == 'true'
+    needs: branch-operation
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: github-pages
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
