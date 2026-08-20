@@ -11,6 +11,7 @@ import {
   monthlyExpenseTotal,
   perDiemDaysForTrips,
   pendingIncidentTotal,
+  routeOverrunSummary,
   totalMiles,
   tripPayCategory,
   validPayCategories,
@@ -70,6 +71,39 @@ describe('Phase 1 pay categories and mileage pay', () => {
     expect(validPayCategories(makeState({ currentLevel: 2, hazmatQualified: true }))).toEqual(['normal', 'hazmat'])
     expect(validPayCategories(makeState({ currentLevel: 3 }))).toEqual(['normal', 'doubles'])
     expect(validPayCategories(makeState({ currentLevel: 3, hazmatQualified: true }))).toEqual(['normal', 'hazmat', 'doubles', 'hazmat_doubles'])
+  })
+})
+
+describe('Phase 1 Level 1 route overrun', () => {
+  it('counts only time beyond eight worked hours in the same day', () => {
+    const summary = routeOverrunSummary([
+      { departureAt: '2026-08-20T07:00:00', arrivalAt: '2026-08-20T12:00:00' },
+      { departureAt: '2026-08-20T13:00:00', arrivalAt: '2026-08-20T18:30:00' },
+    ])
+
+    expect(summary.days).toHaveLength(1)
+    expect(summary.days[0].hours).toBe(10.5)
+    expect(summary.overrunHours).toBe(2.5)
+    expect(summary.pay).toBe(53.13)
+  })
+
+  it('calculates the eight-hour threshold separately for each calendar day', () => {
+    const summary = routeOverrunSummary([
+      { departureAt: '2026-08-20T07:00:00', arrivalAt: '2026-08-20T16:00:00' },
+      { departureAt: '2026-08-21T08:00:00', arrivalAt: '2026-08-21T18:00:00' },
+    ])
+
+    expect(summary.days.map((day) => day.overrunHours)).toEqual([1, 2])
+    expect(summary.overrunHours).toBe(3)
+  })
+
+  it('splits a trip that crosses midnight into the correct calendar days', () => {
+    const summary = routeOverrunSummary([
+      { departureAt: '2026-08-20T20:00:00', arrivalAt: '2026-08-21T06:00:00' },
+    ])
+
+    expect(summary.days.map((day) => day.hours)).toEqual([4, 6])
+    expect(summary.overrunHours).toBe(0)
   })
 })
 
@@ -138,7 +172,8 @@ describe('Phase 1 expenses, reserve, taxes and incidents', () => {
     expect(result.incidents[0].remaining).toBe(0)
     expect(result.incidents[0].status).toBe('Descontado no holerite')
     expect(result.incidents[1].remaining).toBe(50)
-    expect(result.incidents[1].status).toBe('Parcialmente descontado')
+    expect(result.incidents[1].status).toBe('Parcialmente descontado'
+    )
   })
 })
 
