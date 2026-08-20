@@ -1,0 +1,210 @@
+      background:linear-gradient(135deg,rgba(120,53,15,.72),rgba(30,41,59,.94));
+      border-radius:16px;
+      padding:18px 20px;
+      cursor:pointer;
+      box-shadow:0 12px 32px rgba(245,158,11,.14);
+      transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease;
+    }
+    #overviewPromotionBanner.show{display:block;}
+    #overviewPromotionBanner:hover,#overviewPromotionBanner:focus-visible{
+      transform:translateY(-2px);
+      box-shadow:0 16px 38px rgba(245,158,11,.22);
+      border-color:#fbbf24;
+      outline:none;
+    }
+    #overviewPromotionBanner .promo-kicker{font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#fbbf24;}
+    #overviewPromotionBanner .promo-title{font-size:22px;font-weight:900;line-height:1.2;margin-top:5px;color:#fff7ed;}
+    #overviewPromotionBanner .promo-text{margin:7px 0 0;color:#fde68a;line-height:1.55;}
+    #overviewPromotionBanner .promo-action{margin-top:10px;color:#fff;font-weight:800;}
+    @media(max-width:620px){
+      #overview .overview-metrics .card{min-height:0;grid-template-rows:auto auto auto auto;}
+      #overview .overview-metrics .card h2{min-height:0;align-items:flex-start;}
+      #overviewPromotionBanner{padding:16px;}
+      #overviewPromotionBanner .promo-title{font-size:19px;}
+    }
+
+</style>
+</head>
+<body>
+<header>
+  <div style="max-width:1200px;margin:0 auto 12px"><a id="backToPhases" href="fases.html" style="color:#94a3b8;text-decoration:none;font-weight:700">← Voltar para Fases</a></div>
+  <h1>American Truck Simulator — Fase 1</h1>
+  <p id="careerHeader">Company Driver • Simulação realista de carreira</p>
+</header>
+
+<div class="tabs-wrap">
+  <nav class="tabs" aria-label="Abas do painel">
+    <button class="tab-btn active" data-tab="overview">Visão Geral</button>
+    <button class="tab-btn" data-tab="howToTab">Como usar</button>
+    <button class="tab-btn" data-tab="finances">Saldo e Despesas</button>
+    <button class="tab-btn" data-tab="payslipTab">Holerite</button>
+    <button class="tab-btn" data-tab="progressTab">Progresso</button>
+    <button class="tab-btn" data-tab="incidentsTab">Infrações e Acidentes</button>
+    <button class="tab-btn" data-tab="rules">Regras</button>
+    <button class="tab-btn" data-tab="modsTab">Mods sugeridos</button>
+    <button class="tab-btn" data-tab="historyTab">Histórico</button>
+  </nav>
+</div>
+
+<main>
+  <section id="overview" class="tab-panel active">
+    <div class="tab-intro"><strong>Para que serve:</strong> visão rápida da carreira selecionada: saldo, nível, milhas, perfil e backup. Use esta aba para conferir sua situação antes de começar ou terminar uma sessão.</div>
+    <div id="overviewPromotionBanner" role="button" tabindex="0" aria-label="Abrir promoção disponível">
+      <div class="promo-kicker">Promoção disponível</div>
+      <div id="overviewPromotionTitle" class="promo-title">Você atingiu a meta de milhas</div>
+      <p id="overviewPromotionText" class="promo-text"></p>
+      <div class="promo-action">Clique para concluir os requisitos e liberar o próximo nível →</div>
+    </div>
+    <div class="overview-metrics">
+      <div class="card overview-link-card" data-go-tab="finances" role="button" tabindex="0" aria-label="Abrir Saldo e Despesas">
+        <h2>Saldo atual</h2>
+        <div id="balanceDisplay" class="big">US$ 793,00</div>
+        <p class="muted">Dinheiro pessoal disponível na simulação.</p>
+        <p class="card-link-hint">Abrir Saldo e Despesas →</p>
+      </div>
+      <div class="card overview-link-card" data-go-tab="progressTab" role="button" tabindex="0" aria-label="Abrir Progresso da carreira">
+        <h2>Nível atual</h2>
+        <div id="currentLevelDisplay" class="metric">Nível 1</div>
+        <p id="currentLevelText" class="muted">Trainee / Local Driver</p>
+        <p class="card-link-hint">Abrir Progresso →</p>
+      </div>
+      <div class="card overview-link-card" data-go-tab="progressTab" role="button" tabindex="0" aria-label="Abrir Progresso da carreira">
+        <h2>Progresso da carreira</h2>
+        <div id="mileageDisplay" class="metric">0 / 10.000 mi</div>
+        <div class="progress"><div id="mileageBar"></div></div>
+        <p class="muted">Nível 1 → Nível 2 aos 10.000 mi. Nível 2 → Nível 3 aos 50.000 mi totais.</p>
+        <p class="card-link-hint">Ver metas e qualificações →</p>
+      </div>
+      <div class="card overview-link-card" data-go-tab="finances" role="button" tabindex="0" aria-label="Abrir Saldo e Despesas">
+        <h2>Resumo mensal</h2>
+        <div id="overviewMonthlyTotal" class="metric">US$ 0,00</div>
+        <p class="muted">Despesas mensais configuradas.</p>
+        <p class="card-link-hint">Revisar despesas →</p>
+      </div>
+    </div>
+    <div class="quick-status-grid">
+      <div class="quick-status-card" data-go-tab="progressTab" role="button" tabindex="0" aria-label="Abrir a semana atual no Progresso">
+        <div class="quick-status-label">Semana atual</div>
+        <div id="overviewWeekValue" class="quick-status-value">Semana 1 • 0 mi</div>
+        <div id="overviewWeekDetail" class="quick-status-detail">Registre suas viagens desta semana.</div>
+      </div>
+      <div class="quick-status-card" data-go-tab="progressTab" role="button" tabindex="0" aria-label="Abrir a próxima meta da carreira">
+        <div class="quick-status-label">Próxima meta</div>
+        <div id="overviewNextGoal" class="quick-status-value">10.000 mi para Nível 2</div>
+        <div id="overviewNextGoalDetail" class="quick-status-detail">Academy de Proficiência + US$ 300.</div>
+      </div>
+    </div>
+    <div class="card overview-profile">
+      <h2>Perfil da carreira</h2>
+      <div class="grid">
+        <div><span class="muted">Motorista</span><div id="profileDriver" class="metric">—</div></div>
+        <div><span class="muted">Cidade-base</span><div id="profileCity" class="metric">—</div></div>
+        <div><span class="muted">Empresa</span><div id="profileCompany" class="metric">—</div></div>
+      </div>
+      <div style="margin-top:16px">
+        <span class="muted">Biografia</span>
+        <p id="profileBio" style="white-space:pre-wrap;margin-bottom:0">—</p>
+      </div>
+    </div>
+    <div class="card overview-section">
+      <h2>Backup da carreira</h2>
+      <p class="muted">Exporte a carreira inteira para CSV como backup. Para importar uma carreira, volte à tela de Carreiras. O arquivo inclui perfil, saldo, nível, viagens, semanas fechadas, histórico e gastos personalizados.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="green" onclick="exportCareerCSV()">Exportar carreira em CSV</button>
+      </div>
+    </div>
+    <div class="card overview-section">
+      <h2>Fase 1 — Company Driver</h2>
+      <p>Você trabalha como empregado da transportadora e ainda não possui caminhão próprio. Diesel, manutenção, pneus, seguro comercial, licenciamento e pedágios autorizados são custos da empresa.</p>
+      <p class="notice ok"><strong>Economia do ATS:</strong> o valor da carga mostrado pelo jogo é ignorado. Seu dinheiro é controlado por este painel.</p>
+    </div>
+  </section>
+
+
+  <section id="howToTab" class="tab-panel">
+    <div class="tab-intro"><strong>Para que serve:</strong> este é o manual da Fase 1. Se esquecer a ordem de uso, comece aqui.</div>
+    <div class="card">
+      <h2>Guia rápido — do início ao fechamento da semana</h2>
+      <div class="guide-step"><div class="guide-num">1</div><div><strong>Confira sua carreira.</strong><p class="muted">Na Visão Geral confirme motorista, cidade-base, empresa, saldo e nível. O saldo já considera os custos iniciais escolhidos na criação da carreira.</p></div></div>
+      <div class="guide-step"><div class="guide-num">2</div><div><strong>Configure suas despesas.</strong><p class="muted">Em Saldo e Despesas ajuste aluguel, contas, mercado, transporte e gastos personalizados. No vencimento mensal, use “Aplicar despesas do mês”.</p></div></div>
+      <div class="guide-step"><div class="guide-num">3</div><div><strong>Faça a viagem no ATS e registre no Progresso.</strong><p class="muted">Informe saída e chegada, cidades, empresas, carga, Loaded/Deadhead, categoria permitida pelo seu nível e milhas. As milhas registradas alimentam automaticamente carreira e holerite.</p></div></div>
+      <div class="guide-step"><div class="guide-num">4</div><div><strong>Respeite as regras do nível.</strong><p class="muted">Nível 1 é local/day cab e salário semanal fixo. Nível 2 libera OTR e pagamento por milha. Nível 3 libera Doubles. Consulte Regras quando houver dúvida.</p></div></div>
+      <div class="guide-step"><div class="guide-num">5</div><div><strong>Registre ocorrências.</strong><p class="muted">Se houver multa, infração ou acidente, registre na aba correspondente. Escolha se o custo sai agora do saldo ou no próximo holerite.</p></div></div>
+      <div class="guide-step"><div class="guide-num">6</div><div><strong>Feche a semana no Holerite.</strong><p class="muted">No Nível 2/3, o painel separa Loaded normal, HazMat, Doubles e Deadhead e calcula o per diem pelos dias qualificáveis. Ao gerar, a semana fecha, o depósito entra no saldo e começa a próxima semana.</p></div></div>
+      <div class="guide-step"><div class="guide-num">7</div><div><strong>Faça as promoções quando liberar.</strong><p class="muted">Aos 10.000 mi conclua o Academy de Proficiência e pague US$ 300 para o Nível 2. No Nível 2, HazMat é uma qualificação opcional de US$ 144,25. Aos 50.000 mi conclua Double Trailer Handling e pague US$ 59 para o Nível 3.</p></div></div>
+      <div class="guide-step"><div class="guide-num">8</div><div><strong>Faça backup.</strong><p class="muted">Exporte a carreira em CSV periodicamente. A importação é feita na tela de Carreiras e cria uma nova carreira com os dados do arquivo.</p></div></div>
+    </div>
+    <div class="card">
+      <h2>Fluxo recomendado de cada semana</h2>
+      <p><strong>Jogar → Registrar viagens → Registrar ocorrências → Conferir milhas/per diem → Gerar holerite → Semana seguinte.</strong></p>
+      <p class="muted">Não gere o holerite antes de registrar todas as viagens e ocorrências daquela semana, pois uma semana fechada fica bloqueada para edição.</p>
+    </div>
+  </section>
+
+  <section id="finances" class="tab-panel">
+    <div class="tab-intro"><strong>Para que serve:</strong> controlar seu dinheiro pessoal. Aqui você ajusta o saldo, configura despesas fixas e personalizadas e aplica os gastos mensais ao saldo da carreira.</div>
+    <div class="grid">
+      <div class="card">
+        <h2>Saldo</h2>
+        <div id="balanceDisplay2" class="big">US$ 793,00</div>
+        <label>Definir saldo manualmente</label>
+        <input id="balanceInput" type="number" step="0.01" value="793" />
+        <button onclick="setBalance()">Atualizar saldo</button>
+        <button class="secondary" onclick="resetAll()">Resetar dados</button>
+      </div>
+
+      <div class="card">
+        <h2>Despesas mensais</h2>
+        <table><tbody>
+          <tr><td>Aluguel studio</td><td><input id="rent" type="number" value="1650"></td></tr>
+          <tr><td>Eletricidade</td><td><input id="electric" type="number" value="100"></td></tr>
+          <tr><td>Água/lixo</td><td><input id="water" type="number" value="60"></td></tr>
+          <tr><td>Internet</td><td><input id="internet" type="number" value="65"></td></tr>
+          <tr><td>Celular</td><td><input id="phone" type="number" value="55"></td></tr>
+          <tr><td>Mercado</td><td><input id="groceries" type="number" value="400"></td></tr>
+          <tr><td>Transporte público</td><td><input id="transit" type="number" value="72"></td></tr>
+          <tr><td>Higiene/casa</td><td><input id="home" type="number" value="80"></td></tr>
+          <tr><td>Lazer</td><td><input id="leisure" type="number" value="150"></td></tr>
+          <tr><td>Reserva/emergência</td><td><input id="reserve" type="number" value="200"></td></tr>
+        </tbody></table>
+        <button class="red" onclick="applyMonthlyExpenses()">Aplicar despesas do mês</button>
+        <div id="monthlyTotal" class="muted"></div>
+      </div>
+
+      <div class="card">
+        <h2>Gastos personalizados</h2>
+        <p class="muted">Adicione qualquer outro gasto que faça sentido para sua carreira. Você pode escolher se ele entra automaticamente no desconto mensal.</p>
+        <div class="two">
+          <div>
+            <label>Nome do gasto</label>
+            <input id="customExpenseName" type="text" placeholder="Ex.: Academia, assinatura, lavanderia">
+          </div>
+          <div>
+            <label>Valor (US$)</label>
+            <input id="customExpenseValue" type="number" min="0" step="0.01" placeholder="0.00">
+          </div>
+        </div>
+        <label style="display:flex;gap:8px;align-items:center;color:var(--text);margin-top:12px">
+          <input id="customExpenseMonthly" type="checkbox" checked style="width:auto">
+          Incluir no desconto mensal automático
+        </label>
+        <button class="green" onclick="addCustomExpense()">Adicionar gasto</button>
+        <div style="overflow-x:auto;margin-top:14px">
+          <table>
+            <thead><tr><th>Gasto</th><th>Valor</th><th>Mensal</th><th></th></tr></thead>
+            <tbody id="customExpensesBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="payslipTab" class="tab-panel">
+    <div class="tab-intro"><strong>Para que serve:</strong> fechar a semana de trabalho e gerar o holerite. No Nível 1 usa salário fixo + Route Overrun; no Nível 2/3 usa automaticamente as viagens registradas, CPM por categoria e per diem.</div>
+    <div class="grid">
+      <div class="card">
+        <h2>Gerar holerite semanal</h2>
+        <label>Nível</label>
+        <select id="level" onchange="updateSalaryFields()" disabled>
+          <option value="1">Nível 1 — Trainee / Local</option>
+          <option value="2">Nível 2 — Company Driver / OTR</option>
