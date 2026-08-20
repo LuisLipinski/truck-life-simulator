@@ -1,0 +1,57 @@
+function parseCSV(text){const rows=[];let row=[],field='',quoted=false;for(let i=0;i<text.length;i++){const ch=text[i];if(quoted){if(ch==='"'&&text[i+1]==='"'){field+='"';i++;}else if(ch==='"'){quoted=false}else field+=ch}else{if(ch==='"')quoted=true;else if(ch===','){row.push(field);field=''}else if(ch==='\n'){row.push(field.replace(/\r$/,''));rows.push(row);row=[];field=''}else field+=ch}}if(field.length||row.length){row.push(field.replace(/\r$/,''));rows.push(row)}return rows.filter(r=>r.some(v=>String(v).length))}
+function defaultSetup(){return {rent:1650,deposit:1650,license:100,groceries:250,home:350,phone:60,internet:75,transit:72}}
+function downloadCSVTemplate(){
+ const rows=[];
+ rows.push(csvRow(['ATS_CAREER_BACKUP','6']));
+ rows.push(csvRow(['CAREER','id','driverName','city','company','arrivalBalance','initialBalance','bio','createdAt']));
+ rows.push(csvRow(['CAREER','','Seu Nome','Los Angeles, CA','Nome da Empresa',5000,793,'Biografia do personagem','']));
+ rows.push(csvRow(['SETUP_COST','name','value']));
+ Object.entries(defaultSetup()).forEach(([name,value])=>rows.push(csvRow(['SETUP_COST',name,value])));
+ rows.push(csvRow(['STATE','balance','careerLevel','currentWeek','academyLevel2','academyLevel3','hazmatQualified']));
+ rows.push(csvRow(['STATE',793,1,1,0,0,0]));
+ rows.push(csvRow(['TRIP','id','week','departureAt','arrivalAt','origin','originCompany','destination','destinationCompany','cargo','type','payCategory','miles']));
+ rows.push(csvRow(['TRIP','',1,'2026-08-19T07:00','2026-08-19T10:00','Los Angeles, CA','Filial Los Angeles','Bakersfield, CA','Filial Bakersfield','Alimentos','Loaded','normal',115]));
+ rows.push(csvRow(['HISTORY','date','type','desc','value','balance']));
+ rows.push(csvRow(['EXPENSE','id','name','value','monthly']));
+ rows.push(csvRow(['INCIDENT','id','type','date','time','route','description','amount','chargeMethod','status','remaining','createdAt']));
+ rows.push(csvRow(['CLOSED_WEEK','week','closedAt','miles','level','gross','taxes','benefits','netSalary','perDiem','incidentDeduction','deposit','desc']));
+ const blob=new Blob(['\ufeff'+rows.join('\r\n')],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='modelo_carreira_ats.csv';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);closeTutorial();
+}
+function importCareerCSV(event){
+ const file=event.target.files?.[0];if(!file)return;const status=document.getElementById('importStatus');status.textContent='Lendo arquivo...';
+ const reader=new FileReader();reader.onload=()=>{try{
+   const rows=parseCSV(String(reader.result||'').replace(/^\ufeff/,''));
+   if(!rows.length||rows[0][0]!=='ATS_CAREER_BACKUP')throw new Error('O arquivo não possui a identificação ATS_CAREER_BACKUP. Use o modelo oficial ou um backup exportado pelo sistema.');
+   const imported={career:null,setupCosts:{},state:{balance:0,history:[],careerMiles:0,careerLevel:1,trips:[],customExpenses:[],currentWeek:1,closedWeeks:[],incidents:[],academy:{level2:false,level3:false},hazmatQualified:false}};
+   for(const r of rows.slice(1)){
+     const type=String(r[0]||'').trim();
+     if(type==='CAREER'&&r[1]!=='id'){
+       if(rows[0][1]==='1') imported.career={driverName:r[2]||'',city:r[3]||'',company:r[4]||'',arrivalBalance:Number(r[5])||0,initialBalance:Number(r[6])||0,bio:r[7]||'',createdAt:new Date().toISOString()};
+       else imported.career={driverName:r[2]||'',city:r[3]||'',company:r[4]||'',arrivalBalance:Number(r[5])||0,initialBalance:Number(r[6])||0,bio:r[7]||'',createdAt:r[8]||new Date().toISOString()};
+     } else if(type==='SETUP_COST'&&r[1]&&r[1]!=='name') imported.setupCosts[r[1]]=Number(r[2])||0;
+     else if(type==='STATE'&&r[1]!=='balance'){imported.state.balance=Number(r[1])||0;imported.state.careerLevel=Math.max(1,Math.min(3,Number(r[2])||1));imported.state.currentWeek=Math.max(1,Number(r[3])||1);imported.state.academy={level2:String(r[4])==='1'||String(r[4]).toLowerCase()==='true',level3:String(r[5])==='1'||String(r[5]).toLowerCase()==='true'};imported.state.hazmatQualified=String(r[6])==='1'||String(r[6]).toLowerCase()==='true'}
+     else if(type==='TRIP'&&r[1]!=='id'){
+       if(r.length>=13) imported.state.trips.push({id:Number(r[1])||Date.now()+Math.random(),week:Number(r[2])||1,departureAt:r[3]||'',arrivalAt:r[4]||'',date:(r[3]||'').slice(0,10),origin:r[5]||'',originCompany:r[6]||'—',destination:r[7]||'',destinationCompany:r[8]||'—',cargo:r[9]||'—',type:r[10]||'Loaded',payCategory:r[11]||((String(r[10]||'').toLowerCase()==='deadhead')?'deadhead':'normal'),miles:Number(r[12])||0});
+       else imported.state.trips.push({id:Number(r[1])||Date.now()+Math.random(),week:Number(r[2])||1,date:r[3]||'',departureAt:r[3]||'',arrivalAt:'',origin:r[4]||'',originCompany:r[5]||'—',destination:r[6]||'',destinationCompany:r[7]||'—',cargo:r[8]||'—',type:r[9]||'Loaded',payCategory:r[10]&&isNaN(Number(r[10]))?r[10]:((String(r[9]||'').toLowerCase()==='deadhead')?'deadhead':'normal'),miles:Number(r[r.length-1])||0});
+     }
+     else if(type==='HISTORY'&&r[1]!=='date') imported.state.history.push({date:r[1]||'',type:r[2]||'',desc:r[3]||'',value:Number(r[4])||0,balance:Number(r[5])||0});
+     else if(type==='EXPENSE'&&r[1]!=='id') imported.state.customExpenses.push({id:Number(r[1])||Date.now()+Math.random(),name:r[2]||'',value:Number(r[3])||0,monthly:String(r[4])==='1'||String(r[4]).toLowerCase()==='true'});
+     else if(type==='INCIDENT'&&r[1]!=='id') imported.state.incidents.push({id:Number(r[1])||Date.now()+Math.random(),type:r[2]||'Infração',date:r[3]||'',time:r[4]||'',route:r[5]||'',description:r[6]||'',amount:Number(r[7])||0,chargeMethod:r[8]||'balance',status:r[9]||'',remaining:Number(r[10])||0,createdAt:r[11]||''});
+     else if(type==='CLOSED_WEEK'&&r[1]!=='week'){if(r.length>=13) imported.state.closedWeeks.push({week:Number(r[1])||1,closedAt:r[2]||'',miles:Number(r[3])||0,level:Number(r[4])||1,gross:Number(r[5])||0,taxes:Number(r[6])||0,benefits:Number(r[7])||0,netSalary:Number(r[8])||0,perDiem:Number(r[9])||0,incidentDeduction:Number(r[10])||0,deposit:Number(r[11])||0,desc:r[12]||''});else imported.state.closedWeeks.push({week:Number(r[1])||1,closedAt:r[2]||'',miles:Number(r[3])||0,level:Number(r[4])||1,gross:Number(r[5])||0,taxes:Number(r[6])||0,benefits:Number(r[7])||0,netSalary:Number(r[8])||0,perDiem:Number(r[9])||0,incidentDeduction:0,deposit:Number(r[10])||0,desc:r[11]||''});}
+   }
+   if(!imported.career||!String(imported.career.driverName||'').trim())throw new Error('A linha CAREER precisa conter pelo menos o nome do motorista.');
+   const setup=Object.keys(imported.setupCosts).length?{...defaultSetup(),...imported.setupCosts}:defaultSetup();
+   const setupTotal=Object.values(setup).reduce((s,v)=>s+(Number(v)||0),0);
+   const newId='career_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+   const initialBalance=Number(imported.career.initialBalance)||0;
+   const arrival=Number(imported.career.arrivalBalance)||initialBalance+setupTotal;
+   const career={id:newId,driverName:String(imported.career.driverName).trim(),city:imported.career.city||'',company:imported.career.company||'',arrivalBalance:arrival,setupCosts:setup,setupCostsTotal:setupTotal,initialBalance:initialBalance,bio:imported.career.bio||'',createdAt:imported.career.createdAt||new Date().toISOString()};
+   if(!Number.isFinite(imported.state.balance)) imported.state.balance=initialBalance;
+   if(imported.state.balance===0 && initialBalance!==0 && !rows.some(r=>r[0]==='STATE'&&r[1]!=='balance')) imported.state.balance=initialBalance;
+   imported.state.careerMiles=imported.state.trips.reduce((sum,t)=>sum+(Number(t.miles)||0),0);
+   const careers=loadCareers();careers.push(career);saveCareers(careers);localStorage.setItem('ats_phase1_state_v4_'+newId,JSON.stringify(imported.state));
+   status.textContent=`Carreira “${career.driverName}” importada com sucesso.`;render();
+ }catch(err){status.textContent='Erro: '+err.message;alert('Não foi possível importar a carreira: '+err.message)}finally{event.target.value=''}};reader.readAsText(file,'utf-8');
+}
+render();
+</script></body></html>
