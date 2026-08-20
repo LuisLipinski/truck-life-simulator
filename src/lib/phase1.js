@@ -3,6 +3,8 @@ import { getCareer, loadCareers, saveCareers } from './storage.js'
 const LEGACY_STATE_KEY = 'ats_phase1_tabs_v3'
 const OLD_LEGACY_KEY = 'ats_phase1_tabs_v2'
 
+export const EMERGENCY_RESERVE_ANNUAL_YIELD = 0.0325
+
 export const DEFAULT_EXPENSES = {
   rent: 1650,
   electricity: 100,
@@ -30,7 +32,7 @@ export const EXPENSE_LABELS = {
   publicTransport: 'Ônibus / metrô',
   household: 'Higiene / casa',
   leisure: 'Lazer',
-  emergency: 'Reserva / emergência',
+  emergency: 'Aporte mensal à reserva',
 }
 
 export const PAY_RATES = {
@@ -57,6 +59,7 @@ function makeDefaultState(career) {
   const level = Number(career?.currentLevel || 1)
   return {
     balance: Number(career?.currentBalance ?? career?.initialBalance ?? 793),
+    emergencyReserve: 0,
     expenses: { ...DEFAULT_EXPENSES },
     history: [],
     trips: [],
@@ -74,6 +77,8 @@ function makeDefaultState(career) {
 function normalizeState(raw, career) {
   const base = makeDefaultState(career)
   const state = { ...base, ...(raw || {}) }
+  state.balance = Number(raw?.balance ?? base.balance)
+  state.emergencyReserve = Math.max(0, Number(raw?.emergencyReserve || 0))
   state.expenses = { ...DEFAULT_EXPENSES, ...(raw?.expenses || {}) }
   state.history = Array.isArray(raw?.history) ? raw.history : []
   state.trips = Array.isArray(raw?.trips) ? raw.trips : []
@@ -107,6 +112,7 @@ export function loadPhase1State(careerId) {
 export function savePhase1State(careerId, state) {
   const normalized = {
     ...state,
+    emergencyReserve: Math.max(0, Number(state.emergencyReserve || 0)),
     currentLevel: Number(state.currentLevel || state.careerLevel || 1),
     careerLevel: Number(state.currentLevel || state.careerLevel || 1),
   }
@@ -179,11 +185,22 @@ export function perDiemDaysForTrips(trips) {
 }
 
 export function monthlyExpenseTotal(state) {
-  const base = Object.values(state.expenses || {}).reduce((sum, value) => sum + Number(value || 0), 0)
+  const base = Object.entries(state.expenses || {})
+    .filter(([key]) => key !== 'emergency')
+    .reduce((sum, [, value]) => sum + Number(value || 0), 0)
   const custom = (state.customExpenses || [])
     .filter((item) => item.monthly)
     .reduce((sum, item) => sum + Number(item.value || 0), 0)
   return base + custom
+}
+
+export function emergencyReserveContribution(state) {
+  return Math.max(0, Number(state.expenses?.emergency || 0))
+}
+
+export function weeklyEmergencyReserveYield(reserveBalance) {
+  const principal = Math.max(0, Number(reserveBalance || 0))
+  return principal * EMERGENCY_RESERVE_ANNUAL_YIELD / 52
 }
 
 export function estimateTaxes(gross) {
