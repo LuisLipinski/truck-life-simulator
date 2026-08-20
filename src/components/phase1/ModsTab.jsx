@@ -14,13 +14,6 @@ const mods = [
     linkLabel: 'Abrir no Steam Workshop',
   },
   {
-    title: 'More Realistic Traffic',
-    text: 'Alternativa para comportamento e distribuição de tráfego mais natural. Use apenas um mod principal de tráfego por vez.',
-    tip: 'A página específica que existia foi marcada pela Steam como removida/incompatível. O botão abre a busca do Workshop para você conferir alternativas compatíveis com sua versão do ATS.',
-    url: 'https://steamcommunity.com/workshop/browse/?appid=270880&searchtext=More+realistic+traffic',
-    linkLabel: 'Pesquisar no Steam Workshop',
-  },
-  {
     title: 'Better Raindrops',
     text: 'Melhora chuva, gotas no para-brisa e a percepção do clima sem interferir na economia da carreira.',
     tip: 'Mod visual/climático. Confira a compatibilidade com o caminhão e a versão atual do ATS antes de ativar.',
@@ -30,7 +23,7 @@ const mods = [
   {
     title: 'Realistic AI Traffic Pack',
     text: 'Adiciona mais variedade e combinações realistas de caminhões, trailers e outros veículos ao tráfego de IA.',
-    tip: 'É voltado à variedade visual do tráfego. Ainda assim, confira conflitos com outros packs de IA antes de usar.',
+    tip: 'É voltado à variedade visual do tráfego e pode complementar o Real Traffic Density. Ainda assim, confira conflitos com outros packs de IA antes de usar.',
     url: 'https://steamcommunity.com/sharedfiles/filedetails/?id=3713185881',
     linkLabel: 'Abrir no Steam Workshop',
   },
