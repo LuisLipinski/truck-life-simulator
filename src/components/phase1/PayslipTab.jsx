@@ -13,6 +13,32 @@ function money(value) {
   return Number(value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
 }
 
+function InfoTip({ text }) {
+  return (
+    <button className="react-info-tip" type="button" aria-label="Mais informações" data-tip={text}>
+      i
+    </button>
+  )
+}
+
+function TipLabel({ children, tip }) {
+  return (
+    <label className="label-with-tip">
+      <span>{children}</span>
+      <InfoTip text={tip} />
+    </label>
+  )
+}
+
+function LineLabel({ children, tip }) {
+  return (
+    <span className="line-label-with-tip">
+      <span>{children}</span>
+      <InfoTip text={tip} />
+    </span>
+  )
+}
+
 export default function PayslipTab({ state, commit }) {
   const [level1Gross, setLevel1Gross] = useState(850)
   const [overrunHours, setOverrunHours] = useState(0)
@@ -120,16 +146,22 @@ export default function PayslipTab({ state, commit }) {
           <p>O fechamento credita o depósito, congela a semana no histórico e inicia a próxima.</p>
         </div>
 
-        <label>Nível atual</label>
+        <TipLabel tip="O nível determina como o pagamento é calculado. No Nível 1 existe salário semanal fixo; nos Níveis 2 e 3 o bruto vem das milhas registradas por categoria.">Nível atual</TipLabel>
         <input value={`Nível ${state.currentLevel}`} readOnly />
 
         {state.currentLevel <= 1 ? (
           <>
-            <label>Salário semanal bruto</label>
+            <TipLabel tip="Salário bruto base do motorista local no Nível 1. O valor padrão da carreira é US$ 850 por semana antes de impostos, benefícios e outros descontos.">Salário semanal bruto</TipLabel>
             <input type="number" min="0" step="0.01" value={level1Gross} onChange={(event) => setLevel1Gross(event.target.value)} />
             <div className="two-columns">
-              <div><label>Horas de Route Overrun</label><input type="number" min="0" step="0.25" value={overrunHours} onChange={(event) => setOverrunHours(event.target.value)} /></div>
-              <div><label>Valor por hora extra</label><input type="number" min="0" step="0.01" value={overrunRate} onChange={(event) => setOverrunRate(event.target.value)} /></div>
+              <div>
+                <TipLabel tip="Use somente quando uma rota local/regional ultrapassar a jornada planejada. Na simulação, essas horas representam tempo adicional trabalhado além da escala normal.">Horas de Route Overrun</TipLabel>
+                <input type="number" min="0" step="0.25" value={overrunHours} onChange={(event) => setOverrunHours(event.target.value)} />
+              </div>
+              <div>
+                <TipLabel tip="Valor pago por cada hora de Route Overrun. O padrão fictício desta carreira é US$ 21,25 por hora.">Valor por hora extra</TipLabel>
+                <input type="number" min="0" step="0.01" value={overrunRate} onChange={(event) => setOverrunRate(event.target.value)} />
+              </div>
             </div>
           </>
         ) : (
@@ -141,13 +173,19 @@ export default function PayslipTab({ state, commit }) {
               ))}
             </div>
             <div className="two-columns">
-              <div><label>Per diem diário</label><input type="number" min="0" step="0.01" value={perDiemRate} onChange={(event) => setPerDiemRate(event.target.value)} /></div>
-              <div><label>Dias qualificáveis</label><input value={perDiemDays.days} readOnly /></div>
+              <div>
+                <TipLabel tip="Valor diário separado do salário para dias OTR qualificáveis. Nesta simulação o padrão é US$ 80 por dia e não se aplica a viagens locais de ida e volta no mesmo dia.">Per diem diário</TipLabel>
+                <input type="number" min="0" step="0.01" value={perDiemRate} onChange={(event) => setPerDiemRate(event.target.value)} />
+              </div>
+              <div>
+                <TipLabel tip="Quantidade de dias únicos da semana que qualificaram para per diem com base nas datas das viagens OTR registradas. O sistema evita contar o mesmo dia duas vezes.">Dias qualificáveis</TipLabel>
+                <input value={perDiemDays.days} readOnly />
+              </div>
             </div>
           </>
         )}
 
-        <label>Benefícios semanais</label>
+        <TipLabel tip="Desconto semanal dos benefícios do motorista. O padrão de US$ 36 representa médico/prescrição, dental e visão na simulação.">Benefícios semanais</TipLabel>
         <input type="number" min="0" step="0.01" value={benefits} onChange={(event) => setBenefits(event.target.value)} />
         <button className="button success full-button" type="button" onClick={generatePayslip}>Gerar holerite e depositar</button>
       </section>
@@ -159,17 +197,17 @@ export default function PayslipTab({ state, commit }) {
           <p>Estimativa de simulação; retenções reais podem variar.</p>
         </div>
         <div className="payslip-lines">
-          <div><span>Salário bruto</span><strong>{money(shown.gross)}</strong></div>
-          <div><span>Federal</span><strong>-{money(shown.taxes.federal)}</strong></div>
-          <div><span>Social Security</span><strong>-{money(shown.taxes.ss)}</strong></div>
-          <div><span>Medicare</span><strong>-{money(shown.taxes.medicare)}</strong></div>
-          <div><span>California Income Tax</span><strong>-{money(shown.taxes.ca)}</strong></div>
-          <div><span>California SDI</span><strong>-{money(shown.taxes.sdi)}</strong></div>
-          <div><span>Benefícios</span><strong>-{money(shown.benefits)}</strong></div>
-          <div className="emphasis-line"><span>Salário líquido</span><strong>{money(shown.netSalary)}</strong></div>
-          <div><span>Per diem</span><strong>+{money(shown.perDiem)}</strong></div>
-          <div><span>Infrações/acidentes</span><strong>-{money(shown.incidentDeduction)}</strong></div>
-          <div className="deposit-line"><span>Depósito total</span><strong>{money(shown.deposit)}</strong></div>
+          <div><LineLabel tip="Total antes de impostos e benefícios. No Nível 1 inclui salário base e Route Overrun; nos Níveis 2/3 vem das milhas pagas.">Salário bruto</LineLabel><strong>{money(shown.gross)}</strong></div>
+          <div><LineLabel tip="Retenção federal estimada pela fórmula simplificada da simulação. Não representa cálculo fiscal oficial.">Federal</LineLabel><strong>-{money(shown.taxes.federal)}</strong></div>
+          <div><LineLabel tip="Contribuição estimada de Social Security calculada sobre o salário bruto da semana.">Social Security</LineLabel><strong>-{money(shown.taxes.ss)}</strong></div>
+          <div><LineLabel tip="Contribuição estimada do Medicare calculada sobre o salário bruto da semana.">Medicare</LineLabel><strong>-{money(shown.taxes.medicare)}</strong></div>
+          <div><LineLabel tip="Estimativa simplificada do imposto de renda estadual da Califórnia usada somente para o roleplay financeiro.">California Income Tax</LineLabel><strong>-{money(shown.taxes.ca)}</strong></div>
+          <div><LineLabel tip="Estimativa de California SDI, usada na simulação como retenção estadual adicional.">California SDI</LineLabel><strong>-{money(shown.taxes.sdi)}</strong></div>
+          <div><LineLabel tip="Valor semanal informado no campo Benefícios semanais e descontado do salário.">Benefícios</LineLabel><strong>-{money(shown.benefits)}</strong></div>
+          <div className="emphasis-line"><LineLabel tip="Salário após impostos estimados e benefícios, antes de somar per diem e descontar ocorrências pendentes.">Salário líquido</LineLabel><strong>{money(shown.netSalary)}</strong></div>
+          <div><LineLabel tip="Valor não salarial calculado pelos dias OTR qualificáveis da semana. No Nível 1 ele é zero.">Per diem</LineLabel><strong>+{money(shown.perDiem)}</strong></div>
+          <div><LineLabel tip="Total de multas ou acidentes que você marcou para descontar do próximo holerite e que puderam ser aplicados nesta semana.">Infrações/acidentes</LineLabel><strong>-{money(shown.incidentDeduction)}</strong></div>
+          <div className="deposit-line"><LineLabel tip="Valor final que entra no saldo da carreira quando o holerite é gerado e a semana é fechada.">Depósito total</LineLabel><strong>{money(shown.deposit)}</strong></div>
         </div>
       </section>
 
