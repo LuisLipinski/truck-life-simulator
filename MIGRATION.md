@@ -17,23 +17,45 @@ Branch: `react-migration`
 - Seleção de fases
 - Serviço central de leitura e gravação das carreiras
 - Sistema visual responsivo em `src/styles.css`
+- Shell da Fase 1 em React
+- Abas React da Fase 1
+- Visão Geral da Fase 1
+- Progresso / registro de viagens
+- Resumo de milhas por semana e carreira
+- Cálculo de pagamento por categoria de milhas para Nível 2/3
+- Cálculo de dias qualificáveis de per diem
+- Banner de promoção Nível 2 / Nível 3
+- Serviço compartilhado da Fase 1 em `src/lib/phase1.js`
+
+## Compatibilidade de dados
+
+A versão React usa as mesmas chaves da versão clássica:
+
+- `ats_careers_v1`
+- `ats_active_career`
+- `ats_phase1_state_<careerId>`
+
+Isso permite abrir a mesma carreira na versão React ou clássica sem criar uma cópia dos dados.
 
 ## Ponte temporária
 
-A Fase 1 ainda abre `fase1.html` para preservar todas as regras e funções existentes enquanto o módulo é migrado por partes.
+Holerite, Saldo/Despesas, Infrações/Acidentes, Regras e Histórico ainda abrem `fase1.html` enquanto são convertidos para componentes React.
 
 A importação e o tutorial CSV ainda usam `ats.html` durante a transição.
 
+Os arquivos clássicos não devem ser removidos até a validação funcional completa da versão React.
+
 ## Próximos módulos
 
-1. Migrar autocomplete/lista de cidades.
-2. Migrar CSV para serviços React.
-3. Migrar shell da Fase 1 e sistema de abas.
-4. Migrar Visão Geral e Progresso.
-5. Migrar Saldo/Despesas, Holerite e Ocorrências.
+1. Migrar autocomplete/lista de cidades para um componente reutilizável.
+2. Migrar Saldo e Despesas.
+3. Migrar Holerite e fechamento semanal.
+4. Migrar Infrações e Acidentes.
+5. Migrar promoções/HazMat totalmente para controles React.
 6. Migrar Regras, Mods, Histórico e glossário.
-7. Validar compatibilidade total com os dados existentes no localStorage.
-8. Remover arquivos legados apenas depois da validação completa.
+7. Migrar importação/exportação e tutorial CSV.
+8. Validar compatibilidade total com os dados existentes no localStorage.
+9. Remover arquivos legados apenas depois da validação completa.
 
 ## Desenvolvimento local
 
