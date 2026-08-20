@@ -49,6 +49,20 @@ describe('career charts', () => {
     expect(container.querySelectorAll('.chart-dot')).toHaveLength(2)
   })
 
+  it('adds hover and keyboard targets with the exact value for every line point', () => {
+    render(createElement(LineChart, {
+      title: 'Evolução do saldo',
+      data: [{ label: '20/08/2026 10:00', value: 793 }, { label: '20/08/2026 12:00', value: 912.34 }],
+      formatValue: (value) => `$${Number(value).toFixed(2)}`,
+    }))
+
+    const targets = container.querySelectorAll('.career-chart-point-hit')
+    expect(targets).toHaveLength(2)
+    expect(targets[0].getAttribute('aria-label')).toBe('20/08/2026 10:00: $793.00')
+    expect(targets[1].getAttribute('title')).toBe('20/08/2026 12:00: $912.34')
+    expect(targets[1].querySelector('.career-chart-tooltip').textContent).toContain('$912.34')
+  })
+
   it('renders proportional bar rows and labels', () => {
     render(createElement(BarChart, {
       title: 'Milhas por semana',
