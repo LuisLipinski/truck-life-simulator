@@ -1,0 +1,113 @@
+  const incident={id:Date.now(),type,amount,date,time,route,description,chargeMethod,status:chargeMethod==='balance'?'Pago pelo saldo':'Pendente no holerite',remaining:chargeMethod==='payslip'?amount:0,createdAt:new Date().toLocaleString('pt-BR')};
+  state.incidents.push(incident);
+  if(chargeMethod==='balance'){
+    state.balance-=amount;
+    state.history.push({date:new Date().toLocaleString('pt-BR'),type,desc:`${description} — ${route}`,value:-amount,balance:state.balance});
+  }
+  document.getElementById('incidentAmount').value=''; document.getElementById('incidentDescription').value='';
+  save();
+  showToast(`${type} registrada: ${money(amount)} ${chargeMethod==='balance'?'descontados do saldo':'pendentes no próximo holerite'}.`, chargeMethod==='balance'?'warn':'info');
+}
+function pendingIncidentTotal(){return (state.incidents||[]).reduce((sum,i)=>sum+(Number(i.remaining)||0),0)}
+function renderIncidents(){
+  const total=document.getElementById('pendingIncidentTotal'); if(total) total.textContent=money(pendingIncidentTotal());
+  const body=document.getElementById('incidentsBody'); if(!body) return; body.innerHTML='';
+  const items=[...(state.incidents||[])].sort((a,b)=>(Number(b.id)||0)-(Number(a.id)||0));
+  if(!items.length){body.innerHTML='<tr><td colspan="10" class="muted">Nenhuma infração ou acidente registrado.</td></tr>';return;}
+  items.forEach(i=>{const tr=document.createElement('tr');const charge=i.chargeMethod==='payslip'?'Próximo holerite':'Saldo imediato';const status=(Number(i.remaining)||0)>0?`Pendente ${money(Number(i.remaining)||0)}`:i.status||'Pago';tr.innerHTML=`<td>${escapeHtml(i.date||'—')}</td><td>${escapeHtml(i.time||'—')}</td><td><span class="pill">${escapeHtml(i.type||'—')}</span></td><td>${escapeHtml(i.route||'—')}</td><td>${escapeHtml(i.description||'—')}</td><td>${money(Number(i.amount)||0)}</td><td>${charge}</td><td>${escapeHtml(status)}</td><td><button class="red small" onclick="deleteIncident(${Number(i.id)})">Excluir</button></td>`;body.appendChild(tr);});
+}
+function deleteIncident(id){
+  const i=(state.incidents||[]).find(x=>Number(x.id)===Number(id)); if(!i) return;
+  if(i.chargeMethod==='balance'){alert('Uma ocorrência já descontada diretamente do saldo não pode ser excluída para evitar divergência financeira. Faça um ajuste manual no saldo se precisar corrigir.');return;}
+  if((Number(i.remaining)||0)<Number(i.amount||0)){alert('Esta ocorrência já teve parte descontada em holerite e não pode ser excluída.');return;}
+  if(!confirm('Excluir esta ocorrência pendente?'))return; state.incidents=state.incidents.filter(x=>Number(x.id)!==Number(id));save();
+}
+function applyPendingIncidentDeductions(maxAmount){
+  let available=Math.max(0,Number(maxAmount)||0), applied=0;
+  for(const i of state.incidents||[]){let rem=Math.max(0,Number(i.remaining)||0);if(rem<=0||available<=0)continue;const take=Math.min(rem,available);i.remaining=rem-take;available-=take;applied+=take;if(i.remaining<=0)i.status='Descontado no holerite';else i.status='Parcialmente descontado';}
+  return applied;
+}
+
+
+function csvEscape(value){
+  const text=String(value??'');
+  return '"'+text.replace(/"/g,'""')+'"';
+}
+function csvRow(values){ return values.map(csvEscape).join(','); }
+function safeFileName(value){ return String(value||'carreira').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9_-]+/g,'_').replace(/^_+|_+$/g,'') || 'carreira'; }
+
+function exportCareerCSV(){
+  if(!career) return;
+  const rows=[];
+  rows.push(csvRow(['ATS_CAREER_BACKUP','5']));
+  rows.push(csvRow(['CAREER','id','driverName','city','company','arrivalBalance','initialBalance','bio','createdAt']));
+  rows.push(csvRow(['CAREER',career.id||'',career.driverName||'',career.city||'',career.company||'',career.arrivalBalance??career.initialFunds??'',career.initialBalance??'',career.bio||'',career.createdAt||'']));
+  rows.push(csvRow(['SETUP_COST','name','value']));
+  const costs=career.setupCosts||{};
+  Object.entries(costs).forEach(([name,value])=>rows.push(csvRow(['SETUP_COST',name,value??0])));
+  rows.push(csvRow(['STATE','balance','careerLevel','currentWeek','academyLevel2','academyLevel3','hazmatQualified']));
+  rows.push(csvRow(['STATE',state.balance??0,state.careerLevel??1,state.currentWeek??1,state.academy?.level2?1:0,state.academy?.level3?1:0,state.hazmatQualified?1:0]));
+  rows.push(csvRow(['TRIP','id','week','departureAt','arrivalAt','origin','originCompany','destination','destinationCompany','cargo','type','payCategory','miles']));
+  (state.trips||[]).forEach(t=>rows.push(csvRow(['TRIP',t.id??'',t.week??1,t.departureAt||t.date||'',t.arrivalAt||'',t.origin||'',t.originCompany||'',t.destination||'',t.destinationCompany||'',t.cargo||'',t.type||'',t.payCategory||((String(t.type||'').toLowerCase()==='deadhead')?'deadhead':'normal'),t.miles??0])));
+  rows.push(csvRow(['HISTORY','date','type','desc','value','balance']));
+  (state.history||[]).forEach(h=>rows.push(csvRow(['HISTORY',h.date||'',h.type||'',h.desc||'',h.value??0,h.balance??0])));
+  rows.push(csvRow(['EXPENSE','id','name','value','monthly']));
+  (state.customExpenses||[]).forEach(e=>rows.push(csvRow(['EXPENSE',e.id??'',e.name||'',e.value??0,e.monthly?1:0])));
+  rows.push(csvRow(['INCIDENT','id','type','date','time','route','description','amount','chargeMethod','status','remaining','createdAt']));
+  (state.incidents||[]).forEach(i=>rows.push(csvRow(['INCIDENT',i.id??'',i.type||'',i.date||'',i.time||'',i.route||'',i.description||'',i.amount??0,i.chargeMethod||'',i.status||'',i.remaining??0,i.createdAt||''])));
+  rows.push(csvRow(['CLOSED_WEEK','week','closedAt','miles','level','gross','taxes','benefits','netSalary','perDiem','incidentDeduction','deposit','desc']));
+  (state.closedWeeks||[]).forEach(w=>rows.push(csvRow(['CLOSED_WEEK',w.week??'',w.closedAt||'',w.miles??0,w.level??'',w.gross??0,w.taxes??0,w.benefits??0,w.netSalary??0,w.perDiem??0,w.incidentDeduction??0,w.deposit??0,w.desc||''])));
+  const blob=new Blob(['\ufeff'+rows.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`ats_${safeFileName(career.driverName)}_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+}
+
+function parseCSV(text){
+  const rows=[]; let row=[], field='', quoted=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(quoted){
+      if(ch==='"' && text[i+1]==='"'){ field+='"'; i++; }
+      else if(ch==='"'){ quoted=false; }
+      else field+=ch;
+    } else {
+      if(ch==='"') quoted=true;
+      else if(ch===','){ row.push(field); field=''; }
+      else if(ch==='\n'){ row.push(field.replace(/\r$/,'')); rows.push(row); row=[]; field=''; }
+      else field+=ch;
+    }
+  }
+  if(field.length || row.length){ row.push(field.replace(/\r$/,'')); rows.push(row); }
+  return rows.filter(r=>r.some(v=>String(v).length));
+}
+
+function resetAll(){
+  if(confirm('Resetar saldo, progresso e histórico para o estado inicial?')){
+    state={balance:initialBalance,history:[],careerMiles:0,careerLevel:1,trips:[],customExpenses:[],currentWeek:1,closedWeeks:[],incidents:[],academy:{level2:false,level3:false},hazmatQualified:false};
+    localStorage.removeItem(KEY); save();
+  }
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>activateTab(btn.dataset.tab));
+});
+document.querySelectorAll('[data-go-tab]').forEach(card=>{
+  const go=()=>activateTab(card.dataset.goTab);
+  card.addEventListener('click',go);
+  card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});
+});
+
+load();
+
+const promotionBanner=document.getElementById('overviewPromotionBanner');
+if(promotionBanner){
+  promotionBanner.addEventListener('click',goToPromotion);
+  promotionBanner.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();goToPromotion();}});
+}
+
+</script>
+</body>
+</html>
