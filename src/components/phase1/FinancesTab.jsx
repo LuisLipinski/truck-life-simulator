@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
   EMERGENCY_RESERVE_ANNUAL_YIELD,
   EXPENSE_LABELS,
@@ -23,6 +23,16 @@ function now() {
   return new Date().toLocaleString('pt-BR')
 }
 
+function toCents(value) {
+  const number = Number(value)
+  if (!Number.isFinite(number)) return NaN
+  return Math.round((number + Number.EPSILON) * 100)
+}
+
+function fromCents(value) {
+  return Number(value || 0) / 100
+}
+
 function InfoTip({ text }) {
   return <button className="react-info-tip" type="button" aria-label="Mais informações" data-tip={text}>i</button>
 }
@@ -39,8 +49,11 @@ export default function FinancesTab({ state, commit }) {
   const [reserveDeposit, setReserveDeposit] = useState('')
   const [reserveUseAmount, setReserveUseAmount] = useState('')
   const [reserveUseReason, setReserveUseReason] = useState('')
+  const [toast, setToast] = useState(null)
+  const toastTimer = useRef(null)
 
-  const reserve = Math.max(0, Number(state.emergencyReserve || 0))
+  const reserveCents = Math.max(0, toCents(state.emergencyReserve || 0) || 0)
+  const reserve = fromCents(reserveCents)
   const reserveContribution = emergencyReserveContribution(state)
   const baseMonthly = useMemo(
     () => Object.entries(state.expenses || {}).filter(([key]) => key !== 'emergency').reduce((sum, [, value]) => sum + Number(value || 0), 0),
@@ -53,6 +66,12 @@ export default function FinancesTab({ state, commit }) {
   const totalMonthly = monthlyExpenseTotal(state)
   const totalAssets = Number(state.balance || 0) + reserve
 
+  function notify(type, message) {
+    setToast({ type, message })
+    if (toastTimer.current) window.clearTimeout(toastTimer.current)
+    toastTimer.current = window.setTimeout(() => setToast(null), 3600)
+  }
+
   function updateExpense(key, value) {
     commit({ ...state, expenses: { ...state.expenses, [key]: Math.max(0, Number(value) || 0) } })
   }
@@ -60,7 +79,7 @@ export default function FinancesTab({ state, commit }) {
   function applyManualBalance() {
     const nextBalance = Number(manualBalance)
     if (!Number.isFinite(nextBalance)) {
-      window.alert('Informe um saldo válido.')
+      notify('error', 'Informe um saldo válido.')
       return
     }
     const difference = nextBalance - Number(state.balance || 0)
@@ -72,14 +91,23 @@ export default function FinancesTab({ state, commit }) {
         { date: now(), type: 'Ajuste', desc: 'Ajuste manual de saldo', value: difference, amount: difference, balance: nextBalance },
       ],
     })
+    notify('success', `Saldo atualizado para ${money(nextBalance)}.`)
   }
 
   function addToReserve() {
-    const amount = Number(reserveDeposit)
-    if (!Number.isFinite(amount) || amount <= 0) return window.alert('Informe um valor válido para adicionar à reserva.')
-    if (amount > Number(state.balance || 0)) return window.alert('Saldo disponível insuficiente para esse aporte.')
-    const nextBalance = Number(state.balance || 0) - amount
-    const nextReserve = reserve + amount
+    const amountCents = toCents(reserveDeposit)
+    const balanceCents = toCents(state.balance || 0)
+    if (!Number.isFinite(amountCents) || amountCents <= 0) {
+      notify('error', 'Informe um valor válido para adicionar à reserva.')
+      return
+    }
+    if (!Number.isFinite(balanceCents) || amountCents > balanceCents) {
+      notify('error', 'Saldo disponível insuficiente para esse aporte.')
+      return
+    }
+    const amount = fromCents(amountCents)
+    const nextBalance = fromCents(balanceCents - amountCents)
+    const nextReserve = fromCents(reserveCents + amountCents)
     commit({
       ...state,
       balance: nextBalance,
@@ -91,17 +119,29 @@ export default function FinancesTab({ state, commit }) {
     })
     setManualBalance(nextBalance)
     setReserveDeposit('')
+    notify('success', `${money(amount)} adicionados à reserva.`)
   }
 
   function useReserve(event) {
     event.preventDefault()
-    const amount = Number(reserveUseAmount)
+    const amountCents = toCents(reserveUseAmount)
     const reason = reserveUseReason.trim()
-    if (!Number.isFinite(amount) || amount <= 0) return window.alert('Informe um valor válido para usar da reserva.')
-    if (!reason) return window.alert('Informe o motivo do uso da reserva.')
-    if (amount > reserve) return window.alert('O valor informado é maior que o saldo da reserva.')
-    const nextReserve = reserve - amount
-    const nextBalance = Number(state.balance || 0) + amount
+    if (!Number.isFinite(amountCents) || amountCents <= 0) {
+      notify('error', 'Informe um valor válido para usar da reserva.')
+      return
+    }
+    if (!reason) {
+      notify('error', 'Informe o motivo do uso da reserva.')
+      return
+    }
+    if (amountCents > reserveCents) {
+      notify('error', `O valor informado é maior que a reserva disponível de ${money(reserve)}.`)
+      return
+    }
+    const amount = fromCents(amountCents)
+    const nextReserve = fromCents(reserveCents - amountCents)
+    const balanceCents = toCents(state.balance || 0) || 0
+    const nextBalance = fromCents(balanceCents + amountCents)
     commit({
       ...state,
       balance: nextBalance,
@@ -114,25 +154,28 @@ export default function FinancesTab({ state, commit }) {
     setManualBalance(nextBalance)
     setReserveUseAmount('')
     setReserveUseReason('')
+    notify('success', `${money(amount)} transferidos da reserva para o saldo disponível.`)
   }
 
   function addCustomExpense(event) {
     event.preventDefault()
     const value = Number(customValue)
     if (!customName.trim() || !Number.isFinite(value) || value < 0) {
-      window.alert('Informe nome e valor válido para o gasto.')
+      notify('error', 'Informe nome e valor válido para o gasto.')
       return
     }
+    const expenseName = customName.trim()
     commit({
       ...state,
       customExpenses: [
         ...(state.customExpenses || []),
-        { id: `exp_${Date.now()}`, name: customName.trim(), value, monthly: customMonthly },
+        { id: `exp_${Date.now()}`, name: expenseName, value, monthly: customMonthly },
       ],
     })
     setCustomName('')
     setCustomValue('')
     setCustomMonthly(true)
+    notify('success', `Gasto “${expenseName}” adicionado.`)
   }
 
   function toggleCustom(id, monthly) {
@@ -143,14 +186,16 @@ export default function FinancesTab({ state, commit }) {
   }
 
   function deleteCustom(id) {
-    commit({ ...state, customExpenses: (state.customExpenses || []).filter((item) => item.id !== id) })
+    const item = (state.customExpenses || []).find((expense) => expense.id === id)
+    commit({ ...state, customExpenses: (state.customExpenses || []).filter((expense) => expense.id !== id) })
+    notify('success', item ? `Gasto “${item.name}” excluído.` : 'Gasto excluído.')
   }
 
   function applyMonthlyExpenses() {
     const totalOutflow = totalMonthly + reserveContribution
     if (!window.confirm(`Aplicar ${money(totalMonthly)} de despesas mensais e transferir ${money(reserveContribution)} para a reserva? Saída total da conta: ${money(totalOutflow)}.`)) return
     const nextBalance = Number(state.balance || 0) - totalOutflow
-    const nextReserve = reserve + reserveContribution
+    const nextReserve = fromCents(reserveCents + (toCents(reserveContribution) || 0))
     commit({
       ...state,
       balance: nextBalance,
@@ -162,10 +207,19 @@ export default function FinancesTab({ state, commit }) {
       ],
     })
     setManualBalance(nextBalance)
+    notify('success', `Despesas mensais aplicadas. ${reserveContribution > 0 ? `${money(reserveContribution)} foram para a reserva.` : ''}`.trim())
   }
 
   return (
     <>
+      {toast && (
+        <div className={`app-toast app-toast-${toast.type}`} role="status" aria-live="polite">
+          <span className="app-toast-icon" aria-hidden="true">{toast.type === 'success' ? '✓' : '!'}</span>
+          <span>{toast.message}</span>
+          <button type="button" aria-label="Fechar notificação" onClick={() => setToast(null)}>×</button>
+        </div>
+      )}
+
       <section className="phase1-status-grid finance-summary-grid">
         <article className="panel phase1-metric"><span className="metric-label">Saldo disponível</span><strong className="metric-value">{money(state.balance)}</strong><span className="metric-detail">Conta pessoal da carreira</span></article>
         <article className="panel phase1-metric"><span className="metric-label">Reserva de emergência</span><strong className="metric-value">{money(reserve)}</strong><span className="metric-detail">Rende {(EMERGENCY_RESERVE_ANNUAL_YIELD * 100).toFixed(2)}% a.a.</span></article>
