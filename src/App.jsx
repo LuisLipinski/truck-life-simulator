@@ -130,23 +130,26 @@ function CareersPage() {
       <div className="action-row">
         <AppLink className="button primary" to="/new">+ Criar nova carreira</AppLink>
         <button className="button success" type="button" onClick={() => fileInput.current?.click()}>Importar carreira</button>
-        <button className="button secondary" type="button" onClick={downloadCSVTemplate}>Modelo CSV</button>
-        <button className="button secondary" type="button" onClick={() => downloadExcelTemplate('xlsx')}>Modelo XLSX</button>
-        <button className="button secondary" type="button" onClick={() => downloadExcelTemplate('xls')}>Modelo XLS</button>
-        <button className="button secondary" type="button" onClick={() => setShowCsvHelp((value) => !value)}>Como funciona o backup</button>
+        <button className="button secondary" type="button" onClick={() => setShowCsvHelp((value) => !value)}>Como importar uma carreira</button>
         <input ref={fileInput} type="file" accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onChange={importBackup} />
       </div>
 
       {showCsvHelp && (
         <section className="panel csv-help">
-          <span className="eyebrow">Backup portátil</span>
-          <h2>CSV, XLS e XLSX</h2>
-          <p>Os três formatos usam a identificação <code>ATS_CAREER_BACKUP</code> e podem guardar perfil, custos iniciais, estado, viagens, histórico, gastos personalizados, ocorrências e semanas fechadas.</p>
+          <span className="eyebrow">Importação de carreira</span>
+          <h2>Como importar uma carreira</h2>
+          <p>Você pode importar backups nos formatos <strong>CSV, XLS ou XLSX</strong>. Os três usam a identificação <code>ATS_CAREER_BACKUP</code> e podem guardar perfil, custos iniciais, estado, viagens, histórico, gastos personalizados, ocorrências e semanas fechadas.</p>
           <p><strong>CSV:</strong> valores numéricos devem usar <strong>ponto</strong> para casas decimais e não devem ter separador de milhar. Exemplos válidos: <code>850</code>, <code>1602.63</code>, <code>0.50</code> e <code>21.25</code>. Não use <code>1602,63</code>, <code>1,602.63</code>, <code>1.602,63</code> ou símbolo de dólar.</p>
           <p><strong>XLS/XLSX:</strong> preencha valores como células numéricas normais do Excel. A exibição pode usar vírgula ou ponto conforme a configuração regional do Excel; o app lê o valor numérico da célula.</p>
           <p>Campos numéricos com letras ou formatos inválidos são recusados. A mensagem de erro informa o tipo, o campo e a linha que precisa ser corrigida antes da importação.</p>
           <p>Ao importar, o React cria uma <strong>nova carreira</strong> com um novo ID. Backups antigos continuam aceitos e são normalizados para a estrutura atual.</p>
           <p>Não altere os nomes da primeira coluna, como <code>CAREER</code>, <code>STATE</code>, <code>TRIP</code> e <code>CLOSED_WEEK</code>.</p>
+          <p><strong>Quer começar por um arquivo pronto?</strong> Baixe um dos modelos abaixo, preencha os dados e depois use o botão <strong>Importar carreira</strong>.</p>
+          <div className="action-row">
+            <button className="button secondary" type="button" onClick={downloadCSVTemplate}>Baixar modelo CSV</button>
+            <button className="button secondary" type="button" onClick={() => downloadExcelTemplate('xlsx')}>Baixar modelo XLSX</button>
+            <button className="button secondary" type="button" onClick={() => downloadExcelTemplate('xls')}>Baixar modelo XLS</button>
+          </div>
         </section>
       )}
 
