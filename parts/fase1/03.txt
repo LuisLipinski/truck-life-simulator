@@ -1,0 +1,139 @@
+        <li>Pagamento-base: US$ 0,60 por milha bruto.</li><li>Sem salário fixo normal adicional.</li><li>Sem limite de distância.</li><li>Viagens interestaduais e de vários dias liberadas.</li><li>Sleeper cab.</li><li>Per diem padrão: US$ 80 por dia qualificável de viagem OTR.</li><li>O painel calcula os dias automaticamente pelas datas de saída e chegada; viagem que começa e termina no mesmo dia não gera per diem e dias repetidos não contam duas vezes na mesma semana.</li><li>Per diem fica separado do salário por milha.</li>
+      </ul></details>
+
+      <details><summary>4A. Qualificação HazMat</summary><ul>
+        <li>Disponível a partir do Nível 2 como qualificação adicional.</li>
+        <li>Treinamento profissional é pago pela empresa; o motorista paga as taxas pessoais da licença.</li>
+        <li>Custo adotado: <strong>US$ 144,25</strong> (US$ 59 do DMV + US$ 85,25 da TSA).</li>
+        <li>Carga normal permanece em <strong>US$ 0,60/mi</strong>.</li>
+        <li>Ao transportar HazMat, recebe <strong>+US$ 0,03/mi</strong>, totalizando <strong>US$ 0,63/mi</strong>.</li>
+        <li>O adicional só vale nas milhas da carga que realmente exige HazMat.</li>
+      </ul></details>
+
+      <details><summary>5. Nível 3 — Doubles</summary><ul>
+        <li>Libera operação com dois reboques/bitrem após <strong>50.000 milhas totais</strong>, pagamento de <strong>US$ 59</strong> do endorsement T e aprovação no Double Trailer Handling.</li>
+        <li>Carga normal continua em <strong>US$ 0,60/mi</strong>.</li>
+        <li>Quando estiver efetivamente puxando doubles/bitrem, recebe <strong>+US$ 0,04/mi</strong>, totalizando <strong>US$ 0,64/mi</strong>.</li>
+        <li>Se a carga também for HazMat e ambas as qualificações forem exigidas, os adicionais acumulam: <strong>US$ 0,67/mi</strong>.</li><li>Cargas especiais escoltadas podem ser tratadas como trabalho de motorista experiente do Nível 3; não alteram o CPM automaticamente a menos que uma regra futura seja criada.</li>
+      </ul></details>
+
+      <details><summary>6. Postos credenciados e planejamento OTR</summary><ul>
+        <li>No Nível 2/3, viagens longas devem ser planejadas com antecedência.</li><li>Postos credenciados podem ser usados para abastecer, dormir, tomar banho e realizar parada oficial.</li><li>Postos não credenciados ficam para emergência ou parada rápida.</li><li>Abastecimento fora da rede somente em emergência/autorização.</li>
+      </ul></details>
+
+      <details><summary>7. Hours of Service + fadiga do ATS</summary><ul>
+        <li>Até 11 horas dirigindo dentro de uma janela aproximada de 14 horas.</li><li>Depois: 10 horas consecutivas de descanso.</li><li>Pausa de aproximadamente 30 minutos quando aplicável.</li><li>Vale sempre o limite que chegar primeiro: HOS ou fadiga do ATS.</li><li>O descanso do ATS deve coincidir o máximo possível com o descanso da simulação.</li>
+      </ul></details>
+
+      <details><summary>8. Custos do caminhão</summary><ul>
+        <li>Diesel, manutenção, pneus, reparos, seguro comercial, licenciamento e pedágios autorizados são pagos pela empresa.</li><li>Esses custos não saem do saldo pessoal durante a Fase 1.</li>
+      </ul></details>
+
+      <details><summary>9. Benefícios e holerite</summary><ul>
+        <li>Benefícios semanais: US$ 36 por padrão.</li><li>401(k): 0% no começo.</li><li>Todo salário é bruto.</li><li>O painel estima imposto federal, Social Security, Medicare, imposto estadual da Califórnia e SDI.</li><li>Ao gerar o holerite, o salário líquido + per diem é creditado automaticamente no saldo.</li>
+      </ul></details>
+
+      <details><summary>9A. Promoções, infrações e acidentes</summary><ul>
+        <li>Não é permitido alterar o nível manualmente.</li><li>Nível 2 só libera após 10.000 milhas, conclusão confirmada do Truck Driving Proficiency e pagamento de US$ 300.</li><li>Nível 3 só libera após 50.000 milhas totais, conclusão confirmada do Double Trailer Handling e pagamento de US$ 59.</li><li>Infrações e acidentes podem ser associados a uma rota, data e hora.</li><li>O custo pode ser descontado imediatamente do saldo ou colocado como desconto pendente do próximo holerite.</li><li>Se o holerite não cobrir todo o valor pendente, o restante passa para a semana seguinte.</li><li>Por enquanto, ocorrências são registradas para histórico e impacto financeiro; elas não bloqueiam automaticamente a promoção de nível.</li>
+      </ul></details>
+
+      <details><summary>10. Economia do ATS</summary><ul>
+        <li>O valor que o jogo diz que a carga paga é ignorado.</li><li>A carreira usa somente as regras externas deste painel.</li><li>No Nível 1, salário semanal fixo. No Nível 2/3, milhas × CPM.</li>
+      </ul></details>
+
+      <details><summary>11. Registro de viagens e fechamento semanal</summary><ul>
+        <li>Data/hora de saída e data/hora de chegada são obrigatórias em cada viagem.</li><li>As viagens registradas são a fonte oficial das milhas totais e das milhas pagas da semana.</li><li>Loaded e Deadhead contam para progressão. No Nível 2/3, cada categoria possui seu CPM próprio.</li><li>O per diem é calculado automaticamente somente no Nível 2/3 a partir das viagens que atravessam pelo menos uma noite.</li><li>Ao gerar o holerite, a semana atual é fechada, o depósito é creditado e uma nova semana começa zerada.</li><li>Viagens de semanas fechadas ficam bloqueadas para edição/exclusão para preservar o histórico do holerite.</li><li>Antes de fechar a semana, registre todas as viagens e ocorrências correspondentes.</li>
+      </ul></details>
+    </div>
+  </section>
+
+  <section id="modsTab" class="tab-panel">
+    <div class="tab-intro"><strong>Para que serve:</strong> consultar mods que aumentam a imersão sem substituir a economia controlada pelo painel.</div>
+    <div class="card">
+      <h2>Mods sugeridos para a simulação</h2>
+      <p class="muted">Sugestões da Steam Workshop para aumentar a imersão sem substituir a economia própria desta carreira.</p>
+      <div class="notice"><strong>Importante:</strong> como salário, aluguel, impostos e saldo são controlados por este painel, evite mods que alterem drasticamente pagamentos, empréstimos e economia do ATS.</div>
+
+      <details open><summary>Real companies, gas stations & billboards</summary>
+        <p>Troca empresas, postos e outdoors fictícios por marcas do mundo real, deixando as rotas e os postos credenciados mais convincentes.</p>
+        <p><a href="https://steamcommunity.com/sharedfiles/filedetails/?id=2316796205" target="_blank" rel="noopener" style="color:#38bdf8">Abrir na Steam Workshop</a></p>
+      </details>
+
+      <details><summary>Real Traffic Density ATS</summary>
+        <p>Aumenta e varia o fluxo de tráfego conforme o horário, ajudando a criar horários de pico, trânsito noturno e viagens menos previsíveis.</p>
+        <p><a href="https://steamcommunity.com/workshop/filedetails/?id=1213282672" target="_blank" rel="noopener" style="color:#38bdf8">Abrir na Steam Workshop</a></p>
+      </details>
+
+      <details><summary>More realistic traffic</summary>
+        <p>Ajusta o comportamento e a aparência do tráfego para uma sensação mais natural sem tentar transformar a IA em algo impossível.</p>
+        <p><a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3423331725" target="_blank" rel="noopener" style="color:#38bdf8">Abrir na Steam Workshop</a></p>
+      </details>
+
+      <details><summary>Better Raindrops</summary>
+        <p>Melhora a aparência das gotas no para-brisa e da chuva em geral, útil para viagens longas e condições ruins de estrada.</p>
+        <p><a href="https://steamcommunity.com/sharedfiles/filedetails/?id=2980935675" target="_blank" rel="noopener" style="color:#38bdf8">Abrir na Steam Workshop</a></p>
+      </details>
+
+      <details><summary>Realistic AI Traffic Pack</summary>
+        <p>Adiciona combinações de caminhões, trailers e ônibus com pinturas mais próximas da realidade, incluindo trailers usados e empresas populares.</p>
+        <p><a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3713185881" target="_blank" rel="noopener" style="color:#38bdf8">Abrir na Steam Workshop</a></p>
+      </details>
+
+      <details><summary>Mods de economia — usar com cautela</summary>
+        <p><strong>Realistic Economy (Hard Mode)</strong> e <strong>More realistic economy</strong> existem na Workshop e tornam a economia mais difícil, mas podem conflitar com nosso sistema de salário, despesas e saldo.</p>
+        <p>Para esta carreira, a recomendação é <strong>não usar mods de economia</strong> enquanto o painel web for a fonte oficial do dinheiro.</p>
+      </details>
+    </div>
+  </section>
+
+  <section id="historyTab" class="tab-panel">
+    <div class="tab-intro"><strong>Para que serve:</strong> consultar todas as entradas e saídas que alteraram o saldo, como salários, despesas, treinamentos, multas e ajustes.</div>
+    <div class="card">
+      <h2>Histórico financeiro</h2>
+      <div class="history"><table><thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Valor</th><th>Saldo</th></tr></thead><tbody id="historyBody"></tbody></table></div>
+    </div>
+  </section>
+
+  <section class="glossary" aria-label="Glossário rápido">
+    <h3>Glossário rápido</h3>
+    <div class="glossary-grid">
+      <div class="glossary-item"><strong>Loaded:</strong> trecho rodado com carga.</div>
+      <div class="glossary-item"><strong>Deadhead:</strong> trecho rodado vazio; na Fase 1 paga US$ 0,50/mi no Nível 2/3.</div>
+      <div class="glossary-item"><strong>CPM:</strong> cents per mile; valor pago por milha dirigida.</div>
+      <div class="glossary-item"><strong>Per diem:</strong> diária para alimentação e pequenos gastos em viagem OTR. Aqui é calculada pelos dias válidos entre saída e chegada.</div>
+      <div class="glossary-item"><strong>HazMat:</strong> hazardous materials, cargas perigosas como combustíveis, gases, corrosivos ou outros materiais regulamentados; exige qualificação específica.</div>
+      <div class="glossary-item"><strong>Doubles:</strong> combinação com dois reboques; exige qualificação/endorsement correspondente.</div>
+      <div class="glossary-item"><strong>OTR:</strong> Over The Road, operação de longa distância com vários dias fora da base.</div>
+      <div class="glossary-item"><strong>HOS:</strong> Hours of Service, regras de tempo de direção, jornada e descanso.</div>
+      <div class="glossary-item"><strong>Holerite:</strong> demonstrativo do salário bruto, descontos, per diem e valor líquido depositado.</div>
+      <div class="glossary-item"><strong>Route Overrun:</strong> adicional criado para a simulação quando o Nível 1 ultrapassa o horário normal para concluir a rota.</div>
+    </div>
+  </section>
+
+</main>
+
+<div id="toastStack" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
+
+<script>
+const CAREERS_KEY='ats_careers_v1';
+const careerId=new URLSearchParams(location.search).get('career')||localStorage.getItem('ats_active_career');
+let careers=[]; try{careers=JSON.parse(localStorage.getItem(CAREERS_KEY)||'[]')}catch{}
+const career=careers.find(c=>c.id===careerId);
+if(!career){ alert('Carreira não encontrada.'); location.href='ats.html'; }
+if(career) localStorage.setItem('ats_active_career',career.id);
+const KEY='ats_phase1_state_v4_'+(careerId||'default');
+const initialBalance=career ? Number(career.initialBalance)||0 : 793;
+let state={balance:initialBalance,history:[],careerMiles:0,careerLevel:1,trips:[],customExpenses:[],currentWeek:1,closedWeeks:[],incidents:[],academy:{level2:false,level3:false},hazmatQualified:false};
+
+function showToast(message,type='success',duration=3200){
+  const stack=document.getElementById('toastStack'); if(!stack) return;
+  const el=document.createElement('div'); el.className='toast '+type; el.textContent=message; stack.appendChild(el);
+  setTimeout(()=>{el.style.opacity='0';el.style.transform='translateY(8px)';el.style.transition='.18s';setTimeout(()=>el.remove(),220)},duration);
+}
+function activateTab(tabId){
+  const target=document.getElementById(tabId); if(!target) return;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===tabId));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.id===tabId));
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
