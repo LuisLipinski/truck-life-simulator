@@ -16,6 +16,7 @@ import {
   validPayCategories,
 } from '../lib/phase1.js'
 import CityAutocomplete from './CityAutocomplete.jsx'
+import { useToast } from './ToastProvider.jsx'
 import FinancesTab from './phase1/FinancesTab.jsx'
 import PayslipTab from './phase1/PayslipTab.jsx'
 import IncidentsTab from './phase1/IncidentsTab.jsx'
@@ -23,6 +24,7 @@ import QualificationsTab from './phase1/QualificationsTab.jsx'
 import RulesTab from './phase1/RulesTab.jsx'
 import ModsTab from './phase1/ModsTab.jsx'
 import HistoryTab from './phase1/HistoryTab.jsx'
+import AcademyGuideTab from './phase1/AcademyGuideTab.jsx'
 
 const TAB_HELP = {
   overview: {
@@ -52,8 +54,13 @@ const TAB_HELP = {
   },
   qualifications: {
     label: 'Qualificações',
-    description: 'Acompanhe os requisitos de promoção, treinamentos da ATS Academy e qualificações opcionais como HazMat.',
+    description: 'Acompanhe os requisitos de promoção, treinamentos da Driving Academy e qualificações opcionais como HazMat.',
     tip: 'As promoções exigem a quilometragem mínima e a confirmação do treinamento antes do pagamento da taxa correspondente.',
+  },
+  academy: {
+    label: 'Driving Academy',
+    description: 'Entenda o módulo de treinamento do ATS, qual etapa da Academy corresponde a cada promoção e como acessar os cenários dentro do jogo.',
+    tip: 'Use este guia quando atingir 10.000 ou 50.000 milhas e precisar concluir o treinamento exigido para a próxima promoção.',
   },
   rules: {
     label: 'Regras',
@@ -69,6 +76,23 @@ const TAB_HELP = {
     label: 'Histórico',
     description: 'Mostra as movimentações financeiras e semanas fechadas para você acompanhar o que aconteceu ao longo da carreira.',
     tip: 'Use o histórico para conferir depósitos, despesas, qualificações e outros eventos que alteraram o saldo.',
+  },
+}
+
+const PROMOTION_MILESTONES = {
+  2: {
+    level: 2,
+    miles: 10000,
+    module: 'Truck Driving Proficiency',
+    subtitle: 'Seu próximo passo é provar que está pronto para a operação OTR.',
+    image: 'https://img.youtube.com/vi/jXEfpl0jWM0/maxresdefault.jpg',
+  },
+  3: {
+    level: 3,
+    miles: 50000,
+    module: 'Double Trailer Handling',
+    subtitle: 'Você chegou à etapa avançada da carreira. Agora é hora de treinar Doubles.',
+    image: 'https://img.youtube.com/vi/WS_aCxiCdgM/maxresdefault.jpg',
   },
 }
 
@@ -102,6 +126,34 @@ function TabIntro({ tabId }) {
       <strong>{help.label}</strong>
       <p>{help.description}</p>
     </section>
+  )
+}
+
+function PromotionMilestoneModal({ milestone, onClose, onPromotion, onGuide }) {
+  if (!milestone) return null
+  return (
+    <div className="promotion-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+      <section className="promotion-modal" role="dialog" aria-modal="true" aria-labelledby="promotion-modal-title">
+        <div className="promotion-modal-media" style={{ backgroundImage: `linear-gradient(115deg,rgba(2,6,23,.92) 10%,rgba(2,6,23,.48) 60%,rgba(2,6,23,.12)),url(${milestone.image})` }}>
+          <button className="promotion-modal-close" type="button" aria-label="Fechar" onClick={onClose}>×</button>
+          <div className="promotion-confetti" aria-hidden="true"><span>◆</span><span>◆</span><span>◆</span><span>◆</span><span>◆</span></div>
+          <div className="promotion-modal-copy">
+            <span className="promotion-kicker">Marco alcançado</span>
+            <h2 id="promotion-modal-title">Parabéns! Você alcançou as milhas necessárias para o Nível {milestone.level}.</h2>
+            <p>{milestone.subtitle}</p>
+            <div className="promotion-academy-callout">
+              <span>Faça agora no Driving Academy</span>
+              <strong>{milestone.module}</strong>
+              <small>Meta atingida: {milestone.miles.toLocaleString('en-US')} milhas.</small>
+            </div>
+            <div className="promotion-modal-actions">
+              <button className="button primary" type="button" onClick={onPromotion}>Ir para a promoção</button>
+              <button className="button secondary" type="button" onClick={onGuide}>Entender o Driving Academy</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
   )
 }
 
@@ -183,6 +235,7 @@ function OverviewTab({ career, state, setActiveTab }) {
 }
 
 function TripForm({ state, onAdd }) {
+  const toast = useToast()
   const [departureAt, setDepartureAt] = useState('')
   const [arrivalAt, setArrivalAt] = useState('')
   const [origin, setOrigin] = useState('')
@@ -203,15 +256,15 @@ function TripForm({ state, onAdd }) {
     const start = new Date(departureAt)
     const end = new Date(arrivalAt)
     if (!departureAt || !arrivalAt || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
-      window.alert('Informe saída e chegada válidas. A chegada precisa ser posterior à saída.')
+      toast.error('Informe saída e chegada válidas. A chegada precisa ser posterior à saída.')
       return
     }
     if (!origin.trim() || !destination.trim()) {
-      window.alert('Informe cidade de origem e destino.')
+      toast.error('Informe cidade de origem e destino.')
       return
     }
     if (!Number.isFinite(distance) || distance <= 0) {
-      window.alert('Informe uma quilometragem válida.')
+      toast.error('Informe uma quilometragem válida.')
       return
     }
 
@@ -311,9 +364,11 @@ function TripsTab({ state, onAddTrip, onDeleteTrip }) {
 }
 
 export default function Phase1Page({ careerId, onBack }) {
+  const toast = useToast()
   const career = getCareer(careerId)
   const [state, setState] = useState(() => loadPhase1State(careerId))
   const [activeTab, setActiveTab] = useState('overview')
+  const [promotionMilestone, setPromotionMilestone] = useState(null)
 
   const mainTabs = useMemo(() => [
     ['overview', 'Visão Geral'],
@@ -327,6 +382,7 @@ export default function Phase1Page({ careerId, onBack }) {
     ['progress', 'Registro de Viagens'],
     ['incidents', 'Infrações e Acidentes'],
     ['qualifications', 'Qualificações'],
+    ['academy', 'Driving Academy'],
   ], [])
 
   const financialTabs = useMemo(() => [
@@ -353,6 +409,12 @@ export default function Phase1Page({ careerId, onBack }) {
     else setActiveTab(id)
   }
 
+  function goToTab(id) {
+    setPromotionMilestone(null)
+    setActiveTab(id)
+    window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }))
+  }
+
   useEffect(() => {
     if (career?.id) setActiveCareer(career.id)
   }, [career?.id])
@@ -366,21 +428,37 @@ export default function Phase1Page({ careerId, onBack }) {
   }
 
   function addTrip(trip) {
+    const beforeMiles = totalMiles(state)
+    const afterMiles = beforeMiles + Number(trip.miles || 0)
     commit({ ...state, trips: [...state.trips, trip] })
+    toast.success(`Viagem registrada: ${Number(trip.miles || 0).toLocaleString('en-US')} mi adicionadas à carreira.`)
+
+    if (state.currentLevel === 1 && beforeMiles < 10000 && afterMiles >= 10000) {
+      setPromotionMilestone(PROMOTION_MILESTONES[2])
+    } else if (state.currentLevel === 2 && beforeMiles < 50000 && afterMiles >= 50000) {
+      setPromotionMilestone(PROMOTION_MILESTONES[3])
+    }
   }
 
   function deleteTrip(trip) {
     const weekClosed = (state.closedWeeks || []).some((week) => Number(week.week) === Number(trip.week || 1))
     if (weekClosed) {
-      window.alert('Esta viagem pertence a uma semana já fechada e não pode ser excluída.')
+      toast.error('Esta viagem pertence a uma semana já fechada e não pode ser excluída.')
       return
     }
     if (!window.confirm(`Excluir o trecho ${trip.origin || ''} → ${trip.destination || ''}?`)) return
     commit({ ...state, trips: state.trips.filter((item) => Number(item.id) !== Number(trip.id)) })
+    toast.success('Viagem excluída com sucesso.')
   }
 
   return (
     <div className="phase1-app">
+      <PromotionMilestoneModal
+        milestone={promotionMilestone}
+        onClose={() => setPromotionMilestone(null)}
+        onPromotion={() => goToTab('qualifications')}
+        onGuide={() => goToTab('academy')}
+      />
       <header className="phase1-header">
         <div className="phase1-header-inner">
           <button className="back-button" onClick={onBack}>← Voltar</button>
@@ -410,6 +488,7 @@ export default function Phase1Page({ careerId, onBack }) {
         {activeTab === 'progress' && <TripsTab state={state} onAddTrip={addTrip} onDeleteTrip={deleteTrip} />}
         {activeTab === 'incidents' && <IncidentsTab state={state} commit={commit} />}
         {activeTab === 'qualifications' && <QualificationsTab state={state} commit={commit} />}
+        {activeTab === 'academy' && <AcademyGuideTab onOpenQualifications={() => goToTab('qualifications')} />}
         {activeTab === 'rules' && <RulesTab />}
         {activeTab === 'mods' && <ModsTab />}
         {activeTab === 'history' && <HistoryTab state={state} />}
