@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { getPromotionStatus, totalMiles } from '../../lib/phase1.js'
+import { useToast } from '../ToastProvider.jsx'
 
 function money(value) {
   return Number(value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
@@ -14,6 +15,7 @@ function historyEntry(description, amount, balance) {
 }
 
 export default function QualificationsTab({ state, commit }) {
+  const toast = useToast()
   const miles = totalMiles(state)
   const promotion = getPromotionStatus(state)
   const [academy2Confirmed, setAcademy2Confirmed] = useState(false)
@@ -21,26 +23,38 @@ export default function QualificationsTab({ state, commit }) {
 
   function promoteLevel2() {
     if (state.currentLevel !== 1 || miles < 10000 || !academy2Confirmed) return
-    if (Number(state.balance || 0) < 300) return window.alert('Saldo insuficiente para pagar os US$ 300 da avaliação/Academy do Nível 2.')
+    if (Number(state.balance || 0) < 300) {
+      toast.error('Saldo insuficiente para pagar os US$ 300 da avaliação/Academy do Nível 2.')
+      return
+    }
     if (!window.confirm('Confirmar o pagamento de US$ 300 e liberar o Nível 2?')) return
     const balance = Number(state.balance || 0) - 300
     commit({ ...state, balance, currentLevel: 2, careerLevel: 2, academy: { ...(state.academy || {}), level2: true }, history: [historyEntry('Promoção para Nível 2 — Academy / avaliação', -300, balance), ...(state.history || [])] })
+    toast.success('Promoção concluída. Bem-vindo ao Nível 2 — Company Driver / OTR!', { title: 'Nível 2 liberado' })
   }
 
   function qualifyHazmat() {
     if (state.currentLevel < 2 || state.hazmatQualified) return
-    if (Number(state.balance || 0) < 144.25) return window.alert('Saldo insuficiente para pagar US$ 144,25 da qualificação HazMat.')
+    if (Number(state.balance || 0) < 144.25) {
+      toast.error('Saldo insuficiente para pagar US$ 144,25 da qualificação HazMat.')
+      return
+    }
     if (!window.confirm('Confirmar qualificação HazMat e descontar US$ 144,25 do saldo?')) return
     const balance = Number(state.balance || 0) - 144.25
     commit({ ...state, balance, hazmatQualified: true, history: [historyEntry('Qualificação HazMat', -144.25, balance), ...(state.history || [])] })
+    toast.success('Qualificação HazMat ativada. As categorias compatíveis já estão disponíveis.', { title: 'HazMat liberado' })
   }
 
   function promoteLevel3() {
     if (state.currentLevel !== 2 || miles < 50000 || !academy3Confirmed) return
-    if (Number(state.balance || 0) < 59) return window.alert('Saldo insuficiente para pagar os US$ 59 do Double Trailer Handling.')
+    if (Number(state.balance || 0) < 59) {
+      toast.error('Saldo insuficiente para pagar os US$ 59 do Double Trailer Handling.')
+      return
+    }
     if (!window.confirm('Confirmar o pagamento de US$ 59 e liberar o Nível 3?')) return
     const balance = Number(state.balance || 0) - 59
     commit({ ...state, balance, currentLevel: 3, careerLevel: 3, academy: { ...(state.academy || {}), level2: true, level3: true }, history: [historyEntry('Promoção para Nível 3 — Double Trailer Handling', -59, balance), ...(state.history || [])] })
+    toast.success('Promoção concluída. Nível 3 — Experienced Driver / Doubles liberado!', { title: 'Nível 3 liberado' })
   }
 
   const level2Ready = state.currentLevel === 1 && miles >= 10000
@@ -55,9 +69,9 @@ export default function QualificationsTab({ state, commit }) {
 
       <section className="qualification-grid">
         <article className={`panel qualification-card ${state.currentLevel >= 2 ? 'completed' : level2Ready ? 'ready' : ''}`}>
-          <span className="eyebrow">Nível 1 → Nível 2</span><h2 className="line-label-with-tip">Truck Driving Proficiency <Tip text="Promoção para OTR. Exige 10.000 milhas totais, confirmação do treinamento no ATS Academy e pagamento pessoal de US$ 300." /></h2><p>Exige 10.000 milhas totais, conclusão do Academy de Proficiência e pagamento de US$ 300.</p>
+          <span className="eyebrow">Nível 1 → Nível 2</span><h2 className="line-label-with-tip">Truck Driving Proficiency <Tip text="Promoção para OTR. Exige 10.000 milhas totais, confirmação do treinamento no ATS Driving Academy e pagamento pessoal de US$ 300." /></h2><p>Exige 10.000 milhas totais, conclusão do Truck Driving Proficiency no Driving Academy e pagamento de US$ 300.</p>
           <div className="qualification-meta"><span>Meta</span><strong>10.000 mi</strong><span>Custo</span><strong>US$ 300,00</strong></div>
-          {state.currentLevel >= 2 ? <div className="qualification-done">✓ Nível 2 concluído</div> : <><label className={`academy-check ${!level2Ready ? 'disabled-check' : ''}`}><input type="checkbox" disabled={!level2Ready} checked={academy2Confirmed} onChange={(e) => setAcademy2Confirmed(e.target.checked)} /> Concluí o Truck Driving Proficiency / Academy</label><button className="button primary" disabled={!level2Ready || !academy2Confirmed} onClick={promoteLevel2}>{!level2Ready ? `${Math.max(0, 10000 - miles).toLocaleString('en-US')} mi restantes` : academy2Confirmed ? 'Pagar US$ 300 e liberar Nível 2' : 'Confirme o Academy acima'}</button></>}
+          {state.currentLevel >= 2 ? <div className="qualification-done">✓ Nível 2 concluído</div> : <><label className={`academy-check ${!level2Ready ? 'disabled-check' : ''}`}><input type="checkbox" disabled={!level2Ready} checked={academy2Confirmed} onChange={(e) => setAcademy2Confirmed(e.target.checked)} /> Concluí o Truck Driving Proficiency / Driving Academy</label><button className="button primary" disabled={!level2Ready || !academy2Confirmed} onClick={promoteLevel2}>{!level2Ready ? `${Math.max(0, 10000 - miles).toLocaleString('en-US')} mi restantes` : academy2Confirmed ? 'Pagar US$ 300 e liberar Nível 2' : 'Confirme o Academy acima'}</button></>}
         </article>
 
         <article className={`panel qualification-card ${state.hazmatQualified ? 'completed' : state.currentLevel >= 2 ? 'ready' : ''}`}>
@@ -67,7 +81,7 @@ export default function QualificationsTab({ state, commit }) {
         </article>
 
         <article className={`panel qualification-card ${state.currentLevel >= 3 ? 'completed' : level3Ready ? 'ready' : ''}`}>
-          <span className="eyebrow">Nível 2 → Nível 3</span><h2 className="line-label-with-tip">Double Trailer Handling <Tip text="Promoção final da Fase 1. Exige 50.000 milhas totais, confirmação do treinamento de Doubles e pagamento pessoal de US$ 59." /></h2><p>Exige 50.000 milhas totais, conclusão do treinamento de Doubles e pagamento de US$ 59.</p>
+          <span className="eyebrow">Nível 2 → Nível 3</span><h2 className="line-label-with-tip">Double Trailer Handling <Tip text="Promoção final da Fase 1. Exige 50.000 milhas totais, confirmação do módulo Double Trailer Handling no Driving Academy e pagamento pessoal de US$ 59." /></h2><p>Exige 50.000 milhas totais, conclusão do Double Trailer Handling no Driving Academy e pagamento de US$ 59.</p>
           <div className="qualification-meta"><span>Meta</span><strong>50.000 mi</strong><span>Custo</span><strong>US$ 59,00</strong></div>
           {state.currentLevel >= 3 ? <div className="qualification-done">✓ Nível 3 concluído</div> : <><label className={`academy-check ${!level3Ready ? 'disabled-check' : ''}`}><input type="checkbox" disabled={!level3Ready} checked={academy3Confirmed} onChange={(e) => setAcademy3Confirmed(e.target.checked)} /> Concluí o Double Trailer Handling</label><button className="button primary" disabled={!level3Ready || !academy3Confirmed} onClick={promoteLevel3}>{state.currentLevel < 2 ? 'Primeiro conclua o Nível 2' : !level3Ready ? `${Math.max(0, 50000 - miles).toLocaleString('en-US')} mi restantes` : academy3Confirmed ? 'Pagar US$ 59 e liberar Nível 3' : 'Confirme o treinamento acima'}</button></>}
         </article>
