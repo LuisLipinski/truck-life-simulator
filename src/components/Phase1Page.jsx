@@ -315,17 +315,43 @@ export default function Phase1Page({ careerId, onBack }) {
   const [state, setState] = useState(() => loadPhase1State(careerId))
   const [activeTab, setActiveTab] = useState('overview')
 
-  const tabs = useMemo(() => [
+  const mainTabs = useMemo(() => [
     ['overview', 'Visão Geral'],
-    ['finances', 'Saldo e Despesas'],
-    ['payslip', 'Holerite'],
+    ['journal', 'Diário de Bordo'],
+    ['financial', 'Financeiro'],
+    ['rules', 'Regras'],
+    ['mods', 'Mods'],
+  ], [])
+
+  const journalTabs = useMemo(() => [
     ['progress', 'Registro de Viagens'],
     ['incidents', 'Infrações e Acidentes'],
     ['qualifications', 'Qualificações'],
-    ['rules', 'Regras'],
-    ['mods', 'Mods sugeridos'],
+  ], [])
+
+  const financialTabs = useMemo(() => [
+    ['finances', 'Saldo e Despesas'],
+    ['payslip', 'Holerite'],
     ['history', 'Histórico'],
   ], [])
+
+  const activeMainTab = journalTabs.some(([id]) => id === activeTab)
+    ? 'journal'
+    : financialTabs.some(([id]) => id === activeTab)
+      ? 'financial'
+      : activeTab
+
+  const activeSubtabs = activeMainTab === 'journal'
+    ? journalTabs
+    : activeMainTab === 'financial'
+      ? financialTabs
+      : []
+
+  function openMainTab(id) {
+    if (id === 'journal') setActiveTab('progress')
+    else if (id === 'financial') setActiveTab('finances')
+    else setActiveTab(id)
+  }
 
   useEffect(() => {
     if (career?.id) setActiveCareer(career.id)
@@ -369,9 +395,14 @@ export default function Phase1Page({ careerId, onBack }) {
         </div>
       </header>
       <nav className="phase1-tabs-wrap" aria-label="Seções da Fase 1"><div className="phase1-tabs">
-        {tabs.map(([id, label]) => <button key={id} className={activeTab === id ? 'active' : ''} onClick={() => setActiveTab(id)}>{label}</button>)}
+        {mainTabs.map(([id, label]) => <button key={id} className={activeMainTab === id ? 'active' : ''} onClick={() => openMainTab(id)}>{label}</button>)}
       </div></nav>
       <main className="phase1-content">
+        {activeSubtabs.length > 0 && (
+          <nav className="phase1-subtabs" aria-label={activeMainTab === 'journal' ? 'Seções do Diário de Bordo' : 'Seções Financeiras'}>
+            {activeSubtabs.map(([id, label]) => <button key={id} className={activeTab === id ? 'active' : ''} onClick={() => setActiveTab(id)}>{label}</button>)}
+          </nav>
+        )}
         <TabIntro tabId={activeTab} />
         {activeTab === 'overview' && <OverviewTab career={career} state={state} setActiveTab={setActiveTab} />}
         {activeTab === 'finances' && <FinancesTab state={state} commit={commit} />}
