@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getCareer, setActiveCareer } from '../lib/storage.js'
+import { exportCareerCSV } from '../lib/csv.js'
 import {
   currentWeekMiles,
   currentWeekTrips,
@@ -14,6 +15,7 @@ import {
   totalMiles,
   validPayCategories,
 } from '../lib/phase1.js'
+import CityAutocomplete from './CityAutocomplete.jsx'
 import FinancesTab from './phase1/FinancesTab.jsx'
 import PayslipTab from './phase1/PayslipTab.jsx'
 import IncidentsTab from './phase1/IncidentsTab.jsx'
@@ -95,11 +97,11 @@ function OverviewTab({ career, state, setActiveTab }) {
 
       <section className="panel legacy-bridge">
         <div>
-          <span className="eyebrow">Migração React</span>
-          <h2>A Fase 1 principal já está em React</h2>
-          <p>Visão Geral, Finanças, Holerite, Progresso, Ocorrências, Qualificações, Regras, Mods e Histórico já compartilham os mesmos dados. O CSV ainda usa a interface clássica durante a migração.</p>
+          <span className="eyebrow">Backup da carreira</span>
+          <h2>Exportação CSV já está em React</h2>
+          <p>O backup inclui perfil, estado, viagens, histórico, gastos personalizados, ocorrências e semanas fechadas. A importação fica na tela de Carreiras.</p>
         </div>
-        <a className="button secondary compact" href={`fase1.html?career=${encodeURIComponent(career.id)}`}>Abrir módulo clássico / CSV</a>
+        <button className="button success compact" type="button" onClick={() => exportCareerCSV(career, state)}>Exportar carreira CSV</button>
       </section>
     </>
   )
@@ -164,17 +166,17 @@ function TripForm({ state, onAdd }) {
 
   return (
     <form className="panel trip-form" onSubmit={submit}>
-      <div className="section-heading compact-heading"><span className="eyebrow">Semana {state.currentWeek}</span><h2>Registrar viagem</h2><p>As viagens usam o mesmo formato da versão clássica.</p></div>
+      <div className="section-heading compact-heading"><span className="eyebrow">Semana {state.currentWeek}</span><h2>Registrar viagem</h2><p>As viagens usam o mesmo formato dos backups existentes.</p></div>
       <div className="two-columns">
         <div><label>Data e horário de saída</label><input type="datetime-local" value={departureAt} onChange={(e) => setDepartureAt(e.target.value)} required /></div>
         <div><label>Data e horário de chegada</label><input type="datetime-local" value={arrivalAt} onChange={(e) => setArrivalAt(e.target.value)} required /></div>
       </div>
       <div className="two-columns">
-        <div><label>Cidade de origem</label><input value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="Ex.: Los Angeles, CA" required /></div>
+        <CityAutocomplete value={origin} onChange={setOrigin} label="Cidade de origem" required />
         <div><label>Filial / empresa de origem</label><input value={originCompany} onChange={(e) => setOriginCompany(e.target.value)} placeholder="Ex.: Pacific Horizon Logistics" /></div>
       </div>
       <div className="two-columns">
-        <div><label>Cidade de destino</label><input value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Ex.: Bakersfield, CA" required /></div>
+        <CityAutocomplete value={destination} onChange={setDestination} label="Cidade de destino" required />
         <div><label>Empresa de destino</label><input value={destinationCompany} onChange={(e) => setDestinationCompany(e.target.value)} placeholder="Cliente ou filial" /></div>
       </div>
       <div className="two-columns">
