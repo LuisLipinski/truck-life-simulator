@@ -1,0 +1,181 @@
+          <option value="3">Nível 3 — Doubles</option>
+        </select>
+
+        <div id="level1Fields">
+          <label>Salário bruto semanal <span class="info-tip" tabindex="0" data-tip="É o valor antes dos impostos e benefícios. No Nível 1: salário-base + Route Overrun, quando houver.">i</span></label>
+          <input id="level1Gross" type="number" value="850" step="0.01" />
+          <label>Horas de Route Overrun <span class="info-tip" tabindex="0" data-tip="Horas trabalhadas além do expediente normal para concluir a operação. Cálculo: horas excedentes da rota × valor/hora adicional.">i</span></label>
+          <input id="overrunHours" type="number" value="0" step="0.25" />
+          <label>Valor/hora adicional</label>
+          <input id="overrunRate" type="number" value="21.25" step="0.01" />
+        </div>
+
+        <div id="level2Fields" style="display:none">
+          <label>Resumo automático das milhas pagas <span class="info-tip" tabindex="0" data-tip="O holerite usa as viagens da semana atual. Loaded normal paga US$ 0,60/mi; HazMat US$ 0,63/mi; Doubles US$ 0,64/mi; HazMat + Doubles US$ 0,67/mi; Deadhead paga US$ 0,50/mi.">i</span></label>
+          <div id="weeklyPayBreakdown" class="notice">Nenhuma milha registrada na semana atual.</div>
+          <label>Total de milhas pagas na semana</label>
+          <input id="miles" type="number" value="0" readonly />
+          <p id="weekMilesHint" class="muted">Calculado automaticamente a partir das viagens da semana atual.</p>
+          <label>Dias qualificáveis de per diem <span class="info-tip" tabindex="0" data-tip="Calculado automaticamente pelas datas/horários das viagens OTR da semana. Dias repetidos entre viagens contam uma vez. Viagem que começa e termina no mesmo dia não gera per diem.">i</span></label>
+          <input id="perDiemDays" type="number" value="0" readonly />
+          <label>Per diem diário <span class="info-tip" tabindex="0" data-tip="Valor recebido por cada dia qualificável. Padrão da simulação: US$ 80 por dia.">i</span></label>
+          <input id="perDiemRate" type="number" value="80" step="1" />
+        </div>
+
+        <label>Benefícios semanais <span class="info-tip" tabindex="0" data-tip="Desconto semanal do pacote médico, dental e visão. Padrão: US$ 28 + US$ 6 + US$ 2 = US$ 36 por semana.">i</span></label>
+        <input id="benefits" type="number" value="36" step="0.01" />
+        <button class="green" onclick="generatePayslip()">Gerar holerite e creditar salário</button>
+      </div>
+
+      <div class="card">
+        <h2>Último holerite</h2>
+        <div id="payslip" class="muted">Nenhum holerite gerado ainda.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="progressTab" class="tab-panel">
+    <div class="tab-intro"><strong>Para que serve:</strong> registrar cada viagem, acompanhar as milhas da carreira e liberar novos níveis. As viagens desta aba são a fonte oficial das milhas usadas no holerite e nas promoções.</div>
+    <div class="grid">
+      <div class="card">
+        <h2>Progresso da carreira</h2>
+        <div id="progressMilesBig" class="big">0 mi</div>
+        <div class="progress"><div id="progressMileageBar"></div></div>
+        <p id="promotionHint" class="muted"></p>
+      </div>
+      <div class="card">
+        <h2>Nível da carreira</h2>
+        <div id="careerLevelLocked" class="metric">Nível 1</div>
+        <p id="careerLevelLockedText" class="muted">Trainee / Local Driver</p>
+        <p class="muted">O nível não pode ser alterado manualmente. A promoção só é liberada quando as milhas e o Academy correspondente forem concluídos.</p>
+        <div id="promotionBox"></div>
+        <div id="hazmatBox" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Registrar viagem</h2>
+      <div class="two">
+        <div>
+          <label>Origem</label>
+          <div class="city-autocomplete">
+            <input id="tripOrigin" type="text" placeholder="Pesquise uma cidade..." autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="tripOriginResults">
+            <button type="button" class="city-toggle" id="tripOriginToggle" aria-label="Abrir lista de cidades de origem">▾</button>
+            <div id="tripOriginResults" class="city-results" role="listbox"></div>
+          </div>
+          <div class="city-search-hint">O campo começa vazio. Digite qualquer letra para pesquisar; clique na seta para ver todas as cidades. Se nenhuma cidade for encontrada, você poderá adicionar o nome manualmente.</div>
+        </div>
+        <div>
+          <label>Destino</label>
+          <div class="city-autocomplete">
+            <input id="tripDestination" type="text" placeholder="Pesquise uma cidade..." autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="tripDestinationResults">
+            <button type="button" class="city-toggle" id="tripDestinationToggle" aria-label="Abrir lista de cidades de destino">▾</button>
+            <div id="tripDestinationResults" class="city-results" role="listbox"></div>
+          </div>
+          <div class="city-search-hint">O campo começa vazio. Digite qualquer letra para pesquisar; clique na seta para ver todas as cidades. Se nenhuma cidade for encontrada, você poderá adicionar o nome manualmente.</div>
+        </div>
+      </div>
+      <div class="two">
+        <div><label>Empresa de origem</label><input id="tripOriginCompany" type="text" placeholder="Ex.: Walmart Distribution"></div>
+        <div><label>Empresa de destino</label><input id="tripDestinationCompany" type="text" placeholder="Ex.: Target Distribution"></div>
+      </div>
+      <div class="two">
+        <div><label>Carga transportada</label><input id="tripCargo" type="text" placeholder="Ex.: Alimentos refrigerados"></div>
+        <div><label>Tipo de trecho <span class="info-tip" tabindex="0" data-tip="Loaded = rodando com carga. Deadhead = rodando vazio. Ambos contam para o progresso; no Nível 2/3, Deadhead paga US$ 0,50/mi.">i</span></label><select id="tripType" onchange="updateTripPayCategory()"><option value="Loaded">Loaded — com carga</option><option value="Deadhead">Deadhead — vazio</option></select></div>
+      </div>
+      <div class="two">
+        <div id="tripPayCategoryWrap"><label>Categoria de pagamento <span class="info-tip" tabindex="0" data-tip="Define o CPM das milhas Loaded. HazMat exige qualificação de carga perigosa. Doubles exige autorização para dois reboques. Deadhead usa sempre US$ 0,50/mi.">i</span></label><select id="tripPayCategory"><option value="normal">Normal — US$ 0,60/mi</option><option value="hazmat">HazMat — US$ 0,63/mi</option><option value="doubles">Doubles/bitrem — US$ 0,64/mi</option><option value="hazmat_doubles">HazMat + Doubles — US$ 0,67/mi</option></select></div>
+        <div><label>Milhas percorridas</label><input id="tripMiles" type="number" min="0" step="1" placeholder="0"></div>
+      </div>
+      <div class="two">
+        <div><label>Data e horário de saída *</label><input id="tripDepartureAt" type="datetime-local" required></div>
+        <div><label>Data e horário de chegada *</label><input id="tripArrivalAt" type="datetime-local" required></div>
+      </div>
+      <button class="green" onclick="addTrip()">Adicionar viagem</button>
+    </div>
+
+    <div class="card">
+      <h2>Diário de viagens — <span id="activeWeekTitle">Semana 1</span></h2>
+      <p class="muted">As viagens novas entram automaticamente na semana atual. Gerar o holerite fecha esta semana e inicia a próxima.</p>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Saída</th><th>Chegada</th><th>Origem</th><th>Empresa origem</th><th>Destino</th><th>Empresa destino</th><th>Carga</th><th>Tipo</th><th>Categoria</th><th>Milhas</th><th></th></tr></thead>
+          <tbody id="tripsBody"></tbody>
+          <tfoot><tr><th colspan="9">Total da semana atual</th><th id="weekTripsTotal">0 mi</th><th></th></tr></tfoot>
+        </table>
+      </div>
+      <p class="muted">Loaded e deadhead contam igualmente para as milhas da semana e para o progresso total da carreira.</p>
+    </div>
+
+    <div class="card">
+      <h2>Semanas fechadas</h2>
+      <div id="closedWeeksContainer" class="muted">Nenhuma semana fechada ainda.</div>
+      <div style="margin-top:14px"><strong>Total da carreira:</strong> <span id="tripsTotal">0 mi</span></div>
+    </div>
+
+    <div class="card">
+      <h2>Regras de progressão</h2>
+      <ul>
+        <li>Nível 1 → Nível 2: <strong>10.000 milhas acumuladas + confirmação do Truck Driving Proficiency + US$ 300</strong>.</li>
+        <li>Nível 2 → Nível 3: <strong>50.000 milhas totais + confirmação do Double Trailer Handling + US$ 59</strong> para o endorsement T (Doubles/Triples).</li>
+        <li>Milhas loaded e deadhead contam para experiência. No Nível 2/3, deadhead paga <strong>US$ 0,50/mi</strong>; adicionais de HazMat/Doubles só valem nas milhas loaded.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="incidentsTab" class="tab-panel">
+    <div class="tab-intro"><strong>Para que serve:</strong> registrar multas, infrações e acidentes da história. O custo pode sair do saldo imediatamente ou ficar pendente para desconto no próximo holerite.</div>
+    <div class="grid">
+      <div class="card">
+        <h2>Registrar infração ou acidente</h2>
+        <div class="two">
+          <div><label>Tipo</label><select id="incidentType" onchange="updateIncidentFields()"><option value="Infração">Infração</option><option value="Acidente">Acidente</option></select></div>
+          <div><label>Valor / custo (US$)</label><input id="incidentAmount" type="number" min="0" step="0.01" placeholder="0.00"></div>
+        </div>
+        <div class="two">
+          <div><label>Data</label><input id="incidentDate" type="date"></div>
+          <div><label>Hora</label><input id="incidentTime" type="time"></div>
+        </div>
+        <label>Rota relacionada</label>
+        <select id="incidentRoute"></select>
+        <label id="incidentDescLabel">Qual infração?</label>
+        <input id="incidentDescription" type="text" placeholder="Ex.: excesso de velocidade, sinal vermelho...">
+        <label>Como cobrar?</label>
+        <select id="incidentChargeMethod">
+          <option value="balance">Descontar agora do saldo</option>
+          <option value="payslip">Descontar do próximo holerite</option>
+        </select>
+        <button class="red" onclick="addIncident()">Registrar ocorrência</button>
+        <p class="muted">Se escolher holerite, o valor fica pendente e será abatido automaticamente ao fechar a próxima semana. Se o valor for maior que o depósito, o restante continua pendente para a semana seguinte.</p>
+      </div>
+      <div class="card">
+        <h2>Descontos pendentes no holerite</h2>
+        <div id="pendingIncidentTotal" class="metric">US$ 0,00</div>
+        <p class="muted">Total ainda não descontado de infrações/acidentes.</p>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Histórico de infrações e acidentes</h2>
+      <div style="overflow-x:auto"><table><thead><tr><th>Data</th><th>Hora</th><th>Tipo</th><th>Rota</th><th>Descrição</th><th>Valor</th><th>Cobrança</th><th>Status</th><th></th></tr></thead><tbody id="incidentsBody"></tbody></table></div>
+    </div>
+  </section>
+
+  <section id="rules" class="tab-panel">
+    <div class="tab-intro"><strong>Para que serve:</strong> consultar as regras oficiais da Fase 1. Esta é a referência para decidir o que pode ou não ser feito durante a simulação.</div>
+    <div class="card">
+      <h2>Regras oficiais — Fase 1</h2>
+      <p class="notice ok"><strong>Escopo:</strong> toda esta fase representa você como empregado da transportadora, sem caminhão próprio.</p>
+
+      <details open><summary>1. Cenário inicial</summary><ul>
+        <li>O personagem vive legalmente nos EUA e começa como empregado de uma transportadora.</li><li>Nome, cidade-base, empresa, biografia e dinheiro ao chegar são definidos ao criar a carreira.</li><li>Os valores padrão sugerem studio de US$ 1.650, caução, licença, mercado, itens de casa, celular, internet e transporte; todos podem ser alterados ou zerados na criação.</li><li>O cenário-base não exige carro pessoal; a proposta inicial usa transporte público.</li><li>O saldo da carreira começa no valor restante depois dos custos de instalação escolhidos pelo usuário.</li>
+      </ul></details>
+
+      <details><summary>2. Nível 1 — Trainee / Local Driver</summary><ul>
+        <li>US$ 850 bruto por semana.</li><li>Sem pagamento por milha.</li><li>Meta de promoção: 10.000 milhas acumuladas + confirmação do Truck Driving Proficiency + US$ 300 para liberar o Nível 2.</li><li>Day cab, sem cama.</li><li>Rotas de até aproximadamente 300 milhas por missão.</li><li>Horário padrão: 07:00–15:30, segunda a sexta, com 30 min de almoço.</li><li>Route Overrun Pay: US$ 21,25/h além do expediente quando necessário concluir a operação.</li><li>Descanso mínimo entre jornadas: 10 horas.</li><li>Sem per diem.</li>
+      </ul></details>
+
+      <details><summary>3. Loaded, Deadhead e filiais</summary><ul>
+        <li>Loaded: rodando com carga. Deadhead: rodando vazio.</li><li>Toda nova carga deve ser retirada em uma filial da transportadora.</li><li>Nível 1: após entregar, procura uma filial próxima. Se houver carga, pega; se não houver, retorna vazio.</li><li>No Nível 1, a busca por filial deve permanecer na região próxima e respeitar a lógica local/regional.</li><li>Nível 2/3: pode seguir vazio até encontrar outra cidade que tenha filial e carga disponível, inclusive a longa distância.</li><li>Milhas loaded e deadhead contam para experiência. No Nível 2/3, deadhead paga <strong>US$ 0,50/mi</strong>; adicionais de HazMat/Doubles só valem nas milhas loaded.</li>
+      </ul></details>
+
+      <details><summary>4. Nível 2 — Company Driver / OTR</summary><ul>
