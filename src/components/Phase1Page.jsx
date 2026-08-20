@@ -244,7 +244,7 @@ export default function Phase1Page({ careerId, onBack }) {
     ['overview', 'Visão Geral'],
     ['finances', 'Saldo e Despesas'],
     ['payslip', 'Holerite'],
-    ['progress', 'Progresso'],
+    ['progress', 'Registro de Viagens'],
     ['incidents', 'Infrações e Acidentes'],
     ['qualifications', 'Qualificações'],
     ['rules', 'Regras'],
