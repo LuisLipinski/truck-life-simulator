@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { pendingIncidentTotal } from '../../lib/phase1.js'
+import { useConfirm } from '../ConfirmProvider.jsx'
 import { useToast } from '../ToastProvider.jsx'
 
 function money(value) {
@@ -16,6 +17,7 @@ function Label({ children, tip }) {
 
 export default function IncidentsTab({ state, commit }) {
   const toast = useToast()
+  const confirm = useConfirm()
   const [type, setType] = useState('Infração')
   const [amount, setAmount] = useState('')
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
@@ -63,7 +65,7 @@ export default function IncidentsTab({ state, commit }) {
     toast.success(chargeMethod === 'balance' ? `Ocorrência registrada e ${money(value)} descontados do saldo.` : `Ocorrência registrada. ${money(value)} ficará pendente para o holerite.`)
   }
 
-  function removeIncident(incident) {
+  async function removeIncident(incident) {
     if (incident.chargeMethod === 'balance') {
       toast.error('Uma ocorrência já descontada diretamente do saldo não pode ser excluída para evitar divergência financeira.')
       return
@@ -72,7 +74,13 @@ export default function IncidentsTab({ state, commit }) {
       toast.error('Esta ocorrência já teve parte descontada em holerite e não pode ser excluída.')
       return
     }
-    if (!window.confirm('Excluir esta ocorrência pendente?')) return
+    const confirmed = await confirm({
+      title: 'Excluir ocorrência pendente?',
+      message: `“${incident.description || incident.type || 'Ocorrência'}” (${money(incident.amount)}) será removida e não entrará no próximo holerite.`,
+      confirmLabel: 'Excluir ocorrência',
+      tone: 'danger',
+    })
+    if (!confirmed) return
     commit({ ...state, incidents: (state.incidents || []).filter((item) => Number(item.id) !== Number(incident.id)) })
     toast.success('Ocorrência pendente excluída com sucesso.')
   }

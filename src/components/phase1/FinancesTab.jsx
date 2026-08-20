@@ -5,6 +5,7 @@ import {
   emergencyReserveContribution,
   monthlyExpenseTotal,
 } from '../../lib/phase1.js'
+import { useConfirm } from '../ConfirmProvider.jsx'
 import { useToast } from '../ToastProvider.jsx'
 
 const EXPENSE_TIPS = {
@@ -57,6 +58,7 @@ function TipLabel({ children, tip, className = '' }) {
 
 export default function FinancesTab({ state, commit }) {
   const toast = useToast()
+  const confirm = useConfirm()
   const [manualBalance, setManualBalance] = useState(() => moneyInput(state.balance))
   const [customName, setCustomName] = useState('')
   const [customValue, setCustomValue] = useState('')
@@ -208,10 +210,16 @@ export default function FinancesTab({ state, commit }) {
     toast.success(item ? `Gasto “${item.name}” excluído.` : 'Gasto excluído.')
   }
 
-  function applyMonthlyExpenses() {
+  async function applyMonthlyExpenses() {
     const totalOutflowCents = (toCents(totalMonthly) || 0) + (toCents(reserveContribution) || 0)
     const totalOutflow = fromCents(totalOutflowCents)
-    if (!window.confirm(`Aplicar ${money(totalMonthly)} de despesas mensais e transferir ${money(reserveContribution)} para a reserva? Saída total da conta: ${money(totalOutflow)}.`)) return
+    const confirmed = await confirm({
+      title: 'Aplicar despesas mensais?',
+      message: `${money(totalMonthly)} serão pagos em despesas e ${money(reserveContribution)} serão transferidos para a reserva. Saída total da conta: ${money(totalOutflow)}.`,
+      confirmLabel: 'Aplicar despesas',
+      tone: 'warning',
+    })
+    if (!confirmed) return
     const nextBalance = fromCents((toCents(state.balance || 0) || 0) - totalOutflowCents)
     const nextReserve = fromCents(reserveCents + (toCents(reserveContribution) || 0))
     commit({

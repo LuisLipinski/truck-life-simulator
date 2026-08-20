@@ -16,6 +16,7 @@ import {
   validPayCategories,
 } from '../lib/phase1.js'
 import CityAutocomplete from './CityAutocomplete.jsx'
+import { useConfirm } from './ConfirmProvider.jsx'
 import { useToast } from './ToastProvider.jsx'
 import FinancesTab from './phase1/FinancesTab.jsx'
 import PayslipTab from './phase1/PayslipTab.jsx'
@@ -367,6 +368,7 @@ function TripsTab({ state, onAddTrip, onDeleteTrip }) {
 }
 
 export default function Phase1Page({ careerId, onBack }) {
+  const confirm = useConfirm()
   const toast = useToast()
   const career = getCareer(careerId)
   const [state, setState] = useState(() => loadPhase1State(careerId))
@@ -443,13 +445,19 @@ export default function Phase1Page({ careerId, onBack }) {
     }
   }
 
-  function deleteTrip(trip) {
+  async function deleteTrip(trip) {
     const weekClosed = (state.closedWeeks || []).some((week) => Number(week.week) === Number(trip.week || 1))
     if (weekClosed) {
       toast.error('Esta viagem pertence a uma semana já fechada e não pode ser excluída.')
       return
     }
-    if (!window.confirm(`Excluir o trecho ${trip.origin || ''} → ${trip.destination || ''}?`)) return
+    const confirmed = await confirm({
+      title: 'Excluir viagem?',
+      message: `O trecho ${trip.origin || 'Origem não informada'} → ${trip.destination || 'Destino não informado'} será removido do registro da carreira.`,
+      confirmLabel: 'Excluir viagem',
+      tone: 'danger',
+    })
+    if (!confirmed) return
     commit({ ...state, trips: state.trips.filter((item) => Number(item.id) !== Number(trip.id)) })
     toast.success('Viagem excluída com sucesso.')
   }

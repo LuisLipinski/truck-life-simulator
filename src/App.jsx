@@ -10,6 +10,7 @@ import {
 import { downloadCSVTemplate, downloadExcelTemplate, importCareerFile } from './lib/csv.js'
 import Phase1Page from './components/Phase1Page.jsx'
 import CityAutocomplete from './components/CityAutocomplete.jsx'
+import { useConfirm } from './components/ConfirmProvider.jsx'
 import { useToast } from './components/ToastProvider.jsx'
 
 const ATS_IMAGE = 'https://cdn.cloudflare.steamstatic.com/steam/apps/270880/header.jpg'
@@ -85,12 +86,19 @@ function HomePage() {
 
 function CareersPage() {
   const toast = useToast()
+  const confirm = useConfirm()
   const [careers, setCareers] = useState(() => loadCareers())
   const [showCsvHelp, setShowCsvHelp] = useState(false)
   const fileInput = useRef(null)
 
-  function removeCareer(career) {
-    if (!window.confirm(`Excluir a carreira de ${career.driverName}? Essa ação não pode ser desfeita.`)) return
+  async function removeCareer(career) {
+    const confirmed = await confirm({
+      title: 'Excluir carreira?',
+      message: `A carreira de ${career.driverName} será removida desta lista. Essa ação não pode ser desfeita.`,
+      confirmLabel: 'Excluir carreira',
+      tone: 'danger',
+    })
+    if (!confirmed) return
     deleteCareer(career.id)
     setCareers(loadCareers())
     toast.success(`A carreira de ${career.driverName} foi excluída.`)
@@ -216,6 +224,7 @@ function CareersPage() {
 
 function NewCareerPage() {
   const toast = useToast()
+  const confirm = useConfirm()
   const [driverName, setDriverName] = useState('')
   const [city, setCity] = useState('')
   const [company, setCompany] = useState('')
@@ -230,13 +239,21 @@ function NewCareerPage() {
     setCosts((current) => ({ ...current, [key]: Number(value) || 0 }))
   }
 
-  function submit(event) {
+  async function submit(event) {
     event.preventDefault()
     if (!driverName.trim() || !city.trim() || !company.trim()) {
       toast.error('Preencha nome, cidade e empresa antes de criar a carreira.')
       return
     }
-    if (remaining < 0 && !window.confirm('Os custos iniciais são maiores que o dinheiro disponível. Criar a carreira com saldo negativo?')) return
+    if (remaining < 0) {
+      const confirmed = await confirm({
+        title: 'Criar com saldo negativo?',
+        message: `Os custos iniciais são maiores que o dinheiro disponível. A carreira começará com ${money(remaining)}.`,
+        confirmLabel: 'Criar mesmo assim',
+        tone: 'warning',
+      })
+      if (!confirmed) return
+    }
 
     const career = createCareer({
       driverName: driverName.trim(),

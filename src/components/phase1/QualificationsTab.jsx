@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { getPromotionStatus, totalMiles } from '../../lib/phase1.js'
+import { useConfirm } from '../ConfirmProvider.jsx'
 import { useToast } from '../ToastProvider.jsx'
 
 function money(value) {
@@ -16,42 +17,61 @@ function historyEntry(description, amount, balance) {
 
 export default function QualificationsTab({ state, commit }) {
   const toast = useToast()
+  const confirm = useConfirm()
   const miles = totalMiles(state)
   const promotion = getPromotionStatus(state)
   const [academy2Confirmed, setAcademy2Confirmed] = useState(false)
   const [academy3Confirmed, setAcademy3Confirmed] = useState(false)
 
-  function promoteLevel2() {
+  async function promoteLevel2() {
     if (state.currentLevel !== 1 || miles < 10000 || !academy2Confirmed) return
     if (Number(state.balance || 0) < 300) {
       toast.error('Saldo insuficiente para pagar os US$ 300 da avaliação/Academy do Nível 2.')
       return
     }
-    if (!window.confirm('Confirmar o pagamento de US$ 300 e liberar o Nível 2?')) return
+    const confirmed = await confirm({
+      title: 'Liberar o Nível 2?',
+      message: 'US$ 300,00 serão descontados do saldo pela avaliação da Academy e o Nível 2 será liberado.',
+      confirmLabel: 'Pagar e liberar',
+      tone: 'success',
+    })
+    if (!confirmed) return
     const balance = Number(state.balance || 0) - 300
     commit({ ...state, balance, currentLevel: 2, careerLevel: 2, academy: { ...(state.academy || {}), level2: true }, history: [historyEntry('Promoção para Nível 2 — Academy / avaliação', -300, balance), ...(state.history || [])] })
     toast.success('Promoção concluída. Bem-vindo ao Nível 2 — Company Driver / OTR!', { title: 'Nível 2 liberado' })
   }
 
-  function qualifyHazmat() {
+  async function qualifyHazmat() {
     if (state.currentLevel < 2 || state.hazmatQualified) return
     if (Number(state.balance || 0) < 144.25) {
       toast.error('Saldo insuficiente para pagar US$ 144,25 da qualificação HazMat.')
       return
     }
-    if (!window.confirm('Confirmar qualificação HazMat e descontar US$ 144,25 do saldo?')) return
+    const confirmed = await confirm({
+      title: 'Obter qualificação HazMat?',
+      message: 'US$ 144,25 serão descontados do saldo. As cargas HazMat e suas tarifas serão liberadas imediatamente.',
+      confirmLabel: 'Pagar e qualificar',
+      tone: 'success',
+    })
+    if (!confirmed) return
     const balance = Number(state.balance || 0) - 144.25
     commit({ ...state, balance, hazmatQualified: true, history: [historyEntry('Qualificação HazMat', -144.25, balance), ...(state.history || [])] })
     toast.success('Qualificação HazMat ativada. As categorias compatíveis já estão disponíveis.', { title: 'HazMat liberado' })
   }
 
-  function promoteLevel3() {
+  async function promoteLevel3() {
     if (state.currentLevel !== 2 || miles < 50000 || !academy3Confirmed) return
     if (Number(state.balance || 0) < 59) {
       toast.error('Saldo insuficiente para pagar os US$ 59 do Double Trailer Handling.')
       return
     }
-    if (!window.confirm('Confirmar o pagamento de US$ 59 e liberar o Nível 3?')) return
+    const confirmed = await confirm({
+      title: 'Liberar o Nível 3?',
+      message: 'US$ 59,00 serão descontados do saldo pelo Double Trailer Handling e o Nível 3 será liberado.',
+      confirmLabel: 'Pagar e liberar',
+      tone: 'success',
+    })
+    if (!confirmed) return
     const balance = Number(state.balance || 0) - 59
     commit({ ...state, balance, currentLevel: 3, careerLevel: 3, academy: { ...(state.academy || {}), level2: true, level3: true }, history: [historyEntry('Promoção para Nível 3 — Double Trailer Handling', -59, balance), ...(state.history || [])] })
     toast.success('Promoção concluída. Nível 3 — Experienced Driver / Doubles liberado!', { title: 'Nível 3 liberado' })

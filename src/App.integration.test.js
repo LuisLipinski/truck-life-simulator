@@ -4,6 +4,7 @@ import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App.jsx'
+import { ConfirmProvider } from './components/ConfirmProvider.jsx'
 import { ToastProvider } from './components/ToastProvider.jsx'
 import { ACTIVE_CAREER_KEY, CAREERS_KEY } from './lib/storage.js'
 
@@ -27,7 +28,7 @@ function seedCareer() {
 async function renderCareers() {
   window.location.hash = '#/ats'
   await act(async () => {
-    root.render(createElement(ToastProvider, null, createElement(App)))
+    root.render(createElement(ToastProvider, null, createElement(ConfirmProvider, null, createElement(App))))
   })
 }
 
@@ -78,7 +79,6 @@ describe('career card navigation', () => {
 
   it('deletes from the small trash button without opening the career', async () => {
     const career = seedCareer()
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     await renderCareers()
 
     const trash = document.querySelector(`[aria-label="Excluir carreira ${career.driverName}"]`)
@@ -86,6 +86,14 @@ describe('career card navigation', () => {
 
     await act(async () => {
       trash.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    expect(document.querySelector('[role="alertdialog"]')?.textContent).toContain('Excluir carreira?')
+    expect(document.querySelector(`[aria-label="Abrir carreira ${career.driverName}"]`)).not.toBeNull()
+
+    await act(async () => {
+      document.querySelector('.react-confirm-confirm').click()
+      await Promise.resolve()
     })
 
     expect(window.location.hash).toBe('#/ats')

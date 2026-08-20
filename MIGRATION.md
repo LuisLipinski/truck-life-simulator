@@ -48,6 +48,7 @@ Versões de Node aceitas pelo projeto:
 | `src/App.jsx` | Home, carreiras, criação de carreira, seleção de fases e rotas da aplicação |
 | `src/components/Phase1Page.jsx` | Shell da Fase 1, navegação, visão geral e registro de viagens |
 | `src/components/phase1/` | Abas de finanças, holerite, ocorrências, qualificações, Academy, regras, mods, histórico e gráficos |
+| `src/components/ConfirmProvider.jsx` | Modal compartilhada de confirmação e cancelamento para ações sensíveis |
 | `src/lib/storage.js` | Leitura e gravação das carreiras no `localStorage` |
 | `src/lib/phase1.js` | Estado, cálculos financeiros, progressão, milhas, per diem e Route Overrun |
 | `src/lib/csv.js` | Backup v7, CSV, XLS, XLSX, validação, importação e exportação |
@@ -183,7 +184,7 @@ Campos adicionais:
 | Total dos custos iniciais | US$ 4.207,00 |
 | Saldo inicial restante | **US$ 793,00** |
 
-Os custos podem ser editados, restaurados para os valores padrão ou zerados. Se os custos forem maiores que o dinheiro disponível, a aplicação solicita confirmação antes de criar uma carreira com saldo negativo.
+Os custos podem ser editados, restaurados para os valores padrão ou zerados. Se os custos forem maiores que o dinheiro disponível, a aplicação abre uma modal de confirmação antes de criar uma carreira com saldo negativo.
 
 ### Cidades
 
@@ -289,7 +290,7 @@ Validações atuais:
 
 Loaded e Deadhead contam para a progressão da carreira.
 
-Viagens de semanas já fechadas pelo holerite não podem ser excluídas. Viagens da semana atual podem ser excluídas após confirmação.
+Viagens de semanas já fechadas pelo holerite não podem ser excluídas. Viagens da semana atual podem ser excluídas após confirmação em modal.
 
 O Diário de Bordo possui um gráfico de barras com as milhas das últimas oito semanas que contenham viagens.
 
@@ -567,7 +568,7 @@ Proteções:
 
 - uma ocorrência já descontada diretamente do saldo não pode ser excluída;
 - uma ocorrência parcialmente descontada em holerite não pode ser excluída;
-- uma ocorrência ainda totalmente pendente pode ser excluída após confirmação.
+- uma ocorrência ainda totalmente pendente pode ser excluída após confirmação em modal.
 
 As ocorrências não bloqueiam promoções, mas afetam o saldo ou o pagamento semanal.
 
@@ -702,7 +703,9 @@ Recursos implementados:
 - tooltips no desktop;
 - painel inferior de ajuda no mobile;
 - notificações compartilhadas de sucesso, erro e informação;
-- confirmações antes de ações financeiras ou destrutivas;
+- modal compartilhada de confirmação e cancelamento antes de ações financeiras ou destrutivas;
+- fechamento seguro da modal pelo botão **Cancelar**, pela tecla `Esc` ou por clique no fundo;
+- foco inicial no cancelamento, retenção do foco na modal e restauração ao elemento anterior;
 - tabelas responsivas;
 - estados vazios;
 - gráficos responsivos e com descrição acessível;
@@ -712,8 +715,8 @@ Recursos implementados:
 
 Estado validado em 20/08/2026:
 
-- **12 arquivos de teste aprovados**;
-- **59 testes aprovados**;
+- **13 arquivos de teste aprovados**;
+- **62 testes aprovados**;
 - nenhum teste falhando.
 
 Coberturas existentes:
@@ -735,6 +738,7 @@ Coberturas existentes:
 - validação de campos obrigatórios e numéricos;
 - cards de carreira e exclusão isolada;
 - modal de marcos de promoção;
+- modal de confirmação, incluindo confirmar, cancelar, `Esc` e clique no fundo;
 - notificações;
 - gráficos e estados vazios;
 - agregação de milhas por semana;
@@ -779,16 +783,16 @@ O Vite utiliza `base: '/truck-life-simulator/'`, necessário para carregar os as
 Validado em 20/08/2026:
 
 - dependências instaladas com sucesso;
-- 59 testes executados com sucesso;
-- 40 módulos transformados no build;
+- 62 testes executados com sucesso;
+- 41 módulos transformados no build;
 - build de produção concluído;
 - bundle publicado no GitHub Pages corresponde ao build da branch ativa.
 
 Tamanhos observados no build validado:
 
 - HTML: aproximadamente 0,62 kB;
-- CSS: aproximadamente 47,63 kB, 9,69 kB gzip;
-- JavaScript: aproximadamente 741,53 kB, 235,06 kB gzip.
+- CSS: aproximadamente 50,03 kB, 10,06 kB gzip;
+- JavaScript: aproximadamente 745,34 kB, 236,10 kB gzip.
 
 O build apresenta apenas um aviso não bloqueante por existir um chunk JavaScript maior que 500 kB. Uma otimização futura pode carregar recursos pesados, especialmente planilhas, sob demanda.
 

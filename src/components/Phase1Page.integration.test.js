@@ -3,6 +3,7 @@ import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Phase1Page from './Phase1Page.jsx'
+import { ConfirmProvider } from './ConfirmProvider.jsx'
 import { ToastProvider } from './ToastProvider.jsx'
 import { CAREERS_KEY } from '../lib/storage.js'
 import { phase1StorageKey } from '../lib/phase1.js'
@@ -86,7 +87,7 @@ function renderCareer(careerId) {
       React.createElement(
         ToastProvider,
         null,
-        React.createElement(Phase1Page, { careerId, onBack: vi.fn() }),
+        React.createElement(ConfirmProvider, null, React.createElement(Phase1Page, { careerId, onBack: vi.fn() })),
       ),
     )
   })

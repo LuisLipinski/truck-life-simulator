@@ -11,6 +11,7 @@ import {
   routeOverrunSummary,
   weeklyEmergencyReserveYield,
 } from '../../lib/phase1.js'
+import { useConfirm } from '../ConfirmProvider.jsx'
 import { useToast } from '../ToastProvider.jsx'
 
 function money(value) {
@@ -52,6 +53,7 @@ function LineLabel({ children, tip }) {
 
 export default function PayslipTab({ state, commit }) {
   const toast = useToast()
+  const confirm = useConfirm()
   const [level1Gross, setLevel1Gross] = useState(850)
   const [overrunRate, setOverrunRate] = useState(LEVEL1_ROUTE_OVERRUN_RATE)
   const [benefits, setBenefits] = useState(36)
@@ -114,7 +116,7 @@ export default function PayslipTab({ state, commit }) {
     }
   }
 
-  function generatePayslip() {
+  async function generatePayslip() {
     const result = calculate()
     setPreview(result)
 
@@ -128,7 +130,13 @@ export default function PayslipTab({ state, commit }) {
       return
     }
 
-    if (!window.confirm(`Gerar o holerite e fechar a Semana ${state.currentWeek}? Depois disso, as viagens dessa semana ficarão fechadas no histórico.`)) return
+    const confirmed = await confirm({
+      title: `Fechar a Semana ${state.currentWeek}?`,
+      message: `O holerite depositará ${money(result.deposit)}${reserveContribution > 0 ? ` e enviará ${money(reserveContribution)} para a reserva` : ''}. As viagens da semana ficarão congeladas no histórico e uma nova semana será iniciada.`,
+      confirmLabel: 'Gerar holerite',
+      tone: 'success',
+    })
+    if (!confirmed) return
 
     const weekNumber = Number(state.currentWeek || 1)
     const balanceAfterSalary = Number(state.balance || 0) + result.deposit

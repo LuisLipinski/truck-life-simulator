@@ -1,17 +1,14 @@
 // @vitest-environment jsdom
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import PayslipTab from './PayslipTab.jsx'
+import { ConfirmProvider } from '../ConfirmProvider.jsx'
 import { ToastProvider } from '../ToastProvider.jsx'
 import { weeklyEmergencyReserveYield } from '../../lib/phase1.js'
 
 let root
 let container
-
-beforeEach(() => {
-  vi.spyOn(window, 'confirm').mockReturnValue(true)
-})
 
 afterEach(() => {
   if (root) act(() => root.unmount())
@@ -46,7 +43,7 @@ function renderPayslip(state, commit = vi.fn()) {
       React.createElement(
         ToastProvider,
         null,
-        React.createElement(PayslipTab, { state, commit }),
+        React.createElement(ConfirmProvider, null, React.createElement(PayslipTab, { state, commit })),
       ),
     )
   })
@@ -84,7 +81,7 @@ describe('PayslipTab Level 1 route overrun', () => {
 })
 
 describe('PayslipTab reserve automation', () => {
-  it('transfers the configured amount after salary deposit without adding it to payslip lines', () => {
+  it('transfers the configured amount after salary deposit without adding it to payslip lines', async () => {
     const state = baseState()
     const { commit } = renderPayslip(state)
 
@@ -94,7 +91,15 @@ describe('PayslipTab reserve automation', () => {
     setInputValue(amountInput, '100')
 
     const generate = [...container.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Gerar holerite e depositar')
-    act(() => generate.click())
+    await act(async () => generate.click())
+
+    expect(commit).not.toHaveBeenCalled()
+    const dialog = document.querySelector('[role="alertdialog"]')
+    expect(dialog.textContent).toContain('Fechar a Semana 1?')
+    await act(async () => {
+      dialog.querySelector('.react-confirm-confirm').click()
+      await Promise.resolve()
+    })
 
     expect(commit).toHaveBeenCalledTimes(1)
     const nextState = commit.mock.calls[0][0]
@@ -123,7 +128,7 @@ describe('PayslipTab reserve automation', () => {
     act(() => generate.click())
 
     expect(commit).not.toHaveBeenCalled()
-    expect(window.confirm).not.toHaveBeenCalled()
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull()
     const alert = document.querySelector('[role="alert"]')
     expect(alert).not.toBeNull()
     expect(alert.textContent).toContain('aporte automático não pode ser maior')

@@ -3,6 +3,7 @@ import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import FinancesTab from './FinancesTab.jsx'
+import { ConfirmProvider } from '../ConfirmProvider.jsx'
 import { ToastProvider } from '../ToastProvider.jsx'
 
 let root
@@ -27,7 +28,7 @@ function renderFinance(state, commit = vi.fn()) {
       React.createElement(
         ToastProvider,
         null,
-        React.createElement(FinancesTab, { state, commit }),
+        React.createElement(ConfirmProvider, null, React.createElement(FinancesTab, { state, commit })),
       ),
     )
   })
