@@ -1,3 +1,5 @@
+import { BarChart, LineChart } from './Charts.jsx'
+
 function money(value) {
   return Number(value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
 }
@@ -11,12 +13,58 @@ export default function HistoryTab({ state }) {
   const closedWeeks = Array.isArray(state.closedWeeks) ? state.closedWeeks : []
   const incidents = Array.isArray(state.incidents) ? state.incidents : []
 
+  const balanceData = history
+    .filter((item) => Number.isFinite(Number(item.balance)))
+    .slice(-12)
+    .map((item, index) => ({
+      label: item.date || `Mov. ${index + 1}`,
+      value: Number(item.balance),
+    }))
+
+  const weeklyDepositData = [...closedWeeks]
+    .slice(-8)
+    .map((week) => ({
+      label: `Semana ${week.week || '—'}`,
+      value: Number(week.net ?? week.deposit ?? week.netPay ?? 0),
+    }))
+
+  const weeklyMilesData = [...closedWeeks]
+    .slice(-8)
+    .map((week) => ({
+      label: `Semana ${week.week || '—'}`,
+      value: Number(week.miles || 0),
+    }))
+
   return (
     <>
       <section className="history-summary-grid">
         <article className="panel history-summary"><span className="metric-label line-label-with-tip">Movimentações <Tip text="Entradas e saídas que alteraram o saldo da carreira, como salários, despesas, ajustes e qualificações." /></span><strong>{history.length}</strong><span>Entradas e saídas registradas</span></article>
         <article className="panel history-summary"><span className="metric-label line-label-with-tip">Semanas fechadas <Tip text="Cada holerite gerado congela uma semana e cria um registro permanente aqui." /></span><strong>{closedWeeks.length}</strong><span>Holerites concluídos</span></article>
         <article className="panel history-summary"><span className="metric-label line-label-with-tip">Ocorrências <Tip text="Total de infrações, acidentes e outras cobranças registradas durante a carreira." /></span><strong>{incidents.length}</strong><span>Infrações e acidentes cadastrados</span></article>
+      </section>
+
+      <section className="career-charts-grid history-charts-grid" aria-label="Gráficos do histórico da carreira">
+        <LineChart
+          title="Evolução do saldo"
+          description="Últimas movimentações com saldo registrado. Ajuda a enxergar se a conta pessoal está crescendo ou diminuindo ao longo da carreira."
+          data={balanceData}
+          formatValue={money}
+          emptyText="Registre pelo menos duas movimentações financeiras para ver a evolução do saldo."
+        />
+        <BarChart
+          title="Depósitos por semana"
+          description="Compara o valor efetivamente depositado nas últimas semanas fechadas."
+          data={weeklyDepositData}
+          formatValue={money}
+          emptyText="Feche um holerite para começar a comparar os depósitos semanais."
+        />
+        <BarChart
+          title="Milhas por semana"
+          description="Mostra o ritmo de trabalho das últimas semanas já encerradas."
+          data={weeklyMilesData}
+          formatValue={(value) => `${Number(value || 0).toLocaleString('en-US')} mi`}
+          emptyText="Feche um holerite com viagens registradas para visualizar as milhas por semana."
+        />
       </section>
 
       <section className="panel history-panel">
