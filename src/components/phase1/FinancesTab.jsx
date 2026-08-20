@@ -1,8 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import {
   EMERGENCY_RESERVE_ANNUAL_YIELD,
   EXPENSE_LABELS,
-  emergencyReserveContribution,
   monthlyExpenseTotal,
 } from '../../lib/phase1.js'
 import { useConfirm } from '../ConfirmProvider.jsx'
@@ -14,7 +13,6 @@ const EXPENSE_TIPS = {
   phone: 'Plano de celular e linha telefônica usados pelo motorista.',
   internet: 'Internet residencial mensal da simulação.',
   transit: 'Transporte pessoal fora do caminhão da empresa, como ônibus, metrô ou corridas ocasionais.',
-  emergency: 'Este valor não é uma despesa perdida. Ao aplicar as despesas mensais, ele é transferido do saldo disponível para a Reserva de Emergência.',
 }
 
 function money(value) {
@@ -69,15 +67,6 @@ export default function FinancesTab({ state, commit }) {
 
   const reserveCents = Math.max(0, toCents(state.emergencyReserve || 0) || 0)
   const reserve = fromCents(reserveCents)
-  const reserveContribution = fromCents(Math.max(0, toCents(emergencyReserveContribution(state)) || 0))
-  const baseMonthly = useMemo(
-    () => Object.entries(state.expenses || {}).filter(([key]) => key !== 'emergency').reduce((sum, [, value]) => sum + fromCents(Math.max(0, toCents(value) || 0)), 0),
-    [state.expenses],
-  )
-  const customMonthlyTotal = useMemo(
-    () => (state.customExpenses || []).filter((item) => item.monthly).reduce((sum, item) => sum + fromCents(Math.max(0, toCents(item.value) || 0)), 0),
-    [state.customExpenses],
-  )
   const totalMonthly = fromCents(toCents(monthlyExpenseTotal(state)) || 0)
   const totalAssets = fromCents((toCents(state.balance || 0) || 0) + reserveCents)
 
@@ -211,29 +200,26 @@ export default function FinancesTab({ state, commit }) {
   }
 
   async function applyMonthlyExpenses() {
-    const totalOutflowCents = (toCents(totalMonthly) || 0) + (toCents(reserveContribution) || 0)
+    const totalOutflowCents = toCents(totalMonthly) || 0
     const totalOutflow = fromCents(totalOutflowCents)
     const confirmed = await confirm({
       title: 'Aplicar despesas mensais?',
-      message: `${money(totalMonthly)} serão pagos em despesas e ${money(reserveContribution)} serão transferidos para a reserva. Saída total da conta: ${money(totalOutflow)}.`,
+      message: `${money(totalOutflow)} serão descontados do saldo pelas despesas mensais selecionadas. A reserva de emergência não será alterada.`,
       confirmLabel: 'Aplicar despesas',
       tone: 'warning',
     })
     if (!confirmed) return
     const nextBalance = fromCents((toCents(state.balance || 0) || 0) - totalOutflowCents)
-    const nextReserve = fromCents(reserveCents + (toCents(reserveContribution) || 0))
     commit({
       ...state,
       balance: nextBalance,
-      emergencyReserve: nextReserve,
       history: [
         ...(state.history || []),
         { date: now(), type: 'Despesa', desc: 'Despesas mensais aplicadas', value: -totalMonthly, amount: -totalMonthly, balance: nextBalance },
-        ...(reserveContribution > 0 ? [{ date: now(), type: 'Reserva', desc: 'Aporte mensal à reserva de emergência', value: -reserveContribution, amount: -reserveContribution, balance: nextBalance, reserve: nextReserve }] : []),
       ],
     })
     setManualBalance(moneyInput(nextBalance))
-    toast.success(`Despesas mensais aplicadas. ${reserveContribution > 0 ? `${money(reserveContribution)} foram para a reserva.` : ''}`.trim())
+    toast.success(`${money(totalOutflow)} em despesas mensais foram descontados do saldo.`)
   }
 
   return (
@@ -242,7 +228,7 @@ export default function FinancesTab({ state, commit }) {
         <article className="panel phase1-metric"><span className="metric-label">Saldo disponível</span><strong className="metric-value">{money(state.balance)}</strong><span className="metric-detail">Conta pessoal da carreira</span></article>
         <article className="panel phase1-metric"><span className="metric-label">Reserva de emergência</span><strong className="metric-value">{money(reserve)}</strong><span className="metric-detail">Rende {(EMERGENCY_RESERVE_ANNUAL_YIELD * 100).toFixed(2)}% a.a.</span></article>
         <article className="panel phase1-metric"><span className="metric-label">Patrimônio pessoal</span><strong className="metric-value">{money(totalAssets)}</strong><span className="metric-detail">Saldo + reserva</span></article>
-        <article className="panel phase1-metric"><span className="metric-label">Despesas mensais</span><strong className="metric-value">{money(totalMonthly)}</strong><span className="metric-detail">Não inclui o aporte à reserva</span></article>
+        <article className="panel phase1-metric"><span className="metric-label">Despesas mensais</span><strong className="metric-value">{money(totalMonthly)}</strong><span className="metric-detail">Padrão + personalizadas incluídas</span></article>
       </section>
 
       <div className="phase1-two-panel finance-layout">
@@ -281,14 +267,13 @@ export default function FinancesTab({ state, commit }) {
           <p>Edite os valores do custo de vida. Valores monetários aceitam vírgula ou ponto e são salvos com duas casas decimais.</p>
         </div>
         <div className="expense-fields-grid">
-          {Object.entries(state.expenses || {}).map(([key, value]) => (
+          {Object.entries(state.expenses || {}).filter(([key]) => key !== 'emergency').map(([key, value]) => (
             <div key={key} className="expense-field">
               <TipLabel tip={EXPENSE_TIPS[key] || 'Valor mensal desta despesa pessoal. Ele entra no total quando você aplicar as despesas mensais.'}>{EXPENSE_LABELS[key] || key}</TipLabel>
               <input type="text" inputMode="decimal" defaultValue={moneyInput(value)} onBlur={(event) => { if (updateExpense(key, event.target.value)) event.target.value = moneyInput(event.target.value); else event.target.value = moneyInput(value) }} />
             </div>
           ))}
         </div>
-        <div className="reserve-transfer-preview"><span>Despesas reais: <strong>{money(totalMonthly)}</strong></span><span>Aporte à reserva: <strong>{money(reserveContribution)}</strong></span><span>Saída total da conta: <strong>{money(totalMonthly + reserveContribution)}</strong></span></div>
       </section>
 
       <section className="panel custom-expenses-panel">
@@ -323,7 +308,7 @@ export default function FinancesTab({ state, commit }) {
         )}
 
         <div className="monthly-action-row">
-          <div><span className="metric-label">Saída mensal da conta</span><strong>{money(totalMonthly + reserveContribution)}</strong><small>{money(totalMonthly)} em despesas + {money(reserveContribution)} para a reserva</small></div>
+          <div><span className="metric-label">Total das despesas mensais</span><strong>{money(totalMonthly)}</strong><small>Somente despesas padrão e personalizadas marcadas como mensais</small></div>
           <button className="button danger" type="button" onClick={applyMonthlyExpenses}>Aplicar despesas mensais</button>
         </div>
       </section>

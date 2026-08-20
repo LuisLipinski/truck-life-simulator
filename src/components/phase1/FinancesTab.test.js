@@ -56,6 +56,32 @@ function baseState(overrides = {}) {
 }
 
 describe('FinancesTab reserve integration', () => {
+  it('does not show or apply the discontinued monthly reserve contribution', async () => {
+    const { commit } = renderFinance(baseState({
+      balance: 1000,
+      emergencyReserve: 250,
+      expenses: { rent: 100, emergency: 900 },
+    }))
+
+    expect(container.textContent).not.toContain('Aporte mensal à reserva')
+    const applyButton = [...container.querySelectorAll('button')].find((item) => item.textContent.trim() === 'Aplicar despesas mensais')
+    await act(async () => applyButton.click())
+
+    const dialog = document.querySelector('[role="alertdialog"]')
+    expect(dialog.textContent).toContain('$100.00')
+    expect(dialog.textContent).toContain('reserva de emergência não será alterada')
+    await act(async () => {
+      dialog.querySelector('.react-confirm-confirm').click()
+      await Promise.resolve()
+    })
+
+    const nextState = commit.mock.calls[0][0]
+    expect(nextState.balance).toBe(900)
+    expect(nextState.emergencyReserve).toBe(250)
+    expect(nextState.history).toHaveLength(1)
+    expect(nextState.history[0]).toMatchObject({ type: 'Despesa', value: -100 })
+  })
+
   it('shows the editable manual balance with exactly two decimal places', () => {
     renderFinance(baseState({ balance: 475.54999999999995 }))
     const balanceInput = container.querySelector('.finance-card input[inputmode="decimal"]')

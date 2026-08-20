@@ -446,10 +446,8 @@ O guia explica:
 | Higiene/casa | US$ 80,00 |
 | Lazer | US$ 150,00 |
 | Total de despesas | **US$ 2.962,00** |
-| Aporte mensal padrão à reserva | US$ 200,00 |
-| Saída mensal total da conta | **US$ 3.162,00** |
 
-O aporte à reserva não é tratado como dinheiro perdido. Ele sai do saldo disponível e entra no patrimônio reservado.
+O total da tela de despesas contém somente custos reais. A reserva de emergência não faz parte das despesas mensais e pode receber aportes manualmente ou de forma automática pelo Holerite.
 
 ### Recursos financeiros
 
@@ -469,7 +467,6 @@ O aporte à reserva não é tratado como dinheiro perdido. Ele sai do saldo disp
 - permite aporte manual;
 - permite resgate com motivo obrigatório;
 - permite aporte automático no fechamento semanal;
-- recebe o aporte mensal configurado quando as despesas são aplicadas;
 - rende 3,25% ao ano na simulação;
 - o rendimento semanal é calculado como `saldo da reserva × 3,25% ÷ 52`;
 - o rendimento é creditado ao fechar cada holerite;
@@ -716,7 +713,7 @@ Recursos implementados:
 Estado validado em 20/08/2026:
 
 - **13 arquivos de teste aprovados**;
-- **62 testes aprovados**;
+- **63 testes aprovados**;
 - nenhum teste falhando.
 
 Coberturas existentes:
@@ -731,6 +728,7 @@ Coberturas existentes:
 - limites de promoção;
 - reserva de emergência;
 - aporte automático do holerite;
+- remoção do antigo aporte mensal das despesas sem alterar a reserva existente;
 - valores financeiros com duas casas decimais;
 - vírgula e ponto nos campos financeiros da interface;
 - backup CSV v7;
@@ -783,7 +781,7 @@ O Vite utiliza `base: '/truck-life-simulator/'`, necessário para carregar os as
 Validado em 20/08/2026:
 
 - dependências instaladas com sucesso;
-- 62 testes executados com sucesso;
+- 63 testes executados com sucesso;
 - 41 módulos transformados no build;
 - build de produção concluído;
 - bundle publicado no GitHub Pages corresponde ao build da branch ativa.
@@ -791,8 +789,8 @@ Validado em 20/08/2026:
 Tamanhos observados no build validado:
 
 - HTML: aproximadamente 0,62 kB;
-- CSS: aproximadamente 50,03 kB, 10,06 kB gzip;
-- JavaScript: aproximadamente 745,34 kB, 236,10 kB gzip.
+- CSS: aproximadamente 49,65 kB, 10,01 kB gzip;
+- JavaScript: aproximadamente 744,35 kB, 235,89 kB gzip.
 
 O build apresenta apenas um aviso não bloqueante por existir um chunk JavaScript maior que 500 kB. Uma otimização futura pode carregar recursos pesados, especialmente planilhas, sob demanda.
 

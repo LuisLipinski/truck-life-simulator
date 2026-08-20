@@ -19,7 +19,6 @@ export const DEFAULT_EXPENSES = {
   publicTransport: 72,
   household: 80,
   leisure: 150,
-  emergency: 200,
 }
 
 export const EXPENSE_LABELS = {
@@ -34,7 +33,6 @@ export const EXPENSE_LABELS = {
   publicTransport: 'Ônibus / metrô',
   household: 'Higiene / casa',
   leisure: 'Lazer',
-  emergency: 'Aporte mensal à reserva',
 }
 
 export const PAY_RATES = {
@@ -76,12 +74,19 @@ function makeDefaultState(career) {
   }
 }
 
+function normalizeExpenses(expenses) {
+  return Object.fromEntries(
+    Object.entries({ ...DEFAULT_EXPENSES, ...(expenses || {}) })
+      .filter(([key]) => key !== 'emergency'),
+  )
+}
+
 function normalizeState(raw, career) {
   const base = makeDefaultState(career)
   const state = { ...base, ...(raw || {}) }
   state.balance = Number(raw?.balance ?? base.balance)
   state.emergencyReserve = Math.max(0, Number(raw?.emergencyReserve || 0))
-  state.expenses = { ...DEFAULT_EXPENSES, ...(raw?.expenses || {}) }
+  state.expenses = normalizeExpenses(raw?.expenses)
   state.history = Array.isArray(raw?.history) ? raw.history : []
   state.trips = Array.isArray(raw?.trips) ? raw.trips : []
   state.closedWeeks = Array.isArray(raw?.closedWeeks) ? raw.closedWeeks : []
@@ -115,6 +120,7 @@ export function savePhase1State(careerId, state) {
   const normalized = {
     ...state,
     emergencyReserve: Math.max(0, Number(state.emergencyReserve || 0)),
+    expenses: normalizeExpenses(state.expenses),
     currentLevel: Number(state.currentLevel || state.careerLevel || 1),
     careerLevel: Number(state.currentLevel || state.careerLevel || 1),
   }
@@ -240,10 +246,6 @@ export function monthlyExpenseTotal(state) {
     .filter((item) => item.monthly)
     .reduce((sum, item) => sum + Number(item.value || 0), 0)
   return base + custom
-}
-
-export function emergencyReserveContribution(state) {
-  return Math.max(0, Number(state.expenses?.emergency || 0))
 }
 
 export function weeklyEmergencyReserveYield(reserveBalance) {

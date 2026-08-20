@@ -4,7 +4,6 @@ import {
   applyPendingIncidentDeductions,
   currentWeekMiles,
   currentWeekTrips,
-  emergencyReserveContribution,
   estimateTaxes,
   getPromotionStatus,
   mileagePaySummary,
@@ -134,13 +133,12 @@ describe('Phase 1 expenses, reserve, taxes and incidents', () => {
     expect(monthlyExpenseTotal(state)).toBe(1075)
   })
 
-  it('keeps the emergency reserve contribution outside real monthly expenses', () => {
+  it('ignores the discontinued legacy reserve field in monthly expenses', () => {
     const state = makeState({
       expenses: { rent: 1000, phone: 50, emergency: 200 },
       customExpenses: [{ value: 25, monthly: true }],
     })
     expect(monthlyExpenseTotal(state)).toBe(1075)
-    expect(emergencyReserveContribution(state)).toBe(200)
   })
 
   it('calculates reserve yield proportionally using the annual simulated rate', () => {

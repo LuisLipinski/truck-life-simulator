@@ -94,6 +94,7 @@ describe('career and Phase 1 storage integration', () => {
       balance: 900,
       careerLevel: 2,
       currentWeek: 3,
+      expenses: { rent: 1200, emergency: 200 },
       trips: [{ id: 9, week: 2, miles: 100 }],
     }))
 
@@ -106,6 +107,8 @@ describe('career and Phase 1 storage integration', () => {
     expect(restored.academy.level2).toBe(true)
     expect(restored.incidents).toEqual([])
     expect(restored.customExpenses).toEqual([])
+    expect(restored.expenses.rent).toBe(1200)
+    expect(restored.expenses).not.toHaveProperty('emergency')
   })
 
   it('clamps a negative imported reserve to zero during normalization', () => {
