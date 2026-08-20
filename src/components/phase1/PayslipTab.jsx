@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import {
   applyPendingIncidentDeductions,
   currentWeekTrips,
-  EMERGENCY_RESERVE_ANNUAL_YIELD,
   estimateTaxes,
   mileagePaySummary,
   PAY_LABELS,
@@ -116,7 +115,6 @@ export default function PayslipTab({ state, commit }) {
       perDiem: result.perDiem,
       incidentDeduction: result.incidentDeduction,
       deposit: result.deposit,
-      reserveInterest: result.reserveInterest,
       desc: result.desc,
     }
 
@@ -163,7 +161,7 @@ export default function PayslipTab({ state, commit }) {
         <div className="section-heading compact-heading">
           <span className="eyebrow">Semana {state.currentWeek}</span>
           <h2>Gerar holerite</h2>
-          <p>O fechamento credita o depósito, aplica o rendimento semanal da reserva, congela a semana no histórico e inicia a próxima.</p>
+          <p>O fechamento credita o depósito, atualiza a reserva em segundo plano, congela a semana no histórico e inicia a próxima.</p>
         </div>
 
         <TipLabel tip="O nível determina como o pagamento é calculado. No Nível 1 existe salário semanal fixo; nos Níveis 2 e 3 o bruto vem das milhas registradas por categoria.">Nível atual</TipLabel>
@@ -227,21 +225,20 @@ export default function PayslipTab({ state, commit }) {
           <div className="emphasis-line"><LineLabel tip="Salário após impostos estimados e benefícios, antes de somar per diem e descontar ocorrências pendentes.">Salário líquido</LineLabel><strong>{money(shown.netSalary)}</strong></div>
           <div><LineLabel tip="Valor não salarial calculado pelos dias OTR qualificáveis da semana. No Nível 1 ele é zero.">Per diem</LineLabel><strong>+{money(shown.perDiem)}</strong></div>
           <div><LineLabel tip="Total de multas ou acidentes que você marcou para descontar do próximo holerite e que puderam ser aplicados nesta semana.">Infrações/acidentes</LineLabel><strong>-{money(shown.incidentDeduction)}</strong></div>
-          <div className="reserve-interest-line"><LineLabel tip={`Rendimento semanal da reserva calculado sobre o saldo que já estava investido antes do fechamento. Taxa simulada de ${(EMERGENCY_RESERVE_ANNUAL_YIELD * 100).toFixed(2)}% ao ano dividida por 52 semanas.`}>Rendimento da reserva</LineLabel><strong>+{money(shown.reserveInterest)}</strong></div>
-          <div className="deposit-line"><LineLabel tip="Valor final que entra no saldo da carreira quando o holerite é gerado. O rendimento da reserva entra separadamente na própria reserva.">Depósito total</LineLabel><strong>{money(shown.deposit)}</strong></div>
+          <div className="deposit-line"><LineLabel tip="Valor final que entra no saldo da carreira quando o holerite é gerado. Rendimentos da reserva são separados do holerite e aparecem somente no Histórico.">Depósito total</LineLabel><strong>{money(shown.deposit)}</strong></div>
         </div>
       </section>
 
       <section className="panel closed-weeks-card">
-        <div className="section-heading compact-heading"><span className="eyebrow">Histórico</span><h2>Semanas fechadas</h2></div>
+        <div className="section-heading compact-heading"><span className="eyebrow">Histórico de holerites</span><h2>Semanas fechadas</h2></div>
         {(state.closedWeeks || []).length === 0 ? <div className="empty-inline">Nenhum holerite fechado ainda.</div> : (
           <div className="responsive-table compact-table">
             <table>
-              <thead><tr><th>Semana</th><th>Nível</th><th>Milhas</th><th>Bruto</th><th>Per diem</th><th>Ocorrências</th><th>Rendimento reserva</th><th>Depósito</th><th>Fechada em</th></tr></thead>
+              <thead><tr><th>Semana</th><th>Nível</th><th>Milhas</th><th>Bruto</th><th>Per diem</th><th>Ocorrências</th><th>Depósito</th><th>Fechada em</th></tr></thead>
               <tbody>
                 {[...state.closedWeeks].reverse().map((week, index) => (
                   <tr key={`${week.week}-${week.closedAt}-${index}`}>
-                    <td>{week.week}</td><td>{week.level}</td><td>{Number(week.miles || 0).toLocaleString('en-US')}</td><td>{money(week.gross)}</td><td>{money(week.perDiem)}</td><td>{money(week.incidentDeduction)}</td><td>{money(week.reserveInterest)}</td><td><strong>{money(week.deposit)}</strong></td><td>{week.closedAt || '—'}</td>
+                    <td>{week.week}</td><td>{week.level}</td><td>{Number(week.miles || 0).toLocaleString('en-US')}</td><td>{money(week.gross)}</td><td>{money(week.perDiem)}</td><td>{money(week.incidentDeduction)}</td><td><strong>{money(week.deposit)}</strong></td><td>{week.closedAt || '—'}</td>
                   </tr>
                 ))}
               </tbody>
