@@ -92,7 +92,7 @@ export default function IncidentsTab({ state, commit }) {
         <article className="panel phase1-metric"><span className="metric-label line-label-with-tip">Ocorrências <Tip text="Quantidade total de infrações, acidentes e outras cobranças registradas nesta carreira." /></span><strong className="metric-value">{(state.incidents || []).length}</strong><span className="metric-detail">Total registrado</span></article>
       </section>
 
-      <section className="panel incident-form-card">
+      <section className="panel incident-form-card" data-tour="incident-form">
         <div className="section-heading compact-heading"><span className="eyebrow">Registro financeiro</span><h2>Nova infração ou acidente</h2><p>Escolha desconto imediato no saldo ou cobrança no próximo holerite.</p></div>
         <form onSubmit={submit}>
           <div className="two-columns">
@@ -110,7 +110,7 @@ export default function IncidentsTab({ state, commit }) {
         </form>
       </section>
 
-      <section className="panel incidents-list-card">
+      <section className="panel incidents-list-card" data-tour="incident-history">
         <div className="section-heading compact-heading"><span className="eyebrow">Histórico</span><h2>Infrações e acidentes</h2></div>
         {(state.incidents || []).length === 0 ? <div className="empty-inline">Nenhuma ocorrência registrada.</div> : <div className="responsive-table"><table><thead><tr><th>Data</th><th>Hora</th><th>Tipo</th><th>Rota</th><th>Descrição</th><th>Valor</th><th>Cobrança</th><th>Status</th><th></th></tr></thead><tbody>{[...state.incidents].reverse().map((incident) => <tr key={incident.id}><td>{incident.date || '—'}</td><td>{incident.time || '—'}</td><td>{incident.type || '—'}</td><td>{incident.route || '—'}</td><td>{incident.description || '—'}</td><td>{money(incident.amount)}</td><td>{incident.chargeMethod === 'payslip' ? 'Próximo holerite' : 'Saldo imediato'}</td><td>{Number(incident.remaining || 0) > 0 ? `Pendente ${money(incident.remaining)}` : incident.status || 'Pago'}</td><td><button className="table-delete" type="button" onClick={() => removeIncident(incident)}>Excluir</button></td></tr>)}</tbody></table></div>}
       </section>

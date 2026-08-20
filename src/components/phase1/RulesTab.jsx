@@ -44,7 +44,7 @@ function Tip({ text }) {
 export default function RulesTab() {
   return (
     <>
-      <section className="panel rules-intro">
+      <section className="panel rules-intro" data-tour="rules">
         <span className="eyebrow">Fase 1 — Company Driver</span>
         <h2 className="line-label-with-tip">Regras operacionais da carreira <Tip text="Estas regras definem o roleplay da Fase 1. O aplicativo usa essas regras para manter salário, progressão e qualificações coerentes." /></h2>
         <p>Você trabalha como empregado e não possui caminhão próprio. Diesel, manutenção, pneus, seguro comercial, licenciamento, reparos e pedágios autorizados são custos da empresa.</p>

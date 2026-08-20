@@ -211,7 +211,7 @@ export default function PayslipTab({ state, commit }) {
 
   return (
     <div className="payslip-layout">
-      <section className="panel payslip-form-card">
+      <section className="panel payslip-form-card" data-tour="payslip-form">
         <div className="section-heading compact-heading">
           <span className="eyebrow">Semana {state.currentWeek}</span>
           <h2>Gerar holerite</h2>
@@ -287,7 +287,7 @@ export default function PayslipTab({ state, commit }) {
         <button className="button success full-button" type="button" onClick={generatePayslip}>Gerar holerite e depositar</button>
       </section>
 
-      <section className="panel payslip-preview-card">
+      <section className="panel payslip-preview-card" data-tour="payslip-preview">
         <div className="section-heading compact-heading">
           <span className="eyebrow">Prévia</span>
           <h2>Holerite</h2>
@@ -309,7 +309,7 @@ export default function PayslipTab({ state, commit }) {
         </div>
       </section>
 
-      <section className="panel closed-weeks-card">
+      <section className="panel closed-weeks-card" data-tour="closed-weeks">
         <div className="section-heading compact-heading"><span className="eyebrow">Histórico de holerites</span><h2>Semanas fechadas</h2></div>
         {(state.closedWeeks || []).length === 0 ? <div className="empty-inline">Nenhum holerite fechado ainda.</div> : (
           <div className="responsive-table compact-table">

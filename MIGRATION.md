@@ -49,6 +49,7 @@ Versões de Node aceitas pelo projeto:
 | `src/components/Phase1Page.jsx` | Shell da Fase 1, navegação, visão geral e registro de viagens |
 | `src/components/phase1/` | Abas de finanças, holerite, ocorrências, qualificações, Academy, regras, mods, histórico e gráficos |
 | `src/components/ConfirmProvider.jsx` | Modal compartilhada de confirmação e cancelamento para ações sensíveis |
+| `src/components/GuidedTutorial.jsx` | Tour guiado, navegação automática entre telas e destaque visual dos recursos |
 | `src/lib/storage.js` | Leitura e gravação das carreiras no `localStorage` |
 | `src/lib/phase1.js` | Estado, cálculos financeiros, progressão, milhas, per diem e Route Overrun |
 | `src/lib/csv.js` | Backup v7, CSV, XLS, XLSX, validação, importação e exportação |
@@ -119,6 +120,8 @@ O estado da Fase 1 inclui, entre outros:
 - qualificação HazMat;
 - configuração de aporte automático à reserva.
 
+O andamento temporário do tour usa `ats_guided_tour_v1` no `sessionStorage`. A chave é removida ao sair ou concluir o tutorial e não faz parte do backup da carreira.
+
 `currentLevel` e `careerLevel` permanecem sincronizados para compatibilidade com versões anteriores. Viagens novas usam IDs numéricos, mantendo compatibilidade com backups antigos.
 
 Na ausência do estado específico de uma carreira, o carregador ainda tenta ler as antigas chaves `ats_phase1_tabs_v3` e `ats_phase1_tabs_v2`.
@@ -166,7 +169,8 @@ Campos adicionais:
 
 - dinheiro ao chegar aos Estados Unidos;
 - custos iniciais editáveis;
-- biografia.
+- biografia;
+- opção **Ver tutorial após criar a carreira**.
 
 ### Valores iniciais padrão
 
@@ -185,6 +189,19 @@ Campos adicionais:
 | Saldo inicial restante | **US$ 793,00** |
 
 Os custos podem ser editados, restaurados para os valores padrão ou zerados. Se os custos forem maiores que o dinheiro disponível, a aplicação abre uma modal de confirmação antes de criar uma carreira com saldo negativo.
+
+### Tutorial guiado
+
+Quando a opção de tutorial está marcada, a carreira é criada normalmente e um tour de 28 etapas começa na tela de fases. O tour:
+
+- escurece o restante da interface e contorna o recurso explicado;
+- posiciona a explicação próxima ao destaque;
+- navega automaticamente entre as telas e abas da Fase 1;
+- apresenta visão geral, viagens, ocorrências, qualificações, Driving Academy, finanças, reserva, despesas, holerite, histórico, regras e mods;
+- oferece **Próximo**, **Voltar** e **Sair do tutorial**;
+- permite sair também com `Esc`;
+- não registra viagens, não gera holerites e não altera nenhum dado financeiro;
+- retoma a etapa atual se a página for atualizada na mesma sessão do navegador.
 
 ### Cidades
 
@@ -699,6 +716,8 @@ Recursos implementados:
 - ícones de informação em formulários, métricas, regras e cálculos;
 - tooltips no desktop;
 - painel inferior de ajuda no mobile;
+- tour guiado responsivo com 28 etapas, destaque visual e navegação automática;
+- controles de avançar, voltar, concluir ou sair do tutorial;
 - notificações compartilhadas de sucesso, erro e informação;
 - modal compartilhada de confirmação e cancelamento antes de ações financeiras ou destrutivas;
 - fechamento seguro da modal pelo botão **Cancelar**, pela tecla `Esc` ou por clique no fundo;
@@ -712,8 +731,8 @@ Recursos implementados:
 
 Estado validado em 20/08/2026:
 
-- **13 arquivos de teste aprovados**;
-- **63 testes aprovados**;
+- **14 arquivos de teste aprovados**;
+- **69 testes aprovados**;
 - nenhum teste falhando.
 
 Coberturas existentes:
@@ -735,6 +754,9 @@ Coberturas existentes:
 - importação CSV, XLS e XLSX;
 - validação de campos obrigatórios e numéricos;
 - cards de carreira e exclusão isolada;
+- início opcional do tutorial na criação da carreira;
+- avanço, retorno, retomada, conclusão e saída do tour guiado;
+- troca automática de aba conforme a etapa do tutorial;
 - modal de marcos de promoção;
 - modal de confirmação, incluindo confirmar, cancelar, `Esc` e clique no fundo;
 - notificações;
@@ -781,16 +803,16 @@ O Vite utiliza `base: '/truck-life-simulator/'`, necessário para carregar os as
 Validado em 20/08/2026:
 
 - dependências instaladas com sucesso;
-- 63 testes executados com sucesso;
-- 41 módulos transformados no build;
+- 69 testes executados com sucesso;
+- 42 módulos transformados no build;
 - build de produção concluído;
 - bundle publicado no GitHub Pages corresponde ao build da branch ativa.
 
 Tamanhos observados no build validado:
 
 - HTML: aproximadamente 0,62 kB;
-- CSS: aproximadamente 49,65 kB, 10,01 kB gzip;
-- JavaScript: aproximadamente 744,35 kB, 235,89 kB gzip.
+- CSS: aproximadamente 53,94 kB, 10,78 kB gzip;
+- JavaScript: aproximadamente 758,08 kB, 240,25 kB gzip.
 
 O build apresenta apenas um aviso não bloqueante por existir um chunk JavaScript maior que 500 kB. Uma otimização futura pode carregar recursos pesados, especialmente planilhas, sob demanda.
 

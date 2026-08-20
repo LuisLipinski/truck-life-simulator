@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 import MobileHelp from './components/MobileHelp.jsx'
 import { ConfirmProvider } from './components/ConfirmProvider.jsx'
+import { TutorialProvider } from './components/GuidedTutorial.jsx'
 import { ToastProvider } from './components/ToastProvider.jsx'
 import './styles.css'
 import './phase1.css'
@@ -15,8 +16,10 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ToastProvider>
       <ConfirmProvider>
-        <App />
-        <MobileHelp />
+        <TutorialProvider>
+          <App />
+          <MobileHelp />
+        </TutorialProvider>
       </ConfirmProvider>
     </ToastProvider>
   </StrictMode>,

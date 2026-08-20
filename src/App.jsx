@@ -11,6 +11,7 @@ import { downloadCSVTemplate, downloadExcelTemplate, importCareerFile } from './
 import Phase1Page from './components/Phase1Page.jsx'
 import CityAutocomplete from './components/CityAutocomplete.jsx'
 import { useConfirm } from './components/ConfirmProvider.jsx'
+import { useTutorial } from './components/GuidedTutorial.jsx'
 import { useToast } from './components/ToastProvider.jsx'
 
 const ATS_IMAGE = 'https://cdn.cloudflare.steamstatic.com/steam/apps/270880/header.jpg'
@@ -225,12 +226,14 @@ function CareersPage() {
 function NewCareerPage() {
   const toast = useToast()
   const confirm = useConfirm()
+  const { startTutorial } = useTutorial()
   const [driverName, setDriverName] = useState('')
   const [city, setCity] = useState('')
   const [company, setCompany] = useState('')
   const [arrivalBalance, setArrivalBalance] = useState(5000)
   const [bio, setBio] = useState('')
   const [costs, setCosts] = useState(DEFAULT_COSTS)
+  const [showTutorial, setShowTutorial] = useState(false)
 
   const totalCosts = useMemo(() => Object.values(costs).reduce((sum, value) => sum + Number(value || 0), 0), [costs])
   const remaining = Number(arrivalBalance || 0) - totalCosts
@@ -267,7 +270,8 @@ function NewCareerPage() {
       bio: bio.trim(),
     })
     toast.success(`Carreira de ${career.driverName} criada com sucesso.`, { title: 'Carreira criada' })
-    window.location.hash = `#/phases?career=${encodeURIComponent(career.id)}`
+    if (showTutorial) startTutorial(career.id)
+    else window.location.hash = `#/phases?career=${encodeURIComponent(career.id)}`
   }
 
   return (
@@ -322,6 +326,10 @@ function NewCareerPage() {
 
         <label>Biografia do personagem</label>
         <textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Ex.: Brasileiro que imigrou legalmente para os EUA..." />
+        <label className="tutorial-opt-in">
+          <input type="checkbox" checked={showTutorial} onChange={(event) => setShowTutorial(event.target.checked)} />
+          <span><strong>Ver tutorial após criar a carreira</strong><small>Um tour guiado apresentará todas as telas e recursos sem alterar seus dados.</small></span>
+        </label>
         <button className="button primary submit-button" type="submit">Criar carreira e continuar</button>
       </form>
     </main>
@@ -358,8 +366,8 @@ function PhasesPage({ careerId }) {
         <span>{career.city}</span>
         <span>{career.company}</span>
       </div>
-      <section className="phase-list">
-        <AppLink className="phase-card interactive" to={`/phase1?career=${encodeURIComponent(career.id)}`}>
+      <section className="phase-list" data-tour="career-phases">
+        <AppLink className="phase-card interactive" data-tour="phase-one" to={`/phase1?career=${encodeURIComponent(career.id)}`}>
           <div><span className="eyebrow">Fase ativa</span><h2>Fase 1 — Motorista Empregado</h2><p>Company Driver • Níveis 1, 2 e 3 • Sem caminhão próprio.</p></div>
           <span className="tag active">Abrir</span>
         </AppLink>

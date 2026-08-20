@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Phase1Page from './Phase1Page.jsx'
 import { ConfirmProvider } from './ConfirmProvider.jsx'
+import { TUTORIAL_STEPS, TUTORIAL_STORAGE_KEY, TutorialProvider } from './GuidedTutorial.jsx'
 import { ToastProvider } from './ToastProvider.jsx'
 import { CAREERS_KEY } from '../lib/storage.js'
 import { phase1StorageKey } from '../lib/phase1.js'
@@ -13,6 +14,7 @@ let container
 
 beforeEach(() => {
   localStorage.clear()
+  sessionStorage.clear()
   window.scrollTo = vi.fn()
   window.requestAnimationFrame = (callback) => {
     callback()
@@ -26,6 +28,7 @@ afterEach(() => {
   root = null
   container = null
   localStorage.clear()
+  sessionStorage.clear()
   vi.restoreAllMocks()
 })
 
@@ -78,7 +81,7 @@ function seedCareer({ level, miles }) {
   return id
 }
 
-function renderCareer(careerId) {
+function renderCareer(careerId, { openJournal = true } = {}) {
   container = document.createElement('div')
   document.body.appendChild(container)
   root = createRoot(container)
@@ -87,13 +90,15 @@ function renderCareer(careerId) {
       React.createElement(
         ToastProvider,
         null,
-        React.createElement(ConfirmProvider, null, React.createElement(Phase1Page, { careerId, onBack: vi.fn() })),
+        React.createElement(ConfirmProvider, null, React.createElement(TutorialProvider, null, React.createElement(Phase1Page, { careerId, onBack: vi.fn() }))),
       ),
     )
   })
 
-  const journalButton = [...container.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Diário de Bordo')
-  act(() => journalButton.click())
+  if (openJournal) {
+    const journalButton = [...container.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Diário de Bordo')
+    act(() => journalButton.click())
+  }
 }
 
 function registerOneMileTrip() {
@@ -114,6 +119,18 @@ function registerOneMileTrip() {
 }
 
 describe('promotion milestone integration', () => {
+  it('opens the tab requested by the active guided-tour step', () => {
+    const careerId = seedCareer({ level: 1, miles: 0 })
+    const incidentStep = TUTORIAL_STEPS.findIndex((step) => step.id === 'incident-form')
+    sessionStorage.setItem(TUTORIAL_STORAGE_KEY, JSON.stringify({ careerId, index: incidentStep }))
+    window.location.hash = `#/phase1?career=${careerId}`
+
+    renderCareer(careerId, { openJournal: false })
+
+    expect(container.querySelector('[data-tour="incident-form"]')).not.toBeNull()
+    expect(document.querySelector('.guided-tutorial-popover')?.textContent).toContain('Infrações e acidentes')
+  })
+
   it('opens the Level 2 milestone modal when a trip crosses 10,000 miles and can open Qualifications', () => {
     renderCareer(seedCareer({ level: 1, miles: 9999 }))
     registerOneMileTrip()

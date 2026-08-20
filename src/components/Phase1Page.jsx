@@ -17,6 +17,7 @@ import {
 } from '../lib/phase1.js'
 import CityAutocomplete from './CityAutocomplete.jsx'
 import { useConfirm } from './ConfirmProvider.jsx'
+import { useTutorial } from './GuidedTutorial.jsx'
 import { useToast } from './ToastProvider.jsx'
 import FinancesTab from './phase1/FinancesTab.jsx'
 import PayslipTab from './phase1/PayslipTab.jsx'
@@ -120,7 +121,7 @@ function InfoTip({ text }) {
 function TabIntro({ tabId }) {
   const help = TAB_HELP[tabId] || TAB_HELP.overview
   return (
-    <section className="react-tab-intro" aria-label={`Descrição: ${help.label}`}>
+    <section className="react-tab-intro" aria-label={`Descrição: ${help.label}`} data-tour="tab-intro">
       <div className="react-tab-intro-heading">
         <span className="eyebrow">Para que serve</span>
         <InfoTip text={help.tip} />
@@ -168,7 +169,7 @@ function HeaderSummary({ state }) {
     : `${miles.toLocaleString('en-US')} / ${promotion.goal.toLocaleString('en-US')} mi`
 
   return (
-    <div className="phase1-header-summary" aria-label="Resumo da carreira">
+    <div className="phase1-header-summary" aria-label="Resumo da carreira" data-tour="career-summary">
       <div><span>Saldo</span><strong>{money(state.balance)}</strong></div>
       <div><span>Nível atual</span><strong>Nível {state.currentLevel}</strong></div>
       <div><span>Progressão</span><strong>{progressText}</strong></div>
@@ -205,7 +206,7 @@ function OverviewTab({ career, state, setActiveTab }) {
         </button>
       )}
 
-      <section className="phase1-status-grid">
+      <section className="phase1-status-grid" data-tour="overview-shortcuts">
         <button className="panel status-card" onClick={() => setActiveTab('finances')}>
           <span className="metric-label">Despesas mensais</span>
           <strong>{money(monthly)}</strong>
@@ -224,7 +225,7 @@ function OverviewTab({ career, state, setActiveTab }) {
         <div><span className="metric-label">Empresa</span><strong>{career.company || '—'}</strong></div>
       </section>
 
-      <section className="panel legacy-bridge">
+      <section className="panel legacy-bridge" data-tour="career-backup">
         <div>
           <span className="eyebrow">Backup da carreira</span>
           <h2>Exportação CSV já está em React</h2>
@@ -295,7 +296,7 @@ function TripForm({ state, onAdd }) {
   }
 
   return (
-    <form className="panel trip-form" onSubmit={submit}>
+    <form className="panel trip-form" data-tour="trip-form" onSubmit={submit}>
       <div className="section-heading compact-heading"><span className="eyebrow">Semana {state.currentWeek}</span><h2>Registrar viagem</h2><p>As viagens usam o mesmo formato dos backups existentes.</p></div>
       <div className="two-columns">
         <div><label>Data e horário de saída</label><input type="datetime-local" value={departureAt} onChange={(e) => setDepartureAt(e.target.value)} required /></div>
@@ -331,7 +332,7 @@ function TripsTab({ state, onAddTrip, onDeleteTrip }) {
 
   return (
     <>
-      <section className="phase1-status-grid progress-summary-grid">
+      <section className="phase1-status-grid progress-summary-grid" data-tour="trip-summary">
         <MetricCard label="Milhas da semana" value={`${weekMiles.toLocaleString('en-US')} mi`} detail={`Semana ${state.currentWeek}`} />
         <MetricCard label="Milhas na carreira" value={`${allMiles.toLocaleString('en-US')} mi`} detail={`Nível ${state.currentLevel}`} />
         <MetricCard label="Bruto por milhas" value={state.currentLevel <= 1 ? 'Salário semanal' : money(pay.gross)} detail={state.currentLevel <= 1 ? 'Nível 1 não é pago por milha' : 'Antes de impostos e per diem'} />
@@ -355,7 +356,7 @@ function TripsTab({ state, onAddTrip, onDeleteTrip }) {
         </section>
       </div>
 
-      <section className="panel trips-panel">
+      <section className="panel trips-panel" data-tour="trip-history">
         <div className="section-heading compact-heading"><span className="eyebrow">Histórico de viagens</span><h2>Trechos registrados</h2><p>Mostrando todas as viagens da carreira, com a semana de cada trecho.</p></div>
         {state.trips.length === 0 ? <div className="empty-inline">Nenhuma viagem registrada.</div> : (
           <div className="responsive-table"><table><thead><tr><th>Semana</th><th>Saída</th><th>Chegada</th><th>Rota</th><th>Tipo</th><th>Categoria</th><th>Milhas</th><th></th></tr></thead><tbody>{[...state.trips].reverse().map((trip) => (
@@ -369,6 +370,7 @@ function TripsTab({ state, onAddTrip, onDeleteTrip }) {
 
 export default function Phase1Page({ careerId, onBack }) {
   const confirm = useConfirm()
+  const { activeStep } = useTutorial()
   const toast = useToast()
   const career = getCareer(careerId)
   const [state, setState] = useState(() => loadPhase1State(careerId))
@@ -423,6 +425,10 @@ export default function Phase1Page({ careerId, onBack }) {
   useEffect(() => {
     if (career?.id) setActiveCareer(career.id)
   }, [career?.id])
+
+  useEffect(() => {
+    if (activeStep?.route === '/phase1' && activeStep.tab) setActiveTab(activeStep.tab)
+  }, [activeStep?.id, activeStep?.route, activeStep?.tab])
 
   if (!career) return <main className="page-shell"><div className="empty-state"><h2>Carreira não encontrada</h2><button className="button primary compact" onClick={onBack}>Voltar</button></div></main>
 
@@ -483,12 +489,12 @@ export default function Phase1Page({ careerId, onBack }) {
           </div>
         </div>
       </header>
-      <nav className="phase1-tabs-wrap" aria-label="Seções da Fase 1"><div className="phase1-tabs">
+      <nav className="phase1-tabs-wrap" aria-label="Seções da Fase 1" data-tour="main-navigation"><div className="phase1-tabs">
         {mainTabs.map(([id, label]) => <button key={id} className={activeMainTab === id ? 'active' : ''} onClick={() => openMainTab(id)}>{label}</button>)}
       </div></nav>
       <main className="phase1-content">
         {activeSubtabs.length > 0 && (
-          <nav className="phase1-subtabs" aria-label={activeMainTab === 'journal' ? 'Seções do Diário de Bordo' : 'Seções Financeiras'}>
+          <nav className="phase1-subtabs" data-tour={activeMainTab === 'journal' ? 'journal-navigation' : 'finance-navigation'} aria-label={activeMainTab === 'journal' ? 'Seções do Diário de Bordo' : 'Seções Financeiras'}>
             {activeSubtabs.map(([id, label]) => <button key={id} className={activeTab === id ? 'active' : ''} onClick={() => setActiveTab(id)}>{label}</button>)}
           </nav>
         )}

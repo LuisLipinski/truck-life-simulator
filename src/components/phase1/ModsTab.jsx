@@ -56,7 +56,7 @@ function Tip({ text }) {
 export default function ModsTab() {
   return (
     <>
-      <section className="panel rules-intro">
+      <section className="panel rules-intro" data-tour="mods">
         <span className="eyebrow">Steam Workshop</span>
         <h2 className="line-label-with-tip">Mods sugeridos <Tip text="São sugestões para aumentar a imersão. Nenhum mod desta lista é obrigatório para usar a carreira." /></h2>
         <p>Estas categorias são voltadas à imersão e não fazem parte da lógica financeira do Truck Life Simulator.</p>

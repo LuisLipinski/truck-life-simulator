@@ -24,7 +24,7 @@ const modules = [
 export default function AcademyGuideTab({ onOpenQualifications }) {
   return (
     <div className="academy-guide">
-      <section className="panel academy-guide-hero">
+      <section className="panel academy-guide-hero" data-tour="academy">
         <div>
           <span className="eyebrow">American Truck Simulator</span>
           <h2>O que é o Driving Academy?</h2>

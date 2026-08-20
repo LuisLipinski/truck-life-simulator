@@ -30,7 +30,7 @@ export default function HistoryTab({ state }) {
 
   return (
     <>
-      <section className="history-summary-grid">
+      <section className="history-summary-grid" data-tour="history-summary">
         <article className="panel history-summary"><span className="metric-label line-label-with-tip">Movimentações <Tip text="Entradas e saídas que alteraram o saldo da carreira, como salários, despesas, ajustes e qualificações." /></span><strong>{history.length}</strong><span>Entradas e saídas registradas</span></article>
         <article className="panel history-summary"><span className="metric-label line-label-with-tip">Semanas fechadas <Tip text="Cada holerite gerado congela uma semana e cria um registro permanente aqui." /></span><strong>{closedWeeks.length}</strong><span>Holerites concluídos</span></article>
         <article className="panel history-summary"><span className="metric-label line-label-with-tip">Ocorrências <Tip text="Total de infrações, acidentes e outras cobranças registradas durante a carreira." /></span><strong>{incidents.length}</strong><span>Infrações e acidentes cadastrados</span></article>
@@ -53,7 +53,7 @@ export default function HistoryTab({ state }) {
         />
       </section>
 
-      <section className="panel history-panel">
+      <section className="panel history-panel" data-tour="history-records">
         <div className="section-heading compact-heading"><span className="eyebrow">Financeiro</span><h2 className="line-label-with-tip">Movimentações de saldo <Tip text="Use esta tabela para conferir por que o saldo aumentou ou diminuiu ao longo da carreira." /></h2><p>Mais recentes primeiro.</p></div>
         {history.length === 0 ? <div className="empty-inline">Nenhuma movimentação registrada.</div> : (
           <div className="responsive-table"><table><thead><tr><th>Data</th><th>Descrição</th><th>Valor</th><th>Saldo</th></tr></thead><tbody>

@@ -87,7 +87,7 @@ export default function QualificationsTab({ state, commit }) {
         <article className="panel status-card static-card"><span className="metric-label line-label-with-tip">Milhas da carreira <Tip text="Loaded e Deadhead contam para as metas de promoção. O total é acumulado durante toda a carreira." /></span><strong>{miles.toLocaleString('en-US')} mi</strong><span>{state.currentLevel >= 3 ? 'Nível máximo da Fase 1 alcançado.' : promotion.remaining ? `${promotion.remaining.toLocaleString('en-US')} mi para a próxima promoção.` : 'Meta de milhas concluída.'}</span></article>
       </section>
 
-      <section className="qualification-grid">
+      <section className="qualification-grid" data-tour="qualifications">
         <article className={`panel qualification-card ${state.currentLevel >= 2 ? 'completed' : level2Ready ? 'ready' : ''}`}>
           <span className="eyebrow">Nível 1 → Nível 2</span><h2 className="line-label-with-tip">Truck Driving Proficiency <Tip text="Promoção para OTR. Exige 10.000 milhas totais, confirmação do treinamento no ATS Driving Academy e pagamento pessoal de US$ 300." /></h2><p>Exige 10.000 milhas totais, conclusão do Truck Driving Proficiency no Driving Academy e pagamento de US$ 300.</p>
           <div className="qualification-meta"><span>Meta</span><strong>10.000 mi</strong><span>Custo</span><strong>US$ 300,00</strong></div>

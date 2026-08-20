@@ -224,7 +224,7 @@ export default function FinancesTab({ state, commit }) {
 
   return (
     <>
-      <section className="phase1-status-grid finance-summary-grid">
+      <section className="phase1-status-grid finance-summary-grid" data-tour="finance-summary">
         <article className="panel phase1-metric"><span className="metric-label">Saldo disponível</span><strong className="metric-value">{money(state.balance)}</strong><span className="metric-detail">Conta pessoal da carreira</span></article>
         <article className="panel phase1-metric"><span className="metric-label">Reserva de emergência</span><strong className="metric-value">{money(reserve)}</strong><span className="metric-detail">Rende {(EMERGENCY_RESERVE_ANNUAL_YIELD * 100).toFixed(2)}% a.a.</span></article>
         <article className="panel phase1-metric"><span className="metric-label">Patrimônio pessoal</span><strong className="metric-value">{money(totalAssets)}</strong><span className="metric-detail">Saldo + reserva</span></article>
@@ -232,7 +232,7 @@ export default function FinancesTab({ state, commit }) {
       </section>
 
       <div className="phase1-two-panel finance-layout">
-        <section className="panel finance-card">
+        <section className="panel finance-card" data-tour="balance-tools">
           <div className="section-heading compact-heading">
             <span className="eyebrow">Conta pessoal</span>
             <h2>Saldo</h2>
@@ -243,7 +243,7 @@ export default function FinancesTab({ state, commit }) {
           <button className="button secondary full-button" type="button" onClick={applyManualBalance}>Atualizar saldo</button>
         </section>
 
-        <section className="panel finance-card reserve-card">
+        <section className="panel finance-card reserve-card" data-tour="reserve-tools">
           <div className="section-heading compact-heading">
             <span className="eyebrow">Reserva de emergência</span>
             <h2>{money(reserve)}</h2>
@@ -260,7 +260,7 @@ export default function FinancesTab({ state, commit }) {
         </section>
       </div>
 
-      <section className="panel finance-card expenses-card monthly-expenses-card">
+      <section className="panel finance-card expenses-card monthly-expenses-card" data-tour="monthly-expenses">
         <div className="section-heading compact-heading">
           <span className="eyebrow">Vida pessoal</span>
           <h2>Despesas mensais</h2>
@@ -276,7 +276,7 @@ export default function FinancesTab({ state, commit }) {
         </div>
       </section>
 
-      <section className="panel custom-expenses-panel">
+      <section className="panel custom-expenses-panel" data-tour="custom-expenses">
         <div className="section-heading compact-heading">
           <span className="eyebrow">Gastos personalizados</span>
           <h2>Outras despesas</h2>
