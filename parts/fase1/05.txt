@@ -1,0 +1,243 @@
+  const weekValue=document.getElementById('overviewWeekValue'); if(weekValue) weekValue.textContent=`Semana ${state.currentWeek} • ${currentWeekMiles.toLocaleString('pt-BR')} mi`;
+  const weekDetail=document.getElementById('overviewWeekDetail'); if(weekDetail) weekDetail.textContent=currentWeekTrips.length?`${currentWeekTrips.length} trecho(s) registrado(s) antes do fechamento do holerite.`:'Nenhuma viagem registrada ainda.';
+  const nextGoal=document.getElementById('overviewNextGoal');
+  const nextGoalDetail=document.getElementById('overviewNextGoalDetail');
+  if(state.careerLevel===1){
+    const left=Math.max(10000-state.careerMiles,0);
+    if(nextGoal) nextGoal.textContent=left>0?`${left.toLocaleString('pt-BR')} mi para o Nível 2`:'Milhagem do Nível 2 concluída';
+    if(nextGoalDetail) nextGoalDetail.textContent=left>0?'Depois: Academy de Proficiência + US$ 300.':'Conclua o Academy de Proficiência e pague US$ 300.';
+  }else if(state.careerLevel===2){
+    const left=Math.max(50000-state.careerMiles,0);
+    if(nextGoal) nextGoal.textContent=left>0?`${left.toLocaleString('pt-BR')} mi para o Nível 3`:'Milhagem do Nível 3 concluída';
+    if(nextGoalDetail) nextGoalDetail.textContent=left>0?'HazMat é opcional durante o Nível 2.':'Conclua Double Trailer Handling e pague US$ 59.';
+  }else{
+    if(nextGoal) nextGoal.textContent='Nível 3 alcançado';
+    if(nextGoalDetail) nextGoalDetail.textContent='Doubles liberado. Continue acumulando histórico e experiência.';
+  }
+
+  updateTripPayCategory();
+  renderTrips();
+  renderCustomExpenses();
+  renderPromotion();
+  renderHazmatQualification();
+  renderIncidents();
+  renderIncidentRoutes();
+
+  const b=document.getElementById('historyBody'); b.innerHTML='';
+  [...state.history].reverse().forEach(h=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${h.date}</td><td><span class="pill">${h.type}</span></td><td>${h.desc}</td><td>${h.value>=0?'+':''}${money(h.value)}</td><td>${money(h.balance)}</td>`;
+    b.appendChild(tr);
+  });
+  updateSalaryFields();
+}
+
+function addHistory(type,desc,value){
+  state.balance+=value;
+  state.history.push({date:new Date().toLocaleString('pt-BR'),type,desc,value,balance:state.balance});
+  save();
+}
+
+function setBalance(){
+  state.balance=parseFloat(document.getElementById('balanceInput').value)||0;
+  state.history.push({date:new Date().toLocaleString('pt-BR'),type:'Ajuste',desc:'Saldo definido manualmente',value:0,balance:state.balance});
+  save();
+}
+
+function expenseIds(){return ['rent','electric','water','internet','phone','groceries','transit','home','leisure','reserve'];}
+function calcMonthly(){
+  const fixed=expenseIds().reduce((s,id)=>s+(parseFloat(document.getElementById(id)?.value)||0),0);
+  const custom=(state.customExpenses||[]).filter(e=>e.monthly).reduce((s,e)=>s+(Number(e.value)||0),0);
+  const total=fixed+custom;
+  const el=document.getElementById('monthlyTotal'); if(el) el.textContent='Total mensal configurado: '+money(total);
+  const overview=document.getElementById('overviewMonthlyTotal'); if(overview) overview.textContent=money(total);
+  return total;
+}
+document.addEventListener('input',e=>{if(expenseIds().includes(e.target.id)) calcMonthly();});
+function applyMonthlyExpenses(){const total=calcMonthly(); if(total<=0){showToast('Não há despesas mensais configuradas.','info');return;} if(!confirm(`Aplicar ${money(total)} de despesas mensais ao saldo?`)) return; addHistory('Despesa','Despesas mensais (fixas + personalizadas)',-total); showToast(`Despesas do mês aplicadas: -${money(total)}.`);}
+
+function addCustomExpense(){
+  const name=document.getElementById('customExpenseName').value.trim();
+  const value=Math.max(0,parseFloat(document.getElementById('customExpenseValue').value)||0);
+  const monthly=document.getElementById('customExpenseMonthly').checked;
+  if(!name || value<=0){alert('Informe um nome e um valor maior que zero.');return;}
+  state.customExpenses=state.customExpenses||[];
+  state.customExpenses.push({id:Date.now(),name,value,monthly});
+  document.getElementById('customExpenseName').value='';
+  document.getElementById('customExpenseValue').value='';
+  document.getElementById('customExpenseMonthly').checked=true;
+  save();
+  calcMonthly();
+}
+function deleteCustomExpense(id){
+  state.customExpenses=(state.customExpenses||[]).filter(e=>e.id!==id);
+  save();
+  calcMonthly();
+}
+function toggleCustomExpense(id,checked){
+  const item=(state.customExpenses||[]).find(e=>e.id===id);
+  if(item) item.monthly=checked;
+  save();
+  calcMonthly();
+}
+function renderCustomExpenses(){
+  const body=document.getElementById('customExpensesBody'); if(!body) return;
+  body.innerHTML='';
+  const items=state.customExpenses||[];
+  if(!items.length){body.innerHTML='<tr><td colspan="4" class="muted">Nenhum gasto personalizado.</td></tr>';return;}
+  items.forEach(e=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${escapeHtml(e.name)}</td><td>${money(Number(e.value)||0)}</td><td><input type="checkbox" ${e.monthly?'checked':''} onchange="toggleCustomExpense(${e.id},this.checked)" style="width:auto"></td><td><button class="red small" onclick="deleteCustomExpense(${e.id})">Excluir</button></td>`;
+    body.appendChild(tr);
+  });
+}
+
+const PAY_RATES={normal:0.60,hazmat:0.63,doubles:0.64,hazmat_doubles:0.67,deadhead:0.50};
+const PAY_LABELS={normal:'Loaded normal',hazmat:'Loaded HazMat',doubles:'Loaded Doubles',hazmat_doubles:'Loaded HazMat + Doubles',deadhead:'Deadhead'};
+function updateSalaryFields(){
+  const l=document.getElementById('level').value;
+  document.getElementById('level1Fields').style.display=l==='1'?'block':'none';
+  document.getElementById('level2Fields').style.display=l==='1'?'none':'block';
+  renderWeeklyPayBreakdown();
+}
+function updateTripPayCategory(){
+  const dead=document.getElementById('tripType')?.value==='Deadhead';
+  const level=Number(state.careerLevel||1);
+  const wrap=document.getElementById('tripPayCategoryWrap');
+  const sel=document.getElementById('tripPayCategory');
+  if(!sel || !wrap) return;
+
+  const current=sel.value || 'normal';
+  const options=[{value:'normal',label:'Normal — US$ 0,60/mi'}];
+  if(level>=2 && state.hazmatQualified) options.push({value:'hazmat',label:'HazMat — US$ 0,63/mi'});
+  if(level>=3){
+    options.push({value:'doubles',label:'Doubles/bitrem — US$ 0,64/mi'});
+    if(state.hazmatQualified) options.push({value:'hazmat_doubles',label:'HazMat + Doubles — US$ 0,67/mi'});
+  }
+
+  sel.innerHTML=options.map(o=>`<option value="${o.value}">${o.label}</option>`).join('');
+  sel.value=options.some(o=>o.value===current)?current:'normal';
+
+  wrap.style.display=level===1?'none':'block';
+  wrap.style.opacity=dead?'0.45':'1';
+  sel.disabled=dead;
+}
+function getWeekPayBreakdown(weekNumber=state.currentWeek){
+  const out={normal:0,hazmat:0,doubles:0,hazmat_doubles:0,deadhead:0};
+  for(const t of (state.trips||[]).filter(x=>(Number(x.week)||1)===weekNumber)){
+    const miles=Number(t.miles)||0;
+    if(String(t.type||'Loaded').toLowerCase()==='deadhead') out.deadhead+=miles;
+    else { const cat=Object.prototype.hasOwnProperty.call(PAY_RATES,t.payCategory)?t.payCategory:'normal'; out[cat]+=miles; }
+  }
+  return out;
+}
+function calculateWeekMileagePay(weekNumber=state.currentWeek){
+  const breakdown=getWeekPayBreakdown(weekNumber); let gross=0,totalMiles=0;
+  for(const [cat,miles] of Object.entries(breakdown)){gross+=miles*PAY_RATES[cat];totalMiles+=miles;}
+  return {breakdown,gross,totalMiles};
+}
+function localDateKey(d){
+  const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function getWeekPerDiemDays(weekNumber=state.currentWeek){
+  if(Number(state.careerLevel||1)<2) return 0;
+  const days=new Set();
+  for(const t of (state.trips||[]).filter(x=>(Number(x.week)||1)===weekNumber)){
+    if(!t.departureAt||!t.arrivalAt) continue;
+    const start=new Date(t.departureAt), end=new Date(t.arrivalAt);
+    if(Number.isNaN(start.getTime())||Number.isNaN(end.getTime())||end<=start) continue;
+    const startDay=new Date(start.getFullYear(),start.getMonth(),start.getDate());
+    const endDay=new Date(end.getFullYear(),end.getMonth(),end.getDate());
+    if(endDay<=startDay) continue;
+    for(let d=new Date(startDay); d<=endDay; d.setDate(d.getDate()+1)) days.add(localDateKey(d));
+  }
+  return days.size;
+}
+function updateAutomaticPerDiem(){
+  const el=document.getElementById('perDiemDays'); if(el) el.value=getWeekPerDiemDays(state.currentWeek);
+}
+function renderWeeklyPayBreakdown(){
+  updateAutomaticPerDiem();
+  const box=document.getElementById('weeklyPayBreakdown'); if(!box) return;
+  const {breakdown,gross,totalMiles}=calculateWeekMileagePay(state.currentWeek);
+  const rows=Object.entries(breakdown).filter(([,mi])=>mi>0).map(([cat,mi])=>`${PAY_LABELS[cat]}: <strong>${mi.toLocaleString('pt-BR')} mi × ${money(PAY_RATES[cat])}/mi = ${money(mi*PAY_RATES[cat])}</strong>`);
+  box.innerHTML=rows.length?rows.join('<br>')+`<hr style="border-color:var(--line);border-width:1px 0 0;margin:10px 0"><strong>Total: ${totalMiles.toLocaleString('pt-BR')} mi — ${money(gross)} bruto por milhagem</strong>`:'Nenhuma milha registrada na semana atual.';
+}
+
+function estimateTaxes(gross){
+  const ss=gross*0.062, medicare=gross*0.0145, sdi=gross*0.013;
+  let federal=0; if(gross>260) federal=(gross-260)*0.10; if(gross>1000) federal=74+(gross-1000)*0.12;
+  let ca=0; if(gross>500) ca=(gross-500)*0.0527;
+  return {federal,ss,medicare,sdi,ca};
+}
+
+function generatePayslip(){
+  const weekToClose=state.currentWeek;
+  if(!confirm(`Gerar o holerite e fechar a Semana ${weekToClose}? Depois disso, as viagens dessa semana ficarão bloqueadas para edição.`)) return;
+  const level=String(state.careerLevel||1);
+  document.getElementById('level').value=level;
+  let gross=0,perDiem=0,desc='';
+  if(level==='1'){
+    const base=parseFloat(document.getElementById('level1Gross').value)||0;
+    const hrs=parseFloat(document.getElementById('overrunHours').value)||0;
+    const rate=parseFloat(document.getElementById('overrunRate').value)||0;
+    gross=base+hrs*rate;
+    desc=`Nível 1 — salário semanal${hrs?` + ${hrs}h overrun`:''}`;
+  } else {
+    const calc=calculateWeekMileagePay(state.currentWeek);
+    const miles=calc.totalMiles;
+    const days=getWeekPerDiemDays(state.currentWeek);
+    document.getElementById('perDiemDays').value=days;
+    const pd=parseFloat(document.getElementById('perDiemRate').value)||0;
+    gross=calc.gross; perDiem=days*pd;
+    const parts=Object.entries(calc.breakdown).filter(([,mi])=>mi>0).map(([cat,mi])=>`${PAY_LABELS[cat]} ${mi.toLocaleString('pt-BR')} mi @ ${money(PAY_RATES[cat])}`);
+    desc=`Nível ${level} — ${parts.join(' + ')||'sem milhas'}`;
+  }
+  const ben=parseFloat(document.getElementById('benefits').value)||0;
+  const t=estimateTaxes(gross); const taxes=t.federal+t.ss+t.medicare+t.sdi+t.ca;
+  const netSalary=gross-taxes-ben; const beforeIncidents=Math.max(0,netSalary+perDiem); const incidentDeduction=applyPendingIncidentDeductions(beforeIncidents); const deposit=beforeIncidents-incidentDeduction;
+  document.getElementById('payslip').innerHTML=`
+    <table><tbody>
+      <tr><td>Salário bruto</td><td>${money(gross)}</td></tr>
+      ${level==='1'?'':Object.entries(calculateWeekMileagePay(state.currentWeek).breakdown).filter(([,mi])=>mi>0).map(([cat,mi])=>`<tr><td>${PAY_LABELS[cat]} (${mi.toLocaleString('pt-BR')} mi × ${money(PAY_RATES[cat])})</td><td>${money(mi*PAY_RATES[cat])}</td></tr>`).join('')}
+      <tr><td>Federal</td><td>-${money(t.federal)}</td></tr>
+      <tr><td>Social Security</td><td>-${money(t.ss)}</td></tr>
+      <tr><td>Medicare</td><td>-${money(t.medicare)}</td></tr>
+      <tr><td>California Income Tax</td><td>-${money(t.ca)}</td></tr>
+      <tr><td>California SDI</td><td>-${money(t.sdi)}</td></tr>
+      <tr><td>Benefícios</td><td>-${money(ben)}</td></tr>
+      <tr><td><strong>Salário líquido</strong></td><td><strong>${money(netSalary)}</strong></td></tr>
+      <tr><td>Per diem</td><td>+${money(perDiem)}</td></tr>
+      <tr><td>Infrações/acidentes descontados</td><td>-${money(incidentDeduction)}</td></tr>
+      <tr><td><strong>Depósito total</strong></td><td><strong>${money(deposit)}</strong></td></tr>
+    </tbody></table>
+    <p class="muted">Estimativa de simulação; retenções reais podem variar.</p>`;
+
+  const weekNumber=state.currentWeek;
+  const weekTrips=(state.trips||[]).filter(t=>(Number(t.week)||1)===weekNumber);
+  const weekMiles=weekTrips.reduce((sum,t)=>sum+(Number(t.miles)||0),0);
+  state.closedWeeks=state.closedWeeks||[];
+  state.closedWeeks.push({
+    week:weekNumber,
+    closedAt:new Date().toLocaleString('pt-BR'),
+    miles:weekMiles,
+    level:Number(level),
+    gross, taxes, benefits:ben, netSalary, perDiem, incidentDeduction, deposit, desc
+  });
+  state.currentWeek=weekNumber+1;
+  state.balance+=deposit;
+  state.history.push({date:new Date().toLocaleString('pt-BR'),type:'Salário',desc:`Semana ${weekNumber} fechada — ${desc}${incidentDeduction?` — ocorrências: -${money(incidentDeduction)}`:''}`,value:deposit,balance:state.balance});
+  save();
+  showToast(`Semana ${weekNumber} fechada. Holerite creditado; Semana ${state.currentWeek} iniciada.`);
+}
+
+function addTrip(){
+  const origin=document.getElementById('tripOrigin').value.trim();
+  const destination=document.getElementById('tripDestination').value.trim();
+  const originCompany=document.getElementById('tripOriginCompany').value.trim();
+  const destinationCompany=document.getElementById('tripDestinationCompany').value.trim();
+  const cargo=document.getElementById('tripCargo').value.trim();
+  const type=document.getElementById('tripType').value;
+  const payCategory=type==='Deadhead'?'deadhead':(document.getElementById('tripPayCategory')?.value||'normal');
+  const currentLevel=Number(state.careerLevel||1);
