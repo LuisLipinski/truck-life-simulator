@@ -7,7 +7,7 @@ import {
   loadCareers,
   setActiveCareer,
 } from './lib/storage.js'
-import { downloadCSVTemplate, importCareerCSVText } from './lib/csv.js'
+import { downloadCSVTemplate, downloadExcelTemplate, importCareerFile } from './lib/csv.js'
 import Phase1Page from './components/Phase1Page.jsx'
 import CityAutocomplete from './components/CityAutocomplete.jsx'
 import { useToast } from './components/ToastProvider.jsx'
@@ -101,16 +101,17 @@ function CareersPage() {
     window.location.hash = `#/phases?career=${encodeURIComponent(career.id)}`
   }
 
-  async function importCsv(event) {
+  async function importBackup(event) {
     const file = event.target.files?.[0]
     if (!file) return
-    toast.info('Lendo e validando o backup da carreira...', { title: 'Importando CSV', duration: 2200 })
+    const extension = String(file.name || '').split('.').pop().toUpperCase()
+    toast.info('Lendo e validando o backup da carreira...', { title: `Importando ${extension || 'arquivo'}`, duration: 2200 })
     try {
-      const result = importCareerCSVText(await file.text())
+      const result = await importCareerFile(file)
       setCareers(loadCareers())
-      toast.success(`Carreira “${result.career.driverName}” importada com sucesso (CSV v${result.version}).`, { title: 'Importação concluída' })
+      toast.success(`Carreira “${result.career.driverName}” importada com sucesso (${extension} • backup v${result.version}).`, { title: 'Importação concluída' })
     } catch (error) {
-      toast.error(`Não foi possível importar a carreira: ${error.message}`, { title: 'Erro ao importar CSV' })
+      toast.error(`Não foi possível importar a carreira: ${error.message}`, { title: 'Erro ao importar arquivo' })
     } finally {
       event.target.value = ''
     }
@@ -123,22 +124,27 @@ function CareersPage() {
         <img className="ats-logo" src={ATS_IMAGE} alt="American Truck Simulator" />
         <span className="eyebrow">American Truck Simulator</span>
         <h1>Suas carreiras</h1>
-        <p>Crie uma nova carreira, importe um backup CSV ou continue um personagem salvo neste navegador.</p>
+        <p>Crie uma nova carreira, importe um backup CSV, XLS ou XLSX, ou continue um personagem salvo neste navegador.</p>
       </section>
 
       <div className="action-row">
         <AppLink className="button primary" to="/new">+ Criar nova carreira</AppLink>
-        <button className="button success" type="button" onClick={() => fileInput.current?.click()}>Importar carreira CSV</button>
-        <button className="button secondary" type="button" onClick={downloadCSVTemplate}>Baixar modelo CSV</button>
-        <button className="button secondary" type="button" onClick={() => setShowCsvHelp((value) => !value)}>Como funciona o CSV</button>
-        <input ref={fileInput} type="file" accept=".csv,text/csv" hidden onChange={importCsv} />
+        <button className="button success" type="button" onClick={() => fileInput.current?.click()}>Importar carreira</button>
+        <button className="button secondary" type="button" onClick={downloadCSVTemplate}>Modelo CSV</button>
+        <button className="button secondary" type="button" onClick={() => downloadExcelTemplate('xlsx')}>Modelo XLSX</button>
+        <button className="button secondary" type="button" onClick={() => downloadExcelTemplate('xls')}>Modelo XLS</button>
+        <button className="button secondary" type="button" onClick={() => setShowCsvHelp((value) => !value)}>Como funciona o backup</button>
+        <input ref={fileInput} type="file" accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onChange={importBackup} />
       </div>
 
       {showCsvHelp && (
         <section className="panel csv-help">
           <span className="eyebrow">Backup portátil</span>
-          <h2>CSV da carreira</h2>
-          <p>O arquivo usa a identificação <code>ATS_CAREER_BACKUP</code> e pode guardar perfil, custos iniciais, estado, viagens, histórico, gastos personalizados, ocorrências e semanas fechadas.</p>
+          <h2>CSV, XLS e XLSX</h2>
+          <p>Os três formatos usam a identificação <code>ATS_CAREER_BACKUP</code> e podem guardar perfil, custos iniciais, estado, viagens, histórico, gastos personalizados, ocorrências e semanas fechadas.</p>
+          <p><strong>CSV:</strong> valores numéricos devem usar <strong>ponto</strong> para casas decimais e não devem ter separador de milhar. Exemplos válidos: <code>850</code>, <code>1602.63</code>, <code>0.50</code> e <code>21.25</code>. Não use <code>1602,63</code>, <code>1,602.63</code>, <code>1.602,63</code> ou símbolo de dólar.</p>
+          <p><strong>XLS/XLSX:</strong> preencha valores como células numéricas normais do Excel. A exibição pode usar vírgula ou ponto conforme a configuração regional do Excel; o app lê o valor numérico da célula.</p>
+          <p>Campos numéricos com letras ou formatos inválidos são recusados. A mensagem de erro informa o tipo, o campo e a linha que precisa ser corrigida antes da importação.</p>
           <p>Ao importar, o React cria uma <strong>nova carreira</strong> com um novo ID. Backups antigos continuam aceitos e são normalizados para a estrutura atual.</p>
           <p>Não altere os nomes da primeira coluna, como <code>CAREER</code>, <code>STATE</code>, <code>TRIP</code> e <code>CLOSED_WEEK</code>.</p>
         </section>
@@ -147,7 +153,7 @@ function CareersPage() {
       {careers.length === 0 ? (
         <div className="empty-state">
           <h2>Nenhuma carreira criada</h2>
-          <p>Crie seu primeiro motorista ou importe um backup CSV.</p>
+          <p>Crie seu primeiro motorista ou importe um backup CSV, XLS ou XLSX.</p>
           <AppLink className="button primary compact" to="/new">Criar carreira</AppLink>
         </div>
       ) : (
