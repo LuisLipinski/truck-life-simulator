@@ -105,6 +105,24 @@ function TabIntro({ tabId }) {
   )
 }
 
+function HeaderSummary({ state }) {
+  const miles = totalMiles(state)
+  const weekMiles = currentWeekMiles(state)
+  const promotion = getPromotionStatus(state)
+  const progressText = state.currentLevel >= 3
+    ? `${miles.toLocaleString('en-US')} mi`
+    : `${miles.toLocaleString('en-US')} / ${promotion.goal.toLocaleString('en-US')} mi`
+
+  return (
+    <div className="phase1-header-summary" aria-label="Resumo da carreira">
+      <div><span>Saldo</span><strong>{money(state.balance)}</strong></div>
+      <div><span>Nível atual</span><strong>Nível {state.currentLevel}</strong></div>
+      <div><span>Progressão</span><strong>{progressText}</strong></div>
+      <div><span>Semana atual</span><strong>Semana {state.currentWeek} • {weekMiles.toLocaleString('en-US')} mi</strong></div>
+    </div>
+  )
+}
+
 function MetricCard({ label, value, detail, onClick, children }) {
   const interactive = typeof onClick === 'function'
   const Component = interactive ? 'button' : 'article'
@@ -119,13 +137,9 @@ function MetricCard({ label, value, detail, onClick, children }) {
 }
 
 function OverviewTab({ career, state, setActiveTab }) {
-  const miles = totalMiles(state)
   const weekTrips = currentWeekTrips(state)
-  const weekMiles = currentWeekMiles(state)
   const promotion = getPromotionStatus(state)
   const monthly = monthlyExpenseTotal(state)
-  const progress = state.currentLevel >= 3 ? 100 : Math.min(100, (miles / promotion.goal) * 100)
-  const levelName = state.currentLevel === 1 ? 'Trainee / Local Driver' : state.currentLevel === 2 ? 'Company Driver / OTR' : 'Experienced Driver / Doubles'
 
   return (
     <>
@@ -137,20 +151,11 @@ function OverviewTab({ career, state, setActiveTab }) {
         </button>
       )}
 
-      <section className="phase1-metrics-grid">
-        <MetricCard label="Saldo" value={money(state.balance)} detail="Dinheiro pessoal disponível" onClick={() => setActiveTab('finances')} />
-        <MetricCard label="Nível atual" value={`Nível ${state.currentLevel}`} detail={levelName} onClick={() => setActiveTab('qualifications')} />
-        <MetricCard label="Despesas mensais" value={money(monthly)} detail="Padrão + personalizadas mensais" onClick={() => setActiveTab('finances')} />
-        <MetricCard label="Progressão" value={state.currentLevel >= 3 ? `${miles.toLocaleString('en-US')} mi` : `${miles.toLocaleString('en-US')} / ${promotion.goal.toLocaleString('en-US')} mi`} detail={promotion.remaining ? `${promotion.remaining.toLocaleString('en-US')} mi para o Nível ${promotion.nextLevel}` : promotion.title} onClick={() => setActiveTab('qualifications')}>
-          <div className="react-progress"><span style={{ width: `${progress}%` }} /></div>
-        </MetricCard>
-      </section>
-
       <section className="phase1-status-grid">
-        <button className="panel status-card" onClick={() => setActiveTab('progress')}>
-          <span className="metric-label">Semana atual</span>
-          <strong>Semana {state.currentWeek} • {weekMiles.toLocaleString('en-US')} mi</strong>
-          <span>{weekTrips.length ? `${weekTrips.length} trecho(s) registrado(s)` : 'Nenhuma viagem registrada nesta semana.'}</span>
+        <button className="panel status-card" onClick={() => setActiveTab('finances')}>
+          <span className="metric-label">Despesas mensais</span>
+          <strong>{money(monthly)}</strong>
+          <span>Padrão + personalizadas mensais.</span>
         </button>
         <button className="panel status-card" onClick={() => setActiveTab('payslip')}>
           <span className="metric-label">Resumo semanal</span>
@@ -350,7 +355,19 @@ export default function Phase1Page({ careerId, onBack }) {
 
   return (
     <div className="phase1-app">
-      <header className="phase1-header"><div className="phase1-header-inner"><button className="back-button" onClick={onBack}>← Voltar para fases</button><span className="eyebrow">Fase 1 • Company Driver</span><h1>{career.driverName}</h1><p>{career.city} • {career.company}</p></div></header>
+      <header className="phase1-header">
+        <div className="phase1-header-inner">
+          <button className="back-button" onClick={onBack}>← Voltar</button>
+          <div className="phase1-header-main">
+            <div className="phase1-driver-block">
+              <span className="eyebrow">Fase 1 • Company Driver</span>
+              <h1>{career.driverName}</h1>
+              <p>{career.city} • {career.company}</p>
+            </div>
+            <HeaderSummary state={state} />
+          </div>
+        </div>
+      </header>
       <nav className="phase1-tabs-wrap" aria-label="Seções da Fase 1"><div className="phase1-tabs">
         {tabs.map(([id, label]) => <button key={id} className={activeTab === id ? 'active' : ''} onClick={() => setActiveTab(id)}>{label}</button>)}
       </div></nav>
