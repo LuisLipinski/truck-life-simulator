@@ -5,175 +5,852 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ATS - Fase 1 | Company Driver</title>
   <style>
-    :root {
-      --bg:#0f172a; --panel:#111827; --card:#1f2937; --muted:#94a3b8; --text:#f8fafc;
-      --accent:#38bdf8; --accent2:#22c55e; --danger:#ef4444; --warn:#f59e0b; --border:#334155;
-    }
-    * { box-sizing:border-box; }
-    body { margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:linear-gradient(180deg,#0b1020,#111827); color:var(--text); min-height:100vh; }
-    header { padding:24px; border-bottom:1px solid var(--border); background:rgba(15,23,42,.97); backdrop-filter:blur(8px); }
-    header h1 { margin:0 0 6px; font-size:26px; }
-    header p { margin:0; color:var(--muted); }
-    .tabs-wrap { position:sticky; top:0; z-index:20; background:rgba(15,23,42,.97); border-bottom:1px solid var(--border); backdrop-filter:blur(8px); }
-    .tabs { max-width:1200px; margin:0 auto; padding:10px 16px; display:flex; gap:8px; overflow-x:auto; }
-    .tab-btn { width:auto; white-space:nowrap; margin:0; padding:10px 14px; background:#1e293b; border:1px solid var(--border); color:var(--text); }
-    .tab-btn.active { background:#0ea5e9; border-color:#0ea5e9; }
-    main { max-width:1200px; margin:0 auto; padding:24px; }
-    .tab-panel { display:none; }
-    .tab-panel.active { display:block; }
-    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; }
-    .card { background:rgba(31,41,55,.88); border:1px solid var(--border); border-radius:16px; padding:18px; box-shadow:0 8px 28px rgba(0,0,0,.18); }
-    .card + .card { margin-top:16px; }
-    .grid .card + .card { margin-top:0; }
-    .card h2,.card h3 { margin-top:0; }
-    .muted { color:var(--muted); }
-    .big { font-size:32px; font-weight:800; }
-    .metric { font-size:24px; font-weight:800; }
-    label { display:block; font-size:13px; color:var(--muted); margin:10px 0 6px; }
-    input,select,button,textarea { width:100%; border-radius:10px; border:1px solid var(--border); background:#0f172a; color:var(--text); padding:10px 12px; }
-    button { cursor:pointer; background:#0ea5e9; border:none; font-weight:700; margin-top:10px; }
-    button.secondary { background:#334155; }
-    button.green { background:#16a34a; }
-    button.red { background:#dc2626; }
-    button.small { width:auto; margin:0; padding:6px 9px; font-size:12px; }
-    table { width:100%; border-collapse:collapse; font-size:14px; }
-    th,td { padding:10px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top; }
-    th { color:#cbd5e1; }
-    .pill { display:inline-block; padding:4px 8px; border-radius:999px; background:#0f172a; border:1px solid var(--border); font-size:12px; }
-    details { border:1px solid var(--border); border-radius:12px; padding:12px 14px; background:#111827; }
-    details+details { margin-top:10px; }
-    summary { cursor:pointer; font-weight:700; }
-    ul { margin-bottom:0; }
-    .two { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-    .notice { border-left:4px solid var(--warn); padding:10px 12px; background:#291f0d; border-radius:8px; }
-    .ok { border-left-color:var(--accent2); background:#0f2618; }
-    .history { max-height:440px; overflow:auto; }
-    .progress { width:100%; height:14px; background:#0f172a; border:1px solid var(--border); border-radius:999px; overflow:hidden; }
-    .progress > div { height:100%; background:#0ea5e9; width:0%; }
-    .info-tip{position:relative;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-left:6px;border-radius:50%;background:#334155;color:#e2e8f0;font-size:11px;font-weight:800;vertical-align:middle;border:1px solid #475569;cursor:help;outline:none;}
-    .info-tip:hover,.info-tip:focus{background:#0ea5e9;color:white;}
-    .info-tip::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 9px);transform:translateX(-50%);width:min(320px,80vw);padding:9px 11px;border-radius:9px;background:#020617;color:#e2e8f0;border:1px solid #475569;box-shadow:0 10px 28px rgba(0,0,0,.42);font-size:12px;line-height:1.4;font-weight:500;text-align:left;white-space:normal;opacity:0;visibility:hidden;pointer-events:none;transition:.15s;z-index:120;}
-    .info-tip::before{content:'';position:absolute;left:50%;bottom:calc(100% + 3px);transform:translateX(-50%);border:6px solid transparent;border-top-color:#475569;opacity:0;visibility:hidden;transition:.15s;z-index:121;}
-    .info-tip:hover::after,.info-tip:hover::before,.info-tip:focus::after,.info-tip:focus::before{opacity:1;visibility:visible;}
-    .glossary{max-width:1200px;margin:22px auto 0;padding:18px;background:rgba(15,23,42,.9);border:1px solid var(--border);border-radius:14px;}
-    .glossary h3{margin-top:0}.glossary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px 18px}.glossary-item{font-size:13px;color:#cbd5e1}.glossary-item strong{color:#f8fafc;}
-    input[readonly]{opacity:.8;cursor:not-allowed;background:#111827;}
-    .city-autocomplete{position:relative}
-    .city-autocomplete input{padding-right:44px}
-    .city-toggle{position:absolute;right:1px;top:1px;width:40px;height:calc(100% - 2px);margin:0;padding:0;border:0;border-left:1px solid #334155;border-radius:0 9px 9px 0;background:#172033;color:#cbd5e1;cursor:pointer;font-size:18px;line-height:1}
-    .city-toggle:hover{background:#1e293b}
-    .city-results{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:80;background:#0f172a;border:1px solid #334155;border-radius:10px;box-shadow:0 14px 34px rgba(0,0,0,.35);max-height:280px;overflow:auto;display:none}
-    .city-results.open{display:block}
-    .city-option{padding:10px 12px;cursor:pointer;border-bottom:1px solid rgba(51,65,85,.55);font-size:14px}
-    .city-option:last-child{border-bottom:none}
-    .city-option:hover,.city-option.active{background:#1e293b}
-    .city-option.manual{color:#7dd3fc;font-weight:700;background:rgba(14,165,233,.07)}
-    .city-option.empty{color:#94a3b8;cursor:default;font-style:italic}
-    .city-match{color:#f8fafc;font-weight:800}
-    .city-results-header{position:sticky;top:0;padding:7px 11px;background:#111827;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #334155;z-index:1}
-    
-    .city-search-hint{font-size:12px;color:var(--muted);margin-top:5px;}
-    @media (max-width:700px){ .two{grid-template-columns:1fr;} header{padding:18px;} main{padding:16px;} }
-  
-    /* Layout polish v21 */
-    body{line-height:1.5;background:linear-gradient(180deg,#0b1020 0%,#111827 38%,#0f172a 100%);}
-    header{padding:26px 24px 22px;} header>div,header h1,header p{max-width:1200px;margin-left:auto;margin-right:auto} header h1{font-size:clamp(25px,3.5vw,34px);line-height:1.15;letter-spacing:-.02em} header p{margin-top:7px;line-height:1.55}
-    .tabs{padding:11px 20px;gap:9px}.tab-btn{min-height:40px;padding:9px 14px;border-radius:10px;transition:.15s ease}.tab-btn:hover{border-color:#64748b;background:#253247}.tab-btn.active:hover{background:#0ea5e9}
-    main{padding:28px 24px 44px}.tab-panel>.tab-intro{margin-bottom:20px}.tab-intro{padding:14px 16px;border:1px solid #334155;border-left:4px solid #38bdf8;border-radius:12px;background:rgba(15,23,42,.72);color:#cbd5e1;line-height:1.6}.tab-intro strong{color:#f8fafc}
-    .grid{gap:20px;align-items:start}.card{padding:22px;border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.16);overflow:visible}.card + .card{margin-top:20px}.grid .card + .card{margin-top:0}.card h2{font-size:20px;margin:0 0 14px;line-height:1.25}.card h3{margin:18px 0 10px;line-height:1.3}.card p{line-height:1.6}.big{font-size:clamp(28px,4vw,36px);line-height:1.1}.metric{font-size:26px;line-height:1.2}
-    label{margin:16px 0 7px;font-weight:600;line-height:1.35}input,select,button,textarea{min-height:44px;padding:11px 12px;font:inherit}input:focus,select:focus,textarea:focus{outline:none;border-color:#38bdf8;box-shadow:0 0 0 3px rgba(56,189,248,.12)}button{margin-top:12px;line-height:1.25;transition:.15s ease}button:hover{filter:brightness(1.08)}button.small{min-height:34px;padding:7px 10px}.two{gap:16px}.two>div{min-width:0}
-    table{line-height:1.45}th,td{padding:11px 10px}th{background:rgba(15,23,42,.55);font-size:12px;text-transform:none}.notice{padding:12px 14px;line-height:1.55;margin:10px 0 14px}.progress{margin:10px 0 6px}
-    .guide-step{display:grid;grid-template-columns:38px 1fr;gap:14px;align-items:start;padding:16px 0;border-bottom:1px solid rgba(51,65,85,.65)}.guide-step:first-child{padding-top:2px}.guide-step:last-child{border-bottom:0;padding-bottom:2px}.guide-num{width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#0ea5e9;color:white;font-weight:800}.guide-step strong{display:block;line-height:1.35}.guide-step p{margin:5px 0 0}
-    .glossary{margin:26px auto 32px;padding:20px 22px}.glossary h3{margin:0 0 14px}.glossary-grid{gap:12px 20px}.glossary-item{line-height:1.5}
-    .history{max-height:500px}.city-results{max-height:320px}.city-option{padding:11px 13px}
-    @media(max-width:760px){header{padding:20px 16px}.tabs{padding:9px 12px}main{padding:20px 14px 36px}.grid{grid-template-columns:1fr}.card{padding:18px 15px}.two{grid-template-columns:1fr;gap:4px}.tab-intro{padding:12px 13px}.guide-step{grid-template-columns:34px 1fr;gap:11px}.guide-num{width:30px;height:30px}.glossary{margin:20px 14px 28px;padding:17px}.glossary-grid{grid-template-columns:1fr}}
+:root{
+  --bg:#0b1020;
+  --panel:#111827;
+  --card:#1f2937;
+  --card-hover:#233144;
+  --surface:#0f172a;
+  --muted:#94a3b8;
+  --text:#f8fafc;
+  --accent:#38bdf8;
+  --accent-strong:#0ea5e9;
+  --success:#22c55e;
+  --danger:#ef4444;
+  --warn:#f59e0b;
+  --border:#334155;
+  --border-strong:#475569;
+  --container:1200px;
+  --radius:16px;
+  --shadow:0 10px 30px rgba(0,0,0,.18);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  min-height:100vh;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  line-height:1.5;
+  color:var(--text);
+  background:linear-gradient(180deg,#0b1020 0%,#111827 42%,#0f172a 100%);
+}
+a{color:inherit}
+header{
+  padding:26px 24px 22px;
+  border-bottom:1px solid var(--border);
+  background:rgba(15,23,42,.96);
+  backdrop-filter:blur(8px);
+}
+header>div,header h1,header p{max-width:var(--container);margin-left:auto;margin-right:auto}
+header h1{margin-top:0;margin-bottom:7px;font-size:clamp(25px,3.5vw,34px);line-height:1.15;letter-spacing:-.02em}
+header p{margin-top:0;margin-bottom:0;color:var(--muted);line-height:1.55}
+.tabs-wrap{position:sticky;top:0;z-index:40;border-bottom:1px solid var(--border);background:rgba(15,23,42,.97);backdrop-filter:blur(10px)}
+.tabs{max-width:var(--container);margin:0 auto;padding:10px 20px;display:flex;gap:8px;overflow-x:auto;scrollbar-width:thin;scrollbar-color:#475569 transparent}
+.tabs::-webkit-scrollbar{height:5px}.tabs::-webkit-scrollbar-thumb{background:#475569;border-radius:999px}.tabs::-webkit-scrollbar-track{background:transparent}
+.tab-btn{
+  width:auto;min-height:40px;margin:0;padding:9px 14px;white-space:nowrap;
+  border:1px solid var(--border);border-radius:10px;background:#1e293b;color:var(--text);
+  font:inherit;font-weight:700;cursor:pointer;transition:.15s ease;
+}
+.tab-btn:hover{background:#263449;border-color:#64748b}
+.tab-btn.active{background:var(--accent-strong);border-color:var(--accent-strong)}
+.tab-btn.active:hover{background:#0284c7}
+.tab-btn:focus-visible,button:focus-visible,[role="button"]:focus-visible{outline:3px solid rgba(56,189,248,.38);outline-offset:2px}
+main{max-width:var(--container);margin:0 auto;padding:28px 24px 46px}
+.tab-panel{display:none}.tab-panel.active{display:block}
+.tab-intro{margin:0 0 22px;padding:14px 16px;border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:12px;background:rgba(15,23,42,.74);color:#cbd5e1;line-height:1.6}.tab-intro strong{color:var(--text)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;align-items:start}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.two>div{min-width:0}
+.card{background:rgba(31,41,55,.9);border:1px solid var(--border);border-radius:18px;padding:22px;box-shadow:var(--shadow)}
+.card+.card{margin-top:20px}.grid .card+.card{margin-top:0}
+.card h2{margin:0 0 14px;font-size:20px;line-height:1.25}.card h3{margin:20px 0 10px;line-height:1.3}.card p{line-height:1.6}
+.muted{color:var(--muted)}.big{font-size:clamp(28px,4vw,36px);font-weight:800;line-height:1.15}.metric{font-size:25px;font-weight:800;line-height:1.25}
+label{display:block;margin:16px 0 7px;color:var(--muted);font-size:13px;font-weight:650;line-height:1.35}
+input,select,textarea,button{min-height:44px;border-radius:10px;font:inherit}
+input,select,textarea{width:100%;padding:11px 12px;border:1px solid var(--border);background:var(--surface);color:var(--text)}
+textarea{resize:vertical}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(56,189,248,.12)}
+input[readonly]{opacity:.82;cursor:not-allowed;background:#111827}
+button{width:100%;margin-top:12px;padding:10px 14px;border:1px solid transparent;background:var(--accent-strong);color:white;font-weight:750;cursor:pointer;line-height:1.25;transition:transform .12s ease,filter .12s ease,background .12s ease,border-color .12s ease}
+button:hover{filter:brightness(1.08)}button:active{transform:translateY(1px)}button.secondary{background:#334155}button.green{background:#16a34a}button.red{background:#dc2626}button.small{width:auto;min-height:34px;margin:0;padding:7px 10px;font-size:12px}
+button:disabled{opacity:.48;cursor:not-allowed;filter:none;transform:none}
+.notice{margin:10px 0 14px;padding:12px 14px;border-left:4px solid var(--warn);border-radius:9px;background:#291f0d;line-height:1.55}.notice.ok,.ok{border-left-color:var(--success);background:#0f2618}
+.pill{display:inline-block;padding:4px 8px;border:1px solid var(--border);border-radius:999px;background:var(--surface);font-size:12px}
+.progress{width:100%;height:14px;margin:10px 0 7px;overflow:hidden;border:1px solid var(--border);border-radius:999px;background:var(--surface)}.progress>div{height:100%;width:0;background:linear-gradient(90deg,#0ea5e9,#38bdf8);transition:width .25s ease}
+details{padding:13px 15px;border:1px solid var(--border);border-radius:12px;background:#111827}details+details{margin-top:10px}summary{cursor:pointer;font-weight:750}ul{margin-bottom:0}
+.history{max-height:520px;overflow:auto}
+table{display:block;width:100%;max-width:100%;overflow-x:auto;border-collapse:collapse;font-size:14px;line-height:1.45;scrollbar-width:thin;scrollbar-color:#475569 transparent}
+thead,tbody{width:max-content;min-width:100%;display:table}th,td{padding:11px 10px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}th{background:rgba(15,23,42,.7);color:#cbd5e1;font-size:12px;white-space:nowrap}td{min-width:90px}tr:hover td{background:rgba(51,65,85,.12)}
+.info-tip{position:relative;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-left:6px;border:1px solid var(--border-strong);border-radius:50%;background:#334155;color:#e2e8f0;font-size:11px;font-weight:800;vertical-align:middle;cursor:help;outline:none}
+.info-tip:hover,.info-tip:focus{background:var(--accent-strong);color:white}.info-tip::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 9px);transform:translateX(-50%);width:min(320px,80vw);padding:9px 11px;border:1px solid var(--border-strong);border-radius:9px;background:#020617;color:#e2e8f0;box-shadow:0 10px 28px rgba(0,0,0,.42);font-size:12px;line-height:1.4;font-weight:500;text-align:left;white-space:normal;opacity:0;visibility:hidden;pointer-events:none;transition:.15s;z-index:120}.info-tip::before{content:"";position:absolute;left:50%;bottom:calc(100% + 3px);transform:translateX(-50%);border:6px solid transparent;border-top-color:var(--border-strong);opacity:0;visibility:hidden;transition:.15s;z-index:121}.info-tip:hover::after,.info-tip:hover::before,.info-tip:focus::after,.info-tip:focus::before{opacity:1;visibility:visible}
+.glossary{max-width:var(--container);margin:26px auto 32px;padding:20px 22px;border:1px solid var(--border);border-radius:14px;background:rgba(15,23,42,.9)}.glossary h3{margin:0 0 14px}.glossary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px 20px}.glossary-item{color:#cbd5e1;font-size:13px;line-height:1.5}.glossary-item strong{color:var(--text)}
+.city-autocomplete{position:relative}.city-autocomplete input{padding-right:44px}.city-toggle{position:absolute;right:1px;top:1px;width:40px;height:calc(100% - 2px);min-height:0;margin:0;padding:0;border:0;border-left:1px solid var(--border);border-radius:0 9px 9px 0;background:#172033;color:#cbd5e1;font-size:18px;line-height:1}.city-toggle:hover{background:#1e293b}.city-results{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:80;display:none;max-height:320px;overflow:auto;border:1px solid var(--border);border-radius:10px;background:var(--surface);box-shadow:0 14px 34px rgba(0,0,0,.35)}.city-results.open{display:block}.city-results-header{position:sticky;top:0;z-index:1;padding:7px 11px;border-bottom:1px solid var(--border);background:#111827;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em}.city-option{padding:11px 13px;border-bottom:1px solid rgba(51,65,85,.55);font-size:14px;cursor:pointer}.city-option:last-child{border-bottom:0}.city-option:hover,.city-option.active{background:#1e293b}.city-option.manual{background:rgba(14,165,233,.07);color:#7dd3fc;font-weight:700}.city-option.empty{color:var(--muted);cursor:default;font-style:italic}.city-match{color:var(--text);font-weight:800}.city-search-hint{margin-top:5px;color:var(--muted);font-size:12px}
+.guide-step{display:grid;grid-template-columns:38px 1fr;gap:14px;align-items:start;padding:16px 0;border-bottom:1px solid rgba(51,65,85,.65)}.guide-step:first-child{padding-top:2px}.guide-step:last-child{padding-bottom:2px;border-bottom:0}.guide-num{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:var(--accent-strong);color:white;font-weight:800}.guide-step strong{display:block;line-height:1.35}.guide-step p{margin:5px 0 0}
+#overview .overview-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px;align-items:stretch;margin-bottom:24px}
+#overview .overview-metrics .card{height:100%;min-height:200px;display:grid;grid-template-rows:auto auto 1fr auto;gap:0;align-content:stretch}
+#overview .overview-metrics .card h2{margin:0 0 14px;min-height:50px;display:flex;align-items:flex-start;font-size:19px}
+#overview .overview-metrics .big,#overview .overview-metrics .metric{min-height:36px;display:flex;align-items:center;font-size:24px}
+#overview .overview-metrics .card>p.muted{margin:12px 0 0}
+#overview .overview-metrics .progress{align-self:start;margin:12px 0 8px}
+#overview .overview-profile{margin:0 0 24px}#overview .overview-profile .grid{gap:24px}#overview .overview-profile .metric{margin-top:4px;font-size:22px}#overview .overview-section{margin-top:24px}
+#overview .overview-metrics .card.overview-link-card,#overview .quick-status-card{cursor:pointer;transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease,background .15s ease}
+#overview .overview-metrics .card.overview-link-card:hover,#overview .overview-metrics .card.overview-link-card:focus-visible,#overview .quick-status-card:hover,#overview .quick-status-card:focus-visible{transform:translateY(-2px);border-color:var(--accent);background:rgba(35,49,68,.96);box-shadow:0 14px 34px rgba(0,0,0,.24),0 0 0 2px rgba(56,189,248,.08);outline:none}
+#overview .card-link-hint{align-self:end;margin-top:auto!important;padding-top:12px;color:#7dd3fc;font-size:12px;font-weight:750}
+#overview .quick-status-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:0 0 28px}
+#overview .quick-status-card{min-height:98px;padding:16px 18px;border:1px solid var(--border);border-radius:14px;background:rgba(15,23,42,.74)}
+#overview .quick-status-label{color:var(--muted);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}#overview .quick-status-value{margin-top:5px;font-size:19px;font-weight:800;line-height:1.25}#overview .quick-status-detail{margin-top:5px;color:var(--muted);font-size:12px}
+#overviewPromotionBanner{display:none;margin:0 0 24px;padding:18px 20px;border:1px solid var(--warn);border-left:6px solid var(--warn);border-radius:14px;background:linear-gradient(135deg,rgba(245,158,11,.16),rgba(120,53,15,.18));box-shadow:0 14px 34px rgba(0,0,0,.18);cursor:pointer;transition:.15s ease}
+#overviewPromotionBanner:hover,#overviewPromotionBanner:focus-visible{transform:translateY(-2px);box-shadow:0 18px 42px rgba(0,0,0,.25),0 0 0 2px rgba(245,158,11,.12);outline:none}.promo-kicker{color:#fbbf24;font-size:12px;font-weight:850;text-transform:uppercase;letter-spacing:.08em}.promo-title{margin-top:5px;font-size:22px;font-weight:850;line-height:1.25}.promo-text{margin:8px 0 0;color:#fde68a}.promo-action{margin-top:12px;color:#fcd34d;font-size:13px;font-weight:800}
+.toast-stack{position:fixed;right:18px;bottom:18px;z-index:9999;display:flex;flex-direction:column;gap:10px;max-width:min(380px,calc(100vw - 28px));pointer-events:none}.toast{padding:12px 14px;border:1px solid var(--border-strong);border-left:4px solid var(--success);border-radius:12px;background:var(--surface);color:var(--text);box-shadow:0 16px 42px rgba(0,0,0,.42);font-size:14px;line-height:1.45;opacity:0;transform:translateY(10px);animation:toastIn .18s ease forwards}.toast.warn{border-left-color:var(--warn)}.toast.error{border-left-color:var(--danger)}.toast.info{border-left-color:var(--accent)}@keyframes toastIn{to{opacity:1;transform:translateY(0)}}
+@media(max-width:980px){#overview .overview-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){header{padding:20px 16px}.tabs{padding:9px 12px}main{padding:20px 14px 36px}.grid{grid-template-columns:1fr}.two{grid-template-columns:1fr;gap:4px}.card{padding:18px 16px}.tab-intro{padding:12px 13px}.guide-step{grid-template-columns:34px 1fr;gap:11px}.guide-num{width:30px;height:30px}.glossary{margin:20px 14px 28px;padding:17px}.glossary-grid{grid-template-columns:1fr}.info-tip::after{position:fixed;left:12px;right:12px;bottom:18px;transform:none;width:auto;max-width:none}.info-tip::before{display:none}}
+@media(max-width:620px){#overview .overview-metrics{grid-template-columns:1fr;gap:16px;margin-bottom:20px}#overview .overview-metrics .card{min-height:0}#overview .quick-status-grid{grid-template-columns:1fr;gap:12px}.toast-stack{right:14px;bottom:14px;left:14px;max-width:none}table{font-size:13px}}
 
-    /* Visão Geral - ajustes v23 */
-    #overview .overview-metrics{
-      display:grid;
-      grid-template-columns:repeat(4,minmax(0,1fr));
-      gap:20px;
-      align-items:stretch;
-      margin-bottom:32px;
-    }
-    #overview .overview-metrics .card{
-      min-height:178px;
-      height:100%;
-      display:flex;
-      flex-direction:column;
-      justify-content:flex-start;
-    }
-    #overview .overview-metrics .card h2{margin-bottom:12px; min-height:48px; display:flex; align-items:flex-end;}
-    #overview .overview-metrics .metric{font-size:24px;}
-    #overview .overview-metrics .big{font-size:24px; line-height:1.2;}
-    #overview .overview-metrics .progress{margin:12px 0 8px;}
-    #overview .overview-metrics p{margin-top:10px;margin-bottom:0;}
-    #overview .overview-profile{margin-top:0;margin-bottom:24px;}
-    #overview .overview-profile .grid{gap:24px;}
-    #overview .overview-profile .metric{font-size:22px;margin-top:4px;}
-    #overview .overview-section{margin-top:24px;}
-    @media(max-width:980px){
-      #overview .overview-metrics{grid-template-columns:repeat(2,minmax(0,1fr));}
-    }
-    @media(max-width:620px){
-      #overview .overview-metrics{grid-template-columns:1fr;gap:16px;margin-bottom:24px;}
-      #overview .overview-metrics .card{min-height:0;}
-    }
+  </style>
+</head>
+<body>
+<header>
+  <div style="max-width:1200px;margin:0 auto 12px"><a id="backToPhases" href="fases.html" style="color:#94a3b8;text-decoration:none;font-weight:700">← Voltar para Fases</a></div>
+  <h1>American Truck Simulator — Fase 1</h1>
+  <p id="careerHeader">Company Driver • Simulação realista de carreira</p>
+</header>
+
+<div class="tabs-wrap">
+  <nav class="tabs" aria-label="Abas do painel">
+    <button class="tab-btn active" data-tab="overview">Visão Geral</button>
+    <button class="tab-btn" data-tab="howToTab">Como usar</button>
+    <button class="tab-btn" data-tab="finances">Saldo e Despesas</button>
+    <button class="tab-btn" data-tab="payslipTab">Holerite</button>
+    <button class="tab-btn" data-tab="progressTab">Progresso</button>
+    <button class="tab-btn" data-tab="incidentsTab">Infrações e Acidentes</button>
+    <button class="tab-btn" data-tab="rules">Regras</button>
+    <button class="tab-btn" data-tab="modsTab">Mods sugeridos</button>
+    <button class="tab-btn" data-tab="historyTab">Histórico</button>
+  </nav>
+</div>
+
+<main>
+  <section id="overview" class="tab-panel active">
+    <div class="tab-intro"><strong>Para que serve:</strong> visão rápida da carreira selecionada: saldo, nível, milhas, perfil e backup. Use esta aba para conferir sua situação antes de começar ou terminar uma sessão.</div>
+    <div id="overviewPromotionBanner" role="button" tabindex="0" aria-label="Abrir promoção disponível">
+      <div class="promo-kicker">Promoção disponível</div>
+      <div id="overviewPromotionTitle" class="promo-title">Você atingiu a meta de milhas</div>
+      <p id="overviewPromotionText" class="promo-text"></p>
+      <div class="promo-action">Clique para concluir os requisitos e liberar o próximo nível →</div>
+    </div>
+    <div class="overview-metrics">
+      <div class="card overview-link-card" data-go-tab="finances" role="button" tabindex="0" aria-label="Abrir Saldo e Despesas">
+        <h2>Saldo atual</h2>
+        <div id="balanceDisplay" class="big">US$ 793,00</div>
+        <p class="muted">Dinheiro pessoal disponível na simulação.</p>
+        <p class="card-link-hint">Abrir Saldo e Despesas →</p>
+      </div>
+      <div class="card overview-link-card" data-go-tab="progressTab" role="button" tabindex="0" aria-label="Abrir Progresso da carreira">
+        <h2>Nível atual</h2>
+        <div id="currentLevelDisplay" class="metric">Nível 1</div>
+        <p id="currentLevelText" class="muted">Trainee / Local Driver</p>
+        <p class="card-link-hint">Abrir Progresso →</p>
+      </div>
+      <div class="card overview-link-card" data-go-tab="progressTab" role="button" tabindex="0" aria-label="Abrir Progresso da carreira">
+        <h2>Progresso da carreira</h2>
+        <div id="mileageDisplay" class="metric">0 / 10.000 mi</div>
+        <div class="progress"><div id="mileageBar"></div></div>
+        <p class="muted">Nível 1 → Nível 2 aos 10.000 mi. Nível 2 → Nível 3 aos 50.000 mi totais.</p>
+        <p class="card-link-hint">Ver metas e qualificações →</p>
+      </div>
+      <div class="card overview-link-card" data-go-tab="finances" role="button" tabindex="0" aria-label="Abrir Saldo e Despesas">
+        <h2>Resumo mensal</h2>
+        <div id="overviewMonthlyTotal" class="metric">US$ 0,00</div>
+        <p class="muted">Despesas mensais configuradas.</p>
+        <p class="card-link-hint">Revisar despesas →</p>
+      </div>
+    </div>
+    <div class="quick-status-grid">
+      <div class="quick-status-card" data-go-tab="progressTab" role="button" tabindex="0" aria-label="Abrir a semana atual no Progresso">
+        <div class="quick-status-label">Semana atual</div>
+        <div id="overviewWeekValue" class="quick-status-value">Semana 1 • 0 mi</div>
+        <div id="overviewWeekDetail" class="quick-status-detail">Registre suas viagens desta semana.</div>
+      </div>
+      <div class="quick-status-card" data-go-tab="progressTab" role="button" tabindex="0" aria-label="Abrir a próxima meta da carreira">
+        <div class="quick-status-label">Próxima meta</div>
+        <div id="overviewNextGoal" class="quick-status-value">10.000 mi para Nível 2</div>
+        <div id="overviewNextGoalDetail" class="quick-status-detail">Academy de Proficiência + US$ 300.</div>
+      </div>
+    </div>
+    <div class="card overview-profile">
+      <h2>Perfil da carreira</h2>
+      <div class="grid">
+        <div><span class="muted">Motorista</span><div id="profileDriver" class="metric">—</div></div>
+        <div><span class="muted">Cidade-base</span><div id="profileCity" class="metric">—</div></div>
+        <div><span class="muted">Empresa</span><div id="profileCompany" class="metric">—</div></div>
+      </div>
+      <div style="margin-top:16px">
+        <span class="muted">Biografia</span>
+        <p id="profileBio" style="white-space:pre-wrap;margin-bottom:0">—</p>
+      </div>
+    </div>
+    <div class="card overview-section">
+      <h2>Backup da carreira</h2>
+      <p class="muted">Exporte a carreira inteira para CSV como backup. Para importar uma carreira, volte à tela de Carreiras. O arquivo inclui perfil, saldo, nível, viagens, semanas fechadas, histórico e gastos personalizados.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="green" onclick="exportCareerCSV()">Exportar carreira em CSV</button>
+      </div>
+    </div>
+    <div class="card overview-section">
+      <h2>Fase 1 — Company Driver</h2>
+      <p>Você trabalha como empregado da transportadora e ainda não possui caminhão próprio. Diesel, manutenção, pneus, seguro comercial, licenciamento e pedágios autorizados são custos da empresa.</p>
+      <p class="notice ok"><strong>Economia do ATS:</strong> o valor da carga mostrado pelo jogo é ignorado. Seu dinheiro é controlado por este painel.</p>
+    </div>
+  </section>
 
 
-    /* UX v25 - dashboard clicável, status e feedback */
-    #overview .overview-metrics .card.overview-link-card,
-    #overview .quick-status-card{
-      cursor:pointer;
-      transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease,background .15s ease;
-    }
-    #overview .overview-metrics .card.overview-link-card:hover,
-    #overview .overview-metrics .card.overview-link-card:focus-visible,
-    #overview .quick-status-card:hover,
-    #overview .quick-status-card:focus-visible{
-      transform:translateY(-2px);
-      border-color:#38bdf8;
-      box-shadow:0 14px 34px rgba(0,0,0,.24),0 0 0 2px rgba(56,189,248,.08);
-      outline:none;
-      background:rgba(35,49,68,.96);
-    }
-    #overview .card-link-hint{margin-top:auto!important;padding-top:12px;font-size:12px;color:#7dd3fc;font-weight:700;}
-    #overview .quick-status-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:-12px 0 28px;}
-    #overview .quick-status-card{background:rgba(15,23,42,.74);border:1px solid var(--border);border-radius:14px;padding:15px 17px;min-height:92px;}
-    #overview .quick-status-label{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:800;}
-    #overview .quick-status-value{font-size:19px;font-weight:800;margin-top:5px;line-height:1.25;}
-    #overview .quick-status-detail{font-size:12px;color:var(--muted);margin-top:5px;}
-    .toast-stack{position:fixed;right:18px;bottom:18px;z-index:9999;display:flex;flex-direction:column;gap:10px;max-width:min(380px,calc(100vw - 28px));pointer-events:none;}
-    .toast{background:#0f172a;border:1px solid #475569;border-left:4px solid #22c55e;border-radius:12px;padding:12px 14px;box-shadow:0 16px 42px rgba(0,0,0,.42);color:#f8fafc;font-size:14px;line-height:1.45;opacity:0;transform:translateY(10px);animation:toastIn .18s ease forwards;}
-    .toast.warn{border-left-color:#f59e0b}.toast.error{border-left-color:#ef4444}.toast.info{border-left-color:#38bdf8}
-    @keyframes toastIn{to{opacity:1;transform:translateY(0)}}
-    @media(max-width:620px){#overview .quick-status-grid{grid-template-columns:1fr;margin-top:-8px}.toast-stack{right:14px;bottom:14px;left:14px;max-width:none;}}
+  <section id="howToTab" class="tab-panel">
+    <div class="tab-intro"><strong>Para que serve:</strong> este é o manual da Fase 1. Se esquecer a ordem de uso, comece aqui.</div>
+    <div class="card">
+      <h2>Como usar a Fase 1</h2>
+      <div class="guide-step"><div class="guide-num">1</div><div><strong>Crie ou selecione uma carreira</strong><p class="muted">Na tela de Carreiras, informe motorista, cidade-base, empresa, dinheiro ao chegar e custos iniciais. O saldo que aparecer aqui já pertence à carreira selecionada.</p></div></div>
+      <div class="guide-step"><div class="guide-num">2</div><div><strong>Comece no Nível 1</strong><p class="muted">O Nível 1 é local/regional, com day cab, salário bruto fixo de US$ 850 por semana e meta de 10.000 milhas. Não há per diem nem pagamento por milha.</p></div></div>
+      <div class="guide-step"><div class="guide-num">3</div><div><strong>Registre cada deslocamento em Progresso</strong><p class="muted">Informe saída, chegada, origem, destino, empresas, carga, Loaded/Deadhead e milhas. Saída e chegada são obrigatórias. O sistema soma as milhas da semana e da carreira automaticamente.</p></div></div>
+      <div class="guide-step"><div class="guide-num">4</div><div><strong>Registre infrações ou acidentes</strong><p class="muted">Use a aba Infrações e Acidentes quando algo acontecer. Você escolhe se o custo sai imediatamente do saldo ou fica pendente para o próximo holerite.</p></div></div>
+      <div class="guide-step"><div class="guide-num">5</div><div><strong>Gere o holerite no fim da semana</strong><p class="muted">O Nível 1 usa o salário fixo e Route Overrun quando houver. Nos Níveis 2/3, as viagens da semana determinam automaticamente as milhas Normal, HazMat, Doubles e Deadhead. O per diem também é calculado pelas datas das viagens qualificáveis.</p></div></div>
+      <div class="guide-step"><div class="guide-num">6</div><div><strong>Feche a semana</strong><p class="muted">Ao gerar o holerite, a semana atual vira uma semana fechada e não pode mais ser alterada. O depósito líquido entra no saldo e a próxima semana começa em zero.</p></div></div>
+      <div class="guide-step"><div class="guide-num">7</div><div><strong>Pague suas despesas mensais</strong><p class="muted">Na aba Saldo e Despesas, revise aluguel, contas e gastos personalizados. Use o botão de desconto mensal quando chegar o vencimento no seu calendário da simulação.</p></div></div>
+      <div class="guide-step"><div class="guide-num">8</div><div><strong>Suba para o Nível 2</strong><p class="muted">Ao chegar a 10.000 mi, confirme que concluiu o Academy de Proficiência e pague US$ 300. Só então o Nível 2 é liberado, com OTR, sleeper e pagamento por milha.</p></div></div>
+      <div class="guide-step"><div class="guide-num">9</div><div><strong>HazMat é uma qualificação separada</strong><p class="muted">No Nível 2, você pode obter HazMat pagando US$ 144,25 e confirmando a qualificação. Depois disso as categorias HazMat aparecem nas viagens e pagam US$ 0,63/mi.</p></div></div>
+      <div class="guide-step"><div class="guide-num">10</div><div><strong>Suba para o Nível 3</strong><p class="muted">Ao chegar a 50.000 mi totais, confirme o Double Trailer Handling e pague US$ 59. Isso libera Doubles/bitrem e os trabalhos avançados do Nível 3.</p></div></div>
+      <div class="guide-step"><div class="guide-num">11</div><div><strong>Faça backups</strong><p class="muted">Exporte a carreira em CSV periodicamente. O CSV guarda perfil, viagens, saldo, progresso, ocorrências, semanas fechadas e demais dados. A importação é feita na tela de Carreiras.</p></div></div>
+    </div>
+    <div class="card">
+      <h2>Fluxo recomendado de cada semana</h2>
+      <p><strong>Registrar viagens → Registrar ocorrências → Conferir semana → Gerar holerite → Fechar semana → Iniciar próxima semana.</strong></p>
+      <p class="muted">As despesas mensais não precisam ser descontadas toda semana. Aplique-as apenas no momento que você definiu como vencimento dentro da simulação.</p>
+    </div>
+  </section>
 
+  <section id="finances" class="tab-panel">
+    <div class="tab-intro"><strong>Para que serve:</strong> controla o dinheiro pessoal da carreira. Aqui você ajusta saldo, cadastra despesas mensais e aplica os gastos do mês.</div>
+    <div class="grid">
+      <div class="card">
+        <h2>Saldo</h2>
+        <label>Saldo atual</label>
+        <input id="balanceInput" type="number" step="0.01" />
+        <button onclick="setBalance()">Atualizar saldo</button>
+        <p class="muted">Use ajuste manual apenas quando precisar corrigir ou sincronizar a simulação.</p>
+      </div>
+      <div class="card">
+        <h2>Despesas mensais</h2>
+        <div id="expenses"></div>
+        <hr style="border-color:#334155;margin:18px 0" />
+        <h3 style="margin-bottom:4px">Gastos personalizados</h3>
+        <p class="muted" style="margin-top:0">Adicione qualquer outra despesa da sua vida. Se marcar como mensal, ela entra no botão de desconto automático.</p>
+        <div class="two">
+          <div><label>Nome do gasto</label><input id="customExpenseName" placeholder="Ex.: Academia, lavanderia, streaming" /></div>
+          <div><label>Valor (US$)</label><input id="customExpenseValue" type="number" min="0" step="0.01" placeholder="0.00" /></div>
+        </div>
+        <label style="display:flex;gap:8px;align-items:center;color:#e2e8f0;cursor:pointer"><input id="customExpenseMonthly" type="checkbox" checked style="width:auto" /> Incluir no desconto mensal</label>
+        <button class="secondary" onclick="addCustomExpense()">Adicionar gasto personalizado</button>
+        <div id="customExpensesList" style="margin-top:14px"></div>
+        <hr style="border-color:#334155;margin:18px 0" />
+        <div class="two">
+          <div><span class="muted">Despesas padrão</span><div id="baseMonthlyTotal" class="metric">US$ 0,00</div></div>
+          <div><span class="muted">Personalizadas mensais</span><div id="customMonthlyTotal" class="metric">US$ 0,00</div></div>
+        </div>
+        <div style="margin-top:12px"><span class="muted">Total mensal</span><div id="monthlyTotal" class="metric">US$ 0,00</div></div>
+        <button class="red" onclick="applyMonthlyExpenses()">Aplicar todas as despesas mensais</button>
+      </div>
+    </div>
+  </section>
 
-    /* Visão Geral - alinhamento e banner de promoção v26 */
-    #overview .overview-metrics .card{
-      min-height:190px;
-      display:grid;
-      grid-template-rows:48px auto 1fr auto;
-      align-content:stretch;
-    }
-    #overview .overview-metrics .card h2{
-      min-height:48px;
-      margin:0 0 10px;
-      display:flex;
-      align-items:flex-end;
-    }
-    #overview .overview-metrics .big,
-    #overview .overview-metrics .metric{
-      min-height:34px;
-      display:flex;
-      align-items:center;
-      font-size:24px;
-    }
-    #overview .overview-metrics .card>p.muted{margin:10px 0 0;}
-    #overview .overview-metrics .card-link-hint{align-self:end;}
-    #overviewPromotionBanner{
-      display:none;
-      margin:0 0 24px;
-      border:1px solid #f59e0b;
-      border-left:6px solid #f59e0b;
+  <section id="payslipTab" class="tab-panel">
+    <div class="tab-intro"><strong>Para que serve:</strong> fecha a semana e gera o pagamento. As milhas vêm das viagens registradas, o per diem é calculado automaticamente e os descontos transformam o bruto em líquido.</div>
+    <div class="grid">
+      <div class="card">
+        <h2>Gerar holerite — Semana <span id="currentWeekLabel">1</span></h2>
+        <div class="two">
+          <div>
+            <label>Nível atual</label>
+            <input id="payLevel" readonly value="Nível 1 — Trainee / Local" />
+          </div>
+          <div id="level1SalaryBox">
+            <label>Salário semanal bruto <span class="info-tip" tabindex="0" data-tip="Salário antes de impostos e demais descontos. No Nível 1 usamos US$ 850 por semana. Fórmula: bruto − impostos − benefícios = depósito líquido.">i</span></label>
+            <input id="weeklyGross" type="number" step="0.01" value="850" />
+          </div>
+        </div>
+        <div id="level1Fields">
+          <label>Horas de Route Overrun <span class="info-tip" tabindex="0" data-tip="Horas que ultrapassaram o horário normal do Nível 1. Nossa empresa fictícia paga US$ 21,25 por hora extra de rota. Fórmula: horas × US$ 21,25.">i</span></label>
+          <input id="overrunHours" type="number" min="0" step="0.25" value="0" />
+        </div>
+        <div id="level23Fields" style="display:none">
+          <label>Milhas pagas da Semana <span id="milesCurrentWeekText">1</span></label>
+          <input id="paidMiles" type="number" readonly value="0" />
+          <p class="muted" style="margin-top:6px">Preenchido automaticamente pelas viagens registradas na semana atual. Cada categoria possui sua própria tarifa.</p>
+          <div id="mileagePayBreakdown" class="notice" style="margin-top:12px"></div>
+          <div class="two">
+            <div>
+              <label>Per diem diário (US$) <span class="info-tip" tabindex="0" data-tip="Diária de viagem para alimentação e pequenos gastos em OTR. Os dias são calculados automaticamente pelas datas de saída/chegada das viagens que atravessam pelo menos uma noite. Fórmula: dias qualificáveis únicos × valor diário.">i</span></label>
+              <input id="perDiemRate" type="number" step="0.01" value="80" />
+            </div>
+            <div>
+              <label>Dias qualificáveis calculados</label>
+              <input id="perDiemDays" type="number" readonly value="0" />
+            </div>
+          </div>
+          <div id="perDiemBreakdown" class="notice ok" style="margin-top:12px"></div>
+        </div>
+        <label>Benefícios semanais <span class="info-tip" tabindex="0" data-tip="Sua parte do pacote de benefícios da empresa. Na simulação: US$ 28 médico/remédios + US$ 6 dental + US$ 2 visão = US$ 36 por semana. Esse valor é descontado do holerite.">i</span></label>
+        <input id="benefits" type="number" step="0.01" value="36" />
+        <button class="green" onclick="generatePayslip()">Gerar holerite e depositar</button>
+      </div>
+      <div class="card">
+        <h2>Holerite</h2>
+        <div id="payslip"><p class="muted">Preencha os dados e gere o holerite.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="progressTab" class="tab-panel">
+    <div class="tab-intro"><strong>Para que serve:</strong> é o diário oficial de viagens. Cada trecho registrado alimenta suas milhas da semana, milhas totais, pagamento do Nível 2/3 e cálculo automático de per diem.</div>
+    <div class="grid">
+      <div class="card">
+        <h2>Registrar viagem — Semana <span id="tripWeekLabel">1</span></h2>
+        <div class="two">
+          <div><label>Data e horário de saída</label><input id="tripDeparture" type="datetime-local" required /></div>
+          <div><label>Data e horário de chegada</label><input id="tripArrival" type="datetime-local" required /></div>
+        </div>
+        <div class="two">
+          <div>
+            <label>Origem</label>
+            <div class="city-autocomplete" id="tripFromCityBox">
+              <input id="tripFrom" type="text" placeholder="Digite ou use a seta" autocomplete="off" required />
+              <button id="tripFromToggle" class="city-toggle" type="button" aria-label="Mostrar todas as cidades">▾</button>
+              <div id="tripFromResults" class="city-results" role="listbox"></div>
+            </div>
+            <div class="city-search-hint">Digite para buscar. Use a seta para mostrar todas.</div>
+          </div>
+          <div>
+            <label>Destino</label>
+            <div class="city-autocomplete" id="tripToCityBox">
+              <input id="tripTo" type="text" placeholder="Digite ou use a seta" autocomplete="off" required />
+              <button id="tripToToggle" class="city-toggle" type="button" aria-label="Mostrar todas as cidades">▾</button>
+              <div id="tripToResults" class="city-results" role="listbox"></div>
+            </div>
+            <div class="city-search-hint">Digite para buscar. Use a seta para mostrar todas.</div>
+          </div>
+        </div>
+        <div class="two">
+          <div><label>Empresa de origem</label><input id="tripFromCompany" placeholder="Ex.: Walmart Distribution" /></div>
+          <div><label>Empresa de destino</label><input id="tripToCompany" placeholder="Ex.: Target Distribution" /></div>
+        </div>
+        <label>Carga transportada</label>
+        <input id="tripCargo" placeholder="Ex.: Alimentos, eletrônicos, peças" />
+        <div class="two">
+          <div>
+            <label>Tipo do trecho <span class="info-tip" tabindex="0" data-tip="Loaded = você está puxando uma carga. Deadhead = está dirigindo vazio, normalmente indo até uma filial para buscar outra carga ou retornando à base.">i</span></label>
+            <select id="tripType">
+              <option value="Loaded">Loaded — com carga</option>
+              <option value="Deadhead">Deadhead — vazio</option>
+            </select>
+          </div>
+          <div>
+            <label>Categoria de pagamento <span class="info-tip" tabindex="0" data-tip="Define a tarifa das milhas Loaded. Nível 1 não recebe por milha. No Nível 2: Normal US$ 0,60 e HazMat US$ 0,63 após a qualificação. No Nível 3 também existem Doubles US$ 0,64 e HazMat + Doubles US$ 0,67. Deadhead usa sempre US$ 0,50/mi.">i</span></label>
+            <select id="tripPayCategory">
+              <option value="normal">Normal — US$ 0,60/mi</option>
+            </select>
+          </div>
+        </div>
+        <label>Milhas percorridas</label>
+        <input id="tripMiles" type="number" min="1" step="1" placeholder="Ex.: 372" />
+        <button class="green" onclick="addTrip()">Adicionar viagem à Semana <span id="tripWeekButtonLabel">1</span></button>
+      </div>
+      <div class="card">
+        <h2>Progresso</h2>
+        <div id="progressLevel" class="metric">Nível 1 — Trainee / Local</div>
+        <p id="progressText" class="muted">0 / 10.000 mi</p>
+        <div class="progress"><div id="progressBar"></div></div>
+        <p id="remainingMiles" class="muted"></p>
+        <div id="promotionBox" class="notice" style="display:none;margin-top:14px"></div>
+        <div id="hazmatBox" class="notice" style="display:none;margin-top:14px"></div>
+        <div id="tripValidation" class="notice" style="margin-top:14px"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Semana <span id="currentWeekTableLabel">1</span> — aberta</h2>
+      <p class="muted">As viagens desta semana ainda podem ser excluídas. Quando o holerite for gerado, a semana será fechada e preservada no histórico.</p>
+      <div class="history">
+        <table>
+          <thead><tr><th>Saída</th><th>Chegada</th><th>Origem</th><th>Empresa origem</th><th>Destino</th><th>Empresa destino</th><th>Carga</th><th>Trecho</th><th>Categoria</th><th>Milhas</th><th></th></tr></thead>
+          <tbody id="currentWeekTripsBody"></tbody>
+        </table>
+      </div>
+      <p id="currentWeekTotal" class="metric" style="margin-bottom:0"></p>
+    </div>
+    <div class="card">
+      <h2>Semanas fechadas</h2>
+      <p class="muted">Essas semanas já tiveram holerite gerado e não entram mais no cálculo da semana atual.</p>
+      <div id="closedWeeks"></div>
+    </div>
+  </section>
+
+  <section id="incidentsTab" class="tab-panel">
+    <div class="tab-intro"><strong>Para que serve:</strong> registra multas, infrações e acidentes da carreira. Você controla o motivo, rota, valor e escolhe se o custo sai do saldo agora ou do próximo holerite.</div>
+    <div class="grid">
+      <div class="card">
+        <h2>Registrar ocorrência</h2>
+        <div class="two">
+          <div><label>Tipo</label><select id="incidentType"><option value="infraction">Infração / Multa</option><option value="accident">Acidente</option></select></div>
+          <div><label>Valor / custo (US$)</label><input id="incidentAmount" type="number" min="0" step="0.01" placeholder="0.00" /></div>
+        </div>
+        <div class="two">
+          <div><label>Data</label><input id="incidentDate" type="date" /></div>
+          <div><label>Hora</label><input id="incidentTime" type="time" /></div>
+        </div>
+        <label>Rota / viagem relacionada</label>
+        <input id="incidentRoute" placeholder="Ex.: Los Angeles, CA → Phoenix, AZ" />
+        <label id="incidentDescriptionLabel">Infração cometida</label>
+        <textarea id="incidentDescription" rows="3" placeholder="Ex.: Excesso de velocidade"></textarea>
+        <label>Forma de cobrança</label>
+        <select id="incidentPayment"><option value="balance">Descontar do saldo imediatamente</option><option value="payslip">Descontar no próximo holerite</option></select>
+        <button class="red" onclick="addIncident()">Registrar ocorrência</button>
+      </div>
+      <div class="card">
+        <h2>Resumo de ocorrências</h2>
+        <div class="two">
+          <div><span class="muted">Total registrado</span><div id="incidentCount" class="metric">0</div></div>
+          <div><span class="muted">Pendente no holerite</span><div id="incidentPending" class="metric">US$ 0,00</div></div>
+        </div>
+        <p class="muted">Custos marcados para o holerite serão descontados quando você fechar a semana. Se o salário não for suficiente, o restante continua pendente.</p>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Histórico de infrações e acidentes</h2>
+      <div class="history">
+        <table>
+          <thead><tr><th>Data</th><th>Hora</th><th>Tipo</th><th>Rota</th><th>Descrição</th><th>Valor</th><th>Cobrança</th><th>Status</th></tr></thead>
+          <tbody id="incidentsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="rules" class="tab-panel">
+    <div class="tab-intro"><strong>Para que serve:</strong> reúne as regras oficiais da nossa simulação. Consulte quando tiver dúvida sobre o que seu nível permite, pagamentos, descanso ou progressão.</div>
+    <details open><summary>1. Personagem e início da carreira</summary><ul><li>Brasileiro vivendo legalmente nos Estados Unidos.</li><li>Motorista contratado como <strong>company driver</strong>.</li><li>Cidade-base, empresa, biografia, dinheiro ao chegar e custos iniciais são definidos ao criar a carreira.</li><li>O personagem pode começar sem carro e usar transporte público, conforme a história escolhida.</li><li>A Fase 1 inteira acontece sem caminhão próprio.</li></ul></details>
+    <details><summary>2. Nível 1 — Trainee / Local Driver</summary><ul><li>Salário: <strong>US$ 850 bruto/semana</strong>.</li><li>Não há pagamento por milha no Nível 1; as milhas servem para experiência e progressão.</li><li>Horário padrão: <strong>07:00–15:30</strong>, segunda a sexta, com 30 min de refeição.</li><li>Day cab, sem cama. O objetivo normal é retornar para casa ao fim do dia.</li><li>Rotas locais/regionais de até aproximadamente <strong>300 milhas por missão</strong>.</li><li>Route Overrun: <strong>US$ 21,25/h</strong> além do horário normal, como política da transportadora fictícia.</li><li>Sem per diem.</li><li>Descanso mínimo adotado entre jornadas: aproximadamente 10 horas quando necessário.</li><li>Meta de promoção: <strong>10.000 milhas totais</strong>.</li></ul></details>
+    <details><summary>3. Filiais, Loaded e Deadhead</summary><ul><li><strong>Loaded:</strong> trecho percorrido transportando carga.</li><li><strong>Deadhead:</strong> trecho percorrido vazio.</li><li>Toda nova carga deve ser retirada em uma filial da transportadora dentro da nossa regra.</li><li>Nível 1: após a entrega, pode ir vazio até uma filial em cidade próxima; se não houver carga adequada, retorna vazio.</li><li>Nível 2/3: pode fazer deadhead até uma filial mais distante para encontrar a próxima carga, respeitando HOS e planejamento.</li><li>Loaded e Deadhead contam igualmente para as milhas de progressão.</li><li>No Nível 2/3, Deadhead paga <strong>US$ 0,50/mi</strong>.</li></ul></details>
+    <details><summary>4. Promoção Nível 1 → Nível 2</summary><ul><li>Primeiro requisito: atingir <strong>10.000 milhas totais</strong>.</li><li>Depois disso, concluir o <strong>Truck Driving Proficiency / Academy Nível 2</strong>.</li><li>Custo da qualificação na simulação: <strong>US$ 300</strong>.</li><li>O Nível 2 só é liberado após marcar o treinamento como concluído e confirmar o pagamento.</li><li>O valor é descontado diretamente do saldo pessoal.</li></ul></details>
+    <details><summary>5. Nível 2 — Company Driver / OTR</summary><ul><li>Pagamento de carga normal: <strong>US$ 0,60 por milha Loaded</strong>.</li><li>Deadhead: <strong>US$ 0,50/mi</strong>.</li><li>Sem salário fixo normal adicional.</li><li>Viagens OTR e interestaduais liberadas.</li><li>Sleeper cab.</li><li>Sem limite artificial de distância por viagem.</li><li>O pagamento por milha é salário bruto e sofre descontos no holerite.</li></ul></details>
+    <details><summary>6. HazMat — qualificação adicional</summary><ul><li>HazMat significa <strong>Hazardous Materials</strong>: cargas perigosas como determinados combustíveis, gases, químicos, explosivos e materiais regulamentados.</li><li>HazMat <strong>não é liberado automaticamente</strong> ao entrar no Nível 2.</li><li>No Nível 2, você passa a poder obter a qualificação HazMat.</li><li>Custo pessoal adotado: <strong>US$ 144,25</strong>.</li><li>O treinamento profissional é considerado pago pela transportadora; a taxa pessoal é descontada do seu saldo ao confirmar a qualificação.</li><li>Depois de qualificado, carga HazMat Loaded paga <strong>US$ 0,63/mi</strong>.</li><li>Ter HazMat não aumenta a tarifa de cargas normais.</li></ul></details>
+    <details><summary>7. Nível 3 — Doubles e trabalho avançado</summary><ul><li>Requisito: <strong>50.000 milhas totais</strong>.</li><li>Concluir o <strong>Double Trailer Handling</strong>.</li><li>Pagar <strong>US$ 59</strong> pela autorização/endorsement de Doubles/Triples na nossa simulação.</li><li>Normal Loaded: US$ 0,60/mi.</li><li>HazMat Loaded: US$ 0,63/mi, se você tiver a qualificação HazMat.</li><li>Doubles Loaded: <strong>US$ 0,64/mi</strong>.</li><li>HazMat + Doubles Loaded: <strong>US$ 0,67/mi</strong>, quando ambas as qualificações estiverem disponíveis.</li><li>Deadhead continua em US$ 0,50/mi.</li><li>Nível 3 também é o estágio escolhido para cargas especiais escoltadas / Special Transport. Por enquanto não há adicional automático específico para Special Transport; o pagamento segue a categoria aplicável à carga.</li></ul></details>
+    <details><summary>8. Planejamento OTR, postos e descanso</summary><ul><li>No Nível 2/3, planeje combustível, refeição, banho e descanso antes de viagens grandes.</li><li>Postos credenciados podem ser usados para abastecimento da empresa, descanso planejado e banho.</li><li>Postos não credenciados ficam para emergência ou parada rápida, conforme nossa política fictícia.</li><li>Regra-base adotada: até 11h de direção dentro de janela de 14h e depois 10h consecutivas de descanso.</li><li>A fadiga do ATS também deve ser respeitada. Vale o limite que chegar primeiro.</li></ul></details>
+    <details><summary>9. Per diem</summary><ul><li>Nível 1 não recebe per diem.</li><li>Nível 2/3: referência padrão de <strong>US$ 80/dia qualificável</strong>.</li><li>O sistema calcula os dias automaticamente usando a data/hora de saída e chegada registradas nas viagens.</li><li>Uma viagem precisa atravessar pelo menos uma noite para gerar per diem.</li><li>Os dias entre saída e chegada são contados, mas um mesmo dia não é pago duas vezes se aparecer em várias viagens da mesma semana.</li><li>No holerite você altera apenas o valor diário, se necessário.</li></ul></details>
+    <details><summary>10. Custos do caminhão</summary><ul><li>Diesel, manutenção, pneus, reparos, seguro comercial, licenciamento e pedágios autorizados pertencem à empresa.</li><li>Esses valores não são descontados do seu salário durante operação normal.</li></ul></details>
+    <details><summary>11. Infrações e acidentes</summary><ul><li>Registre o tipo, dia, hora, rota, descrição e valor da ocorrência.</li><li>Infrações podem representar multas e outras penalidades financeiras do personagem.</li><li>Acidentes podem receber um custo simulado de reparo/franquia conforme a situação que você decidir registrar.</li><li>Você escolhe se o valor é descontado imediatamente do saldo ou no próximo holerite.</li><li>Se um desconto de holerite for maior do que o pagamento da semana, o restante continua pendente para semanas futuras.</li><li>Por enquanto as ocorrências afetam finanças e histórico, mas <strong>não bloqueiam automaticamente a promoção</strong>. Isso pode ser evoluído no futuro.</li></ul></details>
+    <details><summary>12. Benefícios e holerite</summary><ul><li>Benefícios padrão adotados: médico/remédios US$ 28, dental US$ 6 e visão US$ 2 = <strong>US$ 36/semana</strong>.</li><li>401(k) começa em 0% por escolha do personagem.</li><li>Todo salário por semana/milhas é bruto.</li><li>Descontos incluem estimativa de imposto federal, Social Security, Medicare, imposto da Califórnia, SDI, benefícios e ocorrências pendentes.</li><li>O holerite é recalculado quando o bruto muda.</li></ul></details>
+    <details><summary>13. Semanas e viagens</summary><ul><li>O total de milhas vem exclusivamente da tabela de viagens.</li><li>Data e horário de saída e chegada são obrigatórios em cada novo registro.</li><li>Ao gerar o holerite, a semana atual é fechada.</li><li>Viagens de semana fechada não podem ser excluídas.</li><li>A próxima viagem começa automaticamente na semana seguinte.</li><li>Os horários também são usados no cálculo automático de per diem nos Níveis 2/3.</li></ul></details>
+    <details><summary>14. Economia do ATS</summary><ul><li>Ignore o valor monetário mostrado pelo jogo para cada frete.</li><li>O saldo oficial da carreira é o deste painel.</li><li>Registre origem, destino, empresas, carga, milhas, Loaded/Deadhead e categoria.</li></ul></details>
+    <details><summary>15. CSV e backup</summary><ul><li>Exporte a carreira em CSV para backup periódico.</li><li>O arquivo inclui perfil, custos de instalação, saldo, nível, HazMat, viagens, ocorrências, gastos personalizados, histórico e semanas fechadas.</li><li>A importação é feita na tela de Carreiras e cria uma nova carreira, sem substituir automaticamente as existentes.</li></ul></details>
+  </section>
+
+  <section id="modsTab" class="tab-panel">
+    <div class="tab-intro"><strong>Para que serve:</strong> sugere mods que combinam com a proposta de realismo. Evite mods de economia que alterem dinheiro, pois o painel já controla seus ganhos e despesas.</div>
+    <div class="card">
+      <h2>Mods sugeridos para a simulação</h2>
+      <p class="muted">A proposta é melhorar o realismo visual, tráfego e ambientação sem deixar a economia do jogo interferir no nosso sistema externo de carreira.</p>
+    </div>
+    <div class="grid">
+      <div class="card"><h3>Real Companies, Gas Stations & Billboards</h3><p>Substitui várias empresas, postos e propagandas fictícias por marcas reais. Ajuda bastante na sensação de estar trabalhando nos Estados Unidos.</p><p class="pill">Steam Workshop</p></div>
+      <div class="card"><h3>Real Traffic Density</h3><p>Ajusta densidade de tráfego conforme horários e regiões, deixando estradas e cidades mais vivas. Pode exigir mais desempenho do computador.</p><p class="pill">Steam Workshop</p></div>
+      <div class="card"><h3>More Realistic Traffic</h3><p>Alternativa para comportamento e distribuição de tráfego mais natural. Use apenas um mod principal de densidade/comportamento por vez para evitar conflitos.</p><p class="pill">Steam Workshop</p></div>
+      <div class="card"><h3>Better Raindrops</h3><p>Melhora chuva e gotas no para-brisa. Não altera economia e combina bem com viagens longas OTR.</p><p class="pill">Steam Workshop</p></div>
+      <div class="card"><h3>Realistic AI Traffic Pack</h3><p>Adiciona mais variedade de veículos ao tráfego de IA, aumentando a sensação de estrada real.</p><p class="pill">Steam Workshop</p></div>
+      <div class="card"><h3>Mods de som / motor</h3><p>Mods específicos de som para o modelo de caminhão que estiver usando podem melhorar bastante a imersão. Escolha versões compatíveis com a versão atual do ATS.</p><p class="pill">Opcional</p></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h2>Mods que eu evitaria nesta carreira</h2>
+      <p class="notice"><strong>Mods de dinheiro, XP e economia:</strong> evite mods que multipliquem pagamento de fretes, dinheiro, XP ou custos. A economia oficial da nossa carreira está neste painel, portanto esses mods podem confundir o controle.</p>
+      <p class="muted">Um mod para adicionar dinheiro ao perfil pode ser utilizado apenas se você quiser sincronizar visualmente o saldo do ATS com o saldo deste painel, mas o painel continua sendo a fonte oficial.</p>
+    </div>
+  </section>
+
+  <section id="historyTab" class="tab-panel">
+    <div class="tab-intro"><strong>Para que serve:</strong> mostra tudo que alterou seu saldo: salários, despesas, taxas, custos de mudança e outras movimentações financeiras.</div>
+    <div class="card history">
+      <h2>Histórico financeiro</h2>
+      <table><thead><tr><th>Data</th><th>Descrição</th><th>Valor</th><th>Saldo após</th></tr></thead><tbody id="historyBody"></tbody></table>
+    </div>
+  </section>
+</main>
+
+<div class="glossary">
+  <h3>Glossário rápido</h3>
+  <div class="glossary-grid">
+    <div class="glossary-item"><strong>HazMat</strong> — <em>Hazardous Materials</em>. Cargas perigosas/regulamentadas; na simulação exige qualificação adicional e paga tarifa maior.</div>
+    <div class="glossary-item"><strong>Loaded</strong> — trecho percorrido com uma carga no caminhão.</div>
+    <div class="glossary-item"><strong>Deadhead</strong> — trecho percorrido vazio, sem carga.</div>
+    <div class="glossary-item"><strong>CPM</strong> — <em>Cents Per Mile</em>; valor pago por milha dirigida.</div>
+    <div class="glossary-item"><strong>Per diem</strong> — diária de viagem para alimentação e pequenos gastos. Aqui os dias válidos são calculados automaticamente pelas datas das viagens.</div>
+    <div class="glossary-item"><strong>OTR</strong> — <em>Over The Road</em>; trabalho de longa distância, geralmente envolvendo vários dias e estados.</div>
+    <div class="glossary-item"><strong>HOS</strong> — <em>Hours of Service</em>; regras de tempo de direção, jornada e descanso.</div>
+    <div class="glossary-item"><strong>Doubles</strong> — combinação com dois reboques; equivalente ao que estamos tratando como bitrem na carreira.</div>
+    <div class="glossary-item"><strong>Holerite</strong> — demonstrativo do pagamento: bruto, descontos, adicionais e valor líquido depositado.</div>
+    <div class="glossary-item"><strong>Route Overrun</strong> — regra fictícia da empresa para pagar horas que ultrapassam o horário padrão do Nível 1.</div>
+  </div>
+</div>
+
+<div id="toastStack" class="toast-stack" aria-live="polite"></div>
+
+<script>
+const CAREER_LIST_KEY='ats_careers_v1';
+const ACTIVE_KEY='ats_active_career';
+const LEGACY_STATE_KEY='ats_phase1_tabs_v3';
+const OLD_LEGACY_KEY='ats_phase1_tabs_v2';
+
+const DEFAULT_EXPENSES={
+  rent:1650,electricity:100,water:60,internet:65,phone:55,groceries:400,eatingOut:150,
+  health:180,publicTransport:72,household:80,leisure:150,emergency:200
+};
+
+const EXPENSE_LABELS={
+  rent:'Aluguel',electricity:'Eletricidade',water:'Água/lixo',internet:'Internet',phone:'Celular',
+  groceries:'Mercado',eatingOut:'Alimentação fora',health:'Saúde / parcela pessoal',
+  publicTransport:'Ônibus / metrô',household:'Higiene / casa',leisure:'Lazer',emergency:'Reserva / emergência'
+};
+
+const state={balance:793,expenses:{...DEFAULT_EXPENSES},history:[],trips:[],closedWeeks:[],customExpenses:[],incidents:[],currentLevel:1,hazmatQualified:false,academy:{level2:false,level3:false},currentWeek:1};
+let careerId=null;
+let career=null;
+
+function usd(v){return Number(v||0).toLocaleString('en-US',{style:'currency',currency:'USD'});}
+function now(){return new Date().toLocaleString('pt-BR');}
+function esc(s){return String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+function escapeCSV(v){const s=String(v??'');return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
+function parseCSV(text){
+  const rows=[];let row=[],cell='',quoted=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(quoted){if(ch==='"'&&text[i+1]==='"'){cell+='"';i++;}else if(ch==='"')quoted=false;else cell+=ch;}
+    else{if(ch==='"')quoted=true;else if(ch===','){row.push(cell);cell='';}else if(ch==='\n'){row.push(cell);rows.push(row);row=[];cell='';}else if(ch!=='\r')cell+=ch;}
+  }
+  if(cell.length||row.length){row.push(cell);rows.push(row);}return rows;
+}
+
+function storageKey(){return careerId?`ats_phase1_state_${careerId}`:LEGACY_STATE_KEY;}
+function getCareers(){try{return JSON.parse(localStorage.getItem(CAREER_LIST_KEY)||'[]')}catch{return[]}}
+function saveCareers(list){localStorage.setItem(CAREER_LIST_KEY,JSON.stringify(list));}
+function updateCareerMeta(){
+  if(!careerId)return;
+  const list=getCareers();const i=list.findIndex(c=>c.id===careerId);if(i<0)return;
+  list[i].currentBalance=state.balance;list[i].currentLevel=state.currentLevel;list[i].updatedAt=new Date().toISOString();saveCareers(list);career=list[i];
+}
+function load(){
+  const q=new URLSearchParams(location.search);careerId=q.get('career')||localStorage.getItem(ACTIVE_KEY);
+  const list=getCareers();career=list.find(c=>c.id===careerId)||null;
+  if(career){
+    localStorage.setItem(ACTIVE_KEY,careerId);
+    state.balance=Number(career.currentBalance ?? career.startingBalance ?? 793);
+    document.getElementById('careerHeader').textContent=`${career.driverName} • ${career.city} • ${career.company}`;
+    document.getElementById('profileDriver').textContent=career.driverName||'—';
+    document.getElementById('profileCity').textContent=career.city||'—';
+    document.getElementById('profileCompany').textContent=career.company||'—';
+    document.getElementById('profileBio').textContent=career.biography||'Sem biografia cadastrada.';
+    document.getElementById('backToPhases').href='fases.html?career='+encodeURIComponent(careerId);
+  }
+  let raw=localStorage.getItem(storageKey());
+  if(!raw&&careerId){raw=localStorage.getItem(LEGACY_STATE_KEY)||localStorage.getItem(OLD_LEGACY_KEY);}
+  if(raw){try{Object.assign(state,JSON.parse(raw));}catch(e){}}
+  if(!state.expenses)state.expenses={...DEFAULT_EXPENSES};
+  if(!Array.isArray(state.history))state.history=[];
+  if(!Array.isArray(state.trips))state.trips=[];
+  if(!Array.isArray(state.closedWeeks))state.closedWeeks=[];
+  if(!Array.isArray(state.customExpenses))state.customExpenses=[];
+  if(!Array.isArray(state.incidents))state.incidents=[];
+  if(!state.currentWeek)state.currentWeek=1;
+  if(!state.currentLevel)state.currentLevel=1;
+  if(typeof state.hazmatQualified!=='boolean')state.hazmatQualified=false;
+  if(!state.academy)state.academy={level2:state.currentLevel>=2,level3:state.currentLevel>=3};
+  render();
+}
+function save(){localStorage.setItem(storageKey(),JSON.stringify(state));updateCareerMeta();render();}
+function addHistory(desc,amount){state.balance+=amount;state.history.unshift({date:now(),desc,amount,balance:state.balance});}
+
+function totalMiles(){return state.trips.reduce((s,t)=>s+Number(t.miles||0),0);}
+function currentWeekTrips(){return state.trips.filter(t=>Number(t.week||1)===Number(state.currentWeek));}
+function currentWeekMiles(){return currentWeekTrips().reduce((s,t)=>s+Number(t.miles||0),0);}
+
+function formatDateTime(v){if(!v)return '—';const d=new Date(v);if(Number.isNaN(d.getTime()))return v;return d.toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});}
+function perDiemDaysForTrips(trips){
+  const valid=new Set();
+  for(const t of trips){
+    if(!t.departureAt||!t.arrivalAt)continue;
+    const start=new Date(t.departureAt),end=new Date(t.arrivalAt);
+    if(Number.isNaN(start.getTime())||Number.isNaN(end.getTime())||end<=start)continue;
+    const startDay=new Date(start.getFullYear(),start.getMonth(),start.getDate());
+    const endDay=new Date(end.getFullYear(),end.getMonth(),end.getDate());
+    if(endDay<=startDay)continue;
+    for(let d=new Date(startDay);d<=endDay;d.setDate(d.getDate()+1))valid.add(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+  }
+  return {days:valid.size,dates:[...valid].sort()};
+}
+
+const PAY_RATES={normal:.60,hazmat:.63,doubles:.64,hazmat_doubles:.67,deadhead:.50};
+const PAY_LABELS={normal:'Loaded normal',hazmat:'Loaded HazMat',doubles:'Loaded Doubles / bitrem',hazmat_doubles:'Loaded HazMat + Doubles',deadhead:'Deadhead'};
+function tripPayCategory(t){return t.type==='Deadhead'?'deadhead':(t.payCategory||'normal');}
+function validPayCategories(){
+  if(state.currentLevel<=1)return ['normal'];
+  const cats=['normal'];
+  if(state.hazmatQualified)cats.push('hazmat');
+  if(state.currentLevel>=3){cats.push('doubles');if(state.hazmatQualified)cats.push('hazmat_doubles');}
+  return cats;
+}
+function updateTripCategoryOptions(){
+  const type=document.getElementById('tripType')?.value||'Loaded';const sel=document.getElementById('tripPayCategory');if(!sel)return;
+  if(type==='Deadhead'){
+    sel.innerHTML='<option value="deadhead">Deadhead — US$ 0,50/mi</option>';sel.disabled=true;return;
+  }
+  sel.disabled=state.currentLevel<=1;
+  const allowed=validPayCategories();const old=allowed.includes(sel.value)?sel.value:'normal';
+  const labels={normal:'Normal — US$ 0,60/mi',hazmat:'HazMat — US$ 0,63/mi',doubles:'Doubles / bitrem — US$ 0,64/mi',hazmat_doubles:'HazMat + Doubles — US$ 0,67/mi'};
+  sel.innerHTML=allowed.map(x=>`<option value="${x}">${labels[x]}</option>`).join('');sel.value=old;
+}
+function mileagePaySummary(trips=currentWeekTrips()){
+  const totals={normal:0,hazmat:0,doubles:0,hazmat_doubles:0,deadhead:0};
+  trips.forEach(t=>{const c=tripPayCategory(t);totals[c]=(totals[c]||0)+Number(t.miles||0)});
+  let gross=0;Object.entries(totals).forEach(([k,m])=>gross+=m*(PAY_RATES[k]||0));return {totals,gross};
+}
+
+function render(){
+  balanceInput.value=state.balance.toFixed(2);balanceDisplay.textContent=usd(state.balance);
+  renderExpenses();renderHistory();renderProgress();renderTrips();renderClosedWeeks();renderCustomExpenses();renderIncidents();renderLevelFields();renderOverview();renderPromotion();renderHazmat();
+}
+function renderOverview(){
+  const miles=totalMiles();
+  currentLevelDisplay.textContent=`Nível ${state.currentLevel}`;
+  currentLevelText.textContent=state.currentLevel===1?'Trainee / Local Driver':state.currentLevel===2?'Company Driver / OTR':'Experienced Driver / Doubles';
+  const goal=state.currentLevel===1?10000:state.currentLevel===2?50000:50000;
+  mileageDisplay.textContent=state.currentLevel>=3?`${miles.toLocaleString('en-US')} mi • Nível máximo da Fase 1`:`${miles.toLocaleString('en-US')} / ${goal.toLocaleString('en-US')} mi`;
+  mileageBar.style.width=(state.currentLevel>=3?100:Math.min(100,miles/goal*100))+'%';
+  const monthly=Object.values(state.expenses).reduce((a,b)=>a+Number(b||0),0)+state.customExpenses.filter(x=>x.monthly).reduce((a,b)=>a+Number(b.value||0),0);
+  overviewMonthlyTotal.textContent=usd(monthly);
+  const weekTrips=currentWeekTrips();const weekMiles=currentWeekMiles();
+  const weekValue=document.getElementById('overviewWeekValue');const weekDetail=document.getElementById('overviewWeekDetail');
+  if(weekValue)weekValue.textContent=`Semana ${state.currentWeek} • ${weekMiles.toLocaleString('en-US')} mi`;
+  if(weekDetail)weekDetail.textContent=weekTrips.length?`${weekTrips.length} trecho(s) registrado(s) • pronta para continuar ou fechar no holerite.`:'Nenhuma viagem registrada nesta semana.';
+  const nextGoal=document.getElementById('overviewNextGoal');const nextGoalDetail=document.getElementById('overviewNextGoalDetail');
+  if(nextGoal&&nextGoalDetail){
+    if(state.currentLevel===1){const rem=Math.max(0,10000-miles);nextGoal.textContent=rem?`${rem.toLocaleString('en-US')} mi para Nível 2`:'Nível 2 disponível';nextGoalDetail.textContent=miles>=10000?'Conclua o Academy de Proficiência e pague US$ 300.':'Academy de Proficiência + US$ 300 após a meta.';}
+    else if(state.currentLevel===2){const rem=Math.max(0,50000-miles);nextGoal.textContent=rem?`${rem.toLocaleString('en-US')} mi para Nível 3`:'Nível 3 disponível';nextGoalDetail.textContent=miles>=50000?'Conclua Double Trailer Handling e pague US$ 59.':state.hazmatQualified?'HazMat ativo • próxima promoção aos 50.000 mi.':'Você também pode obter HazMat por US$ 144,25.';}
+    else{nextGoal.textContent='Nível 3 alcançado';nextGoalDetail.textContent=state.hazmatQualified?'Doubles e HazMat disponíveis.':'Doubles disponíveis • HazMat ainda pode ser obtido.';}
+  }
+  renderOverviewPromotionBanner();
+}
+function renderOverviewPromotionBanner(){
+  const banner=document.getElementById('overviewPromotionBanner'),title=document.getElementById('overviewPromotionTitle'),text=document.getElementById('overviewPromotionText');if(!banner||!title||!text)return;
+  const miles=totalMiles();let show=false;
+  if(state.currentLevel===1&&miles>=10000&&!state.academy.level2){show=true;title.textContent='Você atingiu 10.000 milhas — Nível 2 disponível!';text.textContent='A quilometragem mínima foi concluída. Agora finalize o Truck Driving Proficiency / Academy Nível 2 e pague US$ 300 para liberar OTR.';}
+  else if(state.currentLevel===2&&miles>=50000&&!state.academy.level3){show=true;title.textContent='Você atingiu 50.000 milhas — Nível 3 disponível!';text.textContent='A experiência necessária foi alcançada. Conclua o Double Trailer Handling e pague US$ 59 para liberar Doubles / bitrem.';}
+  banner.style.display=show?'block':'none';
+}
+function openPromotionFromOverview(){
+  const banner=document.getElementById('overviewPromotionBanner');if(!banner||banner.style.display==='none')return;
+  openTab('progressTab');setTimeout(()=>{document.getElementById('promotionBox')?.scrollIntoView({behavior:'smooth',block:'center'});},80);
+}
+function renderExpenses(){
+  expenses.innerHTML=Object.keys(DEFAULT_EXPENSES).map(k=>`<label>${EXPENSE_LABELS[k]}</label><input type="number" step="0.01" value="${state.expenses[k]??0}" onchange="changeExpense('${k}',this.value)"/>`).join('');
+  const base=Object.values(state.expenses).reduce((a,b)=>a+Number(b||0),0);const custom=state.customExpenses.filter(x=>x.monthly).reduce((a,b)=>a+Number(b.value||0),0);
+  baseMonthlyTotal.textContent=usd(base);customMonthlyTotal.textContent=usd(custom);monthlyTotal.textContent=usd(base+custom);
+}
+function renderCustomExpenses(){
+  if(!state.customExpenses.length){customExpensesList.innerHTML='<p class="muted">Nenhum gasto personalizado cadastrado.</p>';return;}
+  customExpensesList.innerHTML=`<table><thead><tr><th>Gasto</th><th>Valor</th><th>Mensal</th><th></th></tr></thead><tbody>${state.customExpenses.map(x=>`<tr><td>${esc(x.name)}</td><td>${usd(x.value)}</td><td><input type="checkbox" ${x.monthly?'checked':''} onchange="toggleCustomExpense('${x.id}',this.checked)" style="width:auto" /></td><td><button class="small red" onclick="deleteCustomExpense('${x.id}')">Excluir</button></td></tr>`).join('')}</tbody></table>`;
+}
+function addCustomExpense(){
+  const name=customExpenseName.value.trim(),value=Number(customExpenseValue.value);if(!name){alert('Informe o nome do gasto.');return}if(!Number.isFinite(value)||value<0){alert('Informe um valor válido.');return}
+  state.customExpenses.push({id:'exp_'+Date.now(),name,value,monthly:customExpenseMonthly.checked});customExpenseName.value='';customExpenseValue.value='';customExpenseMonthly.checked=true;save();
+}
+function toggleCustomExpense(id,monthly){const x=state.customExpenses.find(x=>x.id===id);if(x){x.monthly=monthly;save();}}
+function deleteCustomExpense(id){state.customExpenses=state.customExpenses.filter(x=>x.id!==id);save();}
+function changeExpense(k,v){state.expenses[k]=Number(v);save();}
+function setBalance(){const newB=Number(balanceInput.value);if(!Number.isFinite(newB))return;const diff=newB-state.balance;addHistory('Ajuste manual de saldo',diff);save();}
+function applyMonthlyExpenses(){
+  const base=Object.values(state.expenses).reduce((a,b)=>a+Number(b||0),0);const custom=state.customExpenses.filter(x=>x.monthly).reduce((a,b)=>a+Number(b.value||0),0);const total=base+custom;
+  if(!confirm(`Aplicar ${usd(total)} de despesas mensais agora?\n\nEsse valor será descontado do saldo da carreira.`))return;
+  addHistory('Despesas mensais',-total);save();showToast(`${usd(total)} em despesas mensais foram descontados do saldo.`,'warn');
+}
+function renderHistory(){historyBody.innerHTML=state.history.length?state.history.map(h=>`<tr><td>${esc(h.date)}</td><td>${esc(h.desc)}</td><td style="color:${h.amount>=0?'#86efac':'#fca5a5'}">${h.amount>=0?'+':''}${usd(h.amount)}</td><td>${usd(h.balance)}</td></tr>`).join(''):'<tr><td colspan="4" class="muted">Sem movimentações.</td></tr>';}
+
+function renderProgress(){
+  const miles=totalMiles(),goal=state.currentLevel===1?10000:state.currentLevel===2?50000:50000;
+  progressLevel.textContent=state.currentLevel===1?'Nível 1 — Trainee / Local':state.currentLevel===2?'Nível 2 — Company Driver / OTR':'Nível 3 — Experienced / Doubles';
+  progressText.textContent=state.currentLevel>=3?`${miles.toLocaleString('en-US')} milhas totais`:`${miles.toLocaleString('en-US')} / ${goal.toLocaleString('en-US')} milhas`;
+  progressBar.style.width=(state.currentLevel>=3?100:Math.min(100,miles/goal*100))+'%';
+  remainingMiles.textContent=state.currentLevel>=3?'Nível máximo da Fase 1 alcançado.':miles>=goal?'Meta de milhas atingida. Complete os requisitos de promoção abaixo.':`Faltam ${(goal-miles).toLocaleString('en-US')} milhas para a próxima promoção.`;
+  tripValidation.innerHTML=state.currentLevel===1?'<strong>Nível 1:</strong> rotas de até ~300 mi. Day cab e retorno à base no mesmo dia. Procura de carga apenas em filiais próximas.':state.currentLevel===2?`<strong>Nível 2:</strong> OTR liberado. Pode fazer Deadhead até outra filial com carga. ${state.hazmatQualified?'HazMat qualificado e liberado.':'HazMat ainda bloqueado até concluir a qualificação de US$ 144,25.'}`:'<strong>Nível 3:</strong> OTR, Doubles/bitrem e cargas especiais liberadas. Deadhead continua em US$ 0,50/mi.';
+  updateTripCategoryOptions();
+}
+function renderPromotion(){
+  const miles=totalMiles();promotionBox.style.display='none';
+  if(state.currentLevel===1&&miles>=10000){promotionBox.style.display='block';promotionBox.innerHTML=`<strong>Promoção para o Nível 2 disponível</strong><br>Você atingiu 10.000 mi. Para liberar o Nível 2, confirme o Academy de Proficiência e pague <strong>US$ 300</strong>.<label style="display:flex;gap:8px;align-items:center;color:#e2e8f0"><input id="academyLevel2Check" type="checkbox" style="width:auto"> Concluí o Truck Driving Proficiency / Academy Nível 2</label><button class="green" onclick="promoteLevel2()">Confirmar treinamento, pagar US$ 300 e liberar Nível 2</button>`;}
+  if(state.currentLevel===2&&miles>=50000){promotionBox.style.display='block';promotionBox.innerHTML=`<strong>Promoção para o Nível 3 disponível</strong><br>Você atingiu 50.000 mi totais. Confirme o Double Trailer Handling e pague <strong>US$ 59</strong>.<label style="display:flex;gap:8px;align-items:center;color:#e2e8f0"><input id="academyLevel3Check" type="checkbox" style="width:auto"> Concluí o Double Trailer Handling</label><button class="green" onclick="promoteLevel3()">Confirmar treinamento, pagar US$ 59 e liberar Nível 3</button>`;}
+}
+function renderHazmat(){
+  const box=document.getElementById('hazmatBox');if(!box)return;box.style.display='none';
+  if(state.currentLevel>=2&&!state.hazmatQualified){box.style.display='block';box.innerHTML=`<strong>Qualificação HazMat disponível</strong><br>HazMat permite transportar materiais perigosos e usar a tarifa de <strong>US$ 0,63/mi Loaded</strong>. Custo pessoal: <strong>US$ 144,25</strong>.<label style="display:flex;gap:8px;align-items:center;color:#e2e8f0"><input id="hazmatQualifiedCheck" type="checkbox" style="width:auto"> Concluí o treinamento/avaliações necessárias para HazMat</label><button class="green" onclick="qualifyHazmat()">Pagar US$ 144,25 e liberar HazMat</button>`;}
+  else if(state.currentLevel>=2&&state.hazmatQualified){box.style.display='block';box.classList.add('ok');box.innerHTML='<strong>HazMat qualificado.</strong><br>As categorias HazMat estão liberadas nas viagens Loaded.';}
+}
+function promoteLevel2(){if(totalMiles()<10000){alert('Você ainda não atingiu 10.000 milhas.');return}if(!document.getElementById('academyLevel2Check')?.checked){alert('Confirme que concluiu o Academy Nível 2.');return}if(state.balance<300&&!confirm('Seu saldo é menor do que US$ 300. Deseja permitir que a conta fique negativa?'))return;addHistory('Academy Nível 2 — Truck Driving Proficiency',-300);state.academy.level2=true;state.currentLevel=2;save();showToast('Academy concluído. Nível 2 liberado!','success');}
+function promoteLevel3(){if(totalMiles()<50000){alert('Você ainda não atingiu 50.000 milhas.');return}if(!document.getElementById('academyLevel3Check')?.checked){alert('Confirme que concluiu o Double Trailer Handling.');return}if(state.balance<59&&!confirm('Seu saldo é menor do que US$ 59. Deseja permitir que a conta fique negativa?'))return;addHistory('Endorsement / Academy Nível 3 — Doubles',-59);state.academy.level3=true;state.currentLevel=3;save();showToast('Double Trailer Handling concluído. Nível 3 liberado!','success');}
+function qualifyHazmat(){
+  if(state.currentLevel<2){alert('HazMat só pode ser obtido a partir do Nível 2.');return;}
+  if(state.hazmatQualified){alert('HazMat já está liberado.');return;}
+  const check=document.getElementById('hazmatQualifiedCheck');if(!check?.checked){alert('Confirme que concluiu a qualificação HazMat.');return;}
+  if(state.balance<144.25&&!confirm('Seu saldo é menor do que US$ 144,25. Deseja permitir que a conta fique negativa?'))return;
+  addHistory('Qualificação HazMat — taxas pessoais',-144.25);state.hazmatQualified=true;save();showToast('Qualificação HazMat liberada!','success');
+}
+
+function syncTripDateCompatibility(t){
+  if(!t.departureAt&&t.date)t.departureAt=t.date+'T08:00';
+  if(!t.arrivalAt&&t.date)t.arrivalAt=t.date+'T17:00';
+  if(!t.date&&t.departureAt)t.date=String(t.departureAt).slice(0,10);
+  if(!t.payCategory)t.payCategory='normal';return t;
+}
+function addTrip(){
+  const departureAt=tripDeparture.value,arrivalAt=tripArrival.value,from=tripFrom.value.trim(),to=tripTo.value.trim(),fromCompany=tripFromCompany.value.trim(),toCompany=tripToCompany.value.trim(),cargo=tripCargo.value.trim(),type=tripType.value,miles=Number(tripMiles.value);let payCategory=type==='Deadhead'?'deadhead':(tripPayCategory.value||'normal');
+  if(!departureAt||!arrivalAt){alert('Informe a data e o horário de saída e de chegada.');return}
+  const dep=new Date(departureAt),arr=new Date(arrivalAt);if(Number.isNaN(dep.getTime())||Number.isNaN(arr.getTime())||arr<=dep){alert('A chegada precisa acontecer depois da saída.');return}
+  if(!from||!to||!cargo||!miles||miles<=0){alert('Preencha origem, destino, carga e milhas.');return}
+  if(type==='Loaded'){
+    if(payCategory==='hazmat'&&(!state.hazmatQualified||state.currentLevel<2)){alert('HazMat ainda não está qualificado nesta carreira.');return}
+    if(payCategory==='doubles'&&state.currentLevel<3){alert('Doubles só é permitido no Nível 3.');return}
+    if(payCategory==='hazmat_doubles'&&(state.currentLevel<3||!state.hazmatQualified)){alert('HazMat + Doubles exige Nível 3 e qualificação HazMat.');return}
+  }
+  state.trips.push({id:'trip_'+Date.now(),week:state.currentWeek,date:departureAt.slice(0,10),departureAt,arrivalAt,from,to,fromCompany,toCompany,cargo,type,payCategory,miles});
+  tripDeparture.value='';tripArrival.value='';tripFrom.value='';tripTo.value='';tripFromCompany.value='';tripToCompany.value='';tripCargo.value='';tripType.value='Loaded';tripPayCategory.value='normal';tripMiles.value='';save();showToast(`Viagem registrada na Semana ${state.currentWeek}.`,'success');
+}
+function deleteTrip(id){
+  const t=state.trips.find(x=>x.id===id);if(!t)return;if(Number(t.week)!==Number(state.currentWeek)){alert('Essa semana já foi fechada e não pode ser alterada.');return}
+  state.trips=state.trips.filter(x=>x.id!==id);save();showToast('Viagem excluída da semana atual.','info');
+}
+function renderTrips(){
+  state.trips=state.trips.map(syncTripDateCompatibility);const rows=currentWeekTrips();
+  tripWeekLabel.textContent=currentWeekTableLabel.textContent=tripWeekButtonLabel.textContent=state.currentWeek;
+  currentWeekTripsBody.innerHTML=rows.length?rows.map(t=>`<tr><td>${esc(formatDateTime(t.departureAt))}</td><td>${esc(formatDateTime(t.arrivalAt))}</td><td>${esc(t.from)}</td><td>${esc(t.fromCompany||'—')}</td><td>${esc(t.to)}</td><td>${esc(t.toCompany||'—')}</td><td>${esc(t.cargo)}</td><td><span class="pill">${esc(t.type)}</span></td><td>${esc(PAY_LABELS[tripPayCategory(t)]||'Normal')}</td><td>${Number(t.miles).toLocaleString('en-US')}</td><td><button class="small red" onclick="deleteTrip('${t.id}')">Excluir</button></td></tr>`).join(''):'<tr><td colspan="11" class="muted">Nenhuma viagem registrada nesta semana.</td></tr>';
+  currentWeekTotal.textContent=`Total da Semana ${state.currentWeek}: ${currentWeekMiles().toLocaleString('en-US')} milhas`;
+}
+function renderClosedWeeks(){
+  if(!state.closedWeeks.length){closedWeeks.innerHTML='<p class="muted">Nenhuma semana fechada ainda.</p>';return;}
+  closedWeeks.innerHTML=[...state.closedWeeks].sort((a,b)=>b.week-a.week).map(w=>`<details><summary>Semana ${w.week} — ${Number(w.totalMiles||0).toLocaleString('en-US')} mi — ${usd(w.netDeposit)} depositados</summary><p class="muted">Fechada em ${esc(w.closedAt)} • Bruto salarial: ${usd(w.gross)} • Per diem: ${usd(w.perDiem||0)}${w.incidentDeduction?` • Ocorrências descontadas: ${usd(w.incidentDeduction)}`:''}</p><table><thead><tr><th>Saída</th><th>Chegada</th><th>Origem</th><th>Empresa origem</th><th>Destino</th><th>Empresa destino</th><th>Carga</th><th>Trecho</th><th>Categoria</th><th>Milhas</th></tr></thead><tbody>${(w.trips||[]).map(t=>syncTripDateCompatibility(t)).map(t=>`<tr><td>${esc(formatDateTime(t.departureAt))}</td><td>${esc(formatDateTime(t.arrivalAt))}</td><td>${esc(t.from)}</td><td>${esc(t.fromCompany||'—')}</td><td>${esc(t.to)}</td><td>${esc(t.toCompany||'—')}</td><td>${esc(t.cargo)}</td><td>${esc(t.type)}</td><td>${esc(PAY_LABELS[tripPayCategory(t)]||'Normal')}</td><td>${Number(t.miles).toLocaleString('en-US')}</td></tr>`).join('')}</tbody></table></details>`).join('');
+}
+
+function addIncident(){
+  const type=incidentType.value,amount=Number(incidentAmount.value),date=incidentDate.value,time=incidentTime.value,route=incidentRoute.value.trim(),description=incidentDescription.value.trim(),payment=incidentPayment.value;
+  if(!date||!time||!description||!Number.isFinite(amount)||amount<0){alert('Preencha data, hora, descrição e um valor válido.');return}
+  const item={id:'inc_'+Date.now(),type,amount,date,time,route,description,payment,status:payment==='balance'?'paid':'pending',createdAt:new Date().toISOString()};
+  state.incidents.push(item);
+  if(payment==='balance'&&amount>0)addHistory(type==='accident'?'Acidente — custo registrado':'Infração / multa',-amount);
+  incidentAmount.value='';incidentRoute.value='';incidentDescription.value='';save();
+}
+function renderIncidents(){
+  const pending=state.incidents.filter(x=>x.payment==='payslip'&&x.status==='pending').reduce((s,x)=>s+Number(x.amount||0),0);
+  incidentCount.textContent=state.incidents.length;incidentPending.textContent=usd(pending);
+  incidentsBody.innerHTML=state.incidents.length?[...state.incidents].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time)).map(x=>`<tr><td>${esc(x.date)}</td><td>${esc(x.time)}</td><td>${x.type==='accident'?'Acidente':'Infração'}</td><td>${esc(x.route||'—')}</td><td>${esc(x.description)}</td><td>${usd(x.amount)}</td><td>${x.payment==='balance'?'Saldo':'Holerite'}</td><td>${x.status==='pending'?'<span style="color:#fcd34d">Pendente</span>':'<span style="color:#86efac">Descontado</span>'}</td></tr>`).join(''):'<tr><td colspan="8" class="muted">Nenhuma ocorrência registrada.</td></tr>';
+}
+
+function renderLevelFields(){
+  payLevel.value=state.currentLevel===1?'Nível 1 — Trainee / Local':state.currentLevel===2?'Nível 2 — Company Driver / OTR':'Nível 3 — Experienced / Doubles';
+  const l1=state.currentLevel===1;level1SalaryBox.style.display=l1?'block':'none';level1Fields.style.display=l1?'block':'none';level23Fields.style.display=l1?'none':'block';
+  if(!l1){
+    const trips=currentWeekTrips(),sum=mileagePaySummary(trips),pd=perDiemDaysForTrips(trips);paidMiles.value=currentWeekMiles();perDiemDays.value=pd.days;milesCurrentWeekText.textContent=state.currentWeek;
+    const lines=Object.keys(PAY_RATES).filter(k=>sum.totals[k]>0).map(k=>`${PAY_LABELS[k]}: <strong>${sum.totals[k].toLocaleString('en-US')} mi × ${usd(PAY_RATES[k])}/mi = ${usd(sum.totals[k]*PAY_RATES[k])}</strong>`);
+    mileagePayBreakdown.innerHTML=lines.length?lines.join('<br>'):'Nenhuma milha registrada nesta semana.';
+    perDiemBreakdown.innerHTML=pd.days?`<strong>${pd.days} dia(s) qualificável(is)</strong> calculados automaticamente pelas viagens desta semana.<br><span class="muted">${pd.dates.map(d=>esc(d)).join(', ')}</span>`:'Nenhuma viagem desta semana atravessa pelo menos uma noite; per diem = 0.';
+  }
+}
+function estimateTaxes(gross){
+  const ss=gross*.062,medicare=gross*.0145,sdi=gross*.013;
+  let federal=0;if(gross>300)federal=(Math.min(gross,900)-300)*.10+Math.max(0,gross-900)*.12;federal=Math.max(0,federal);
+  let ca=0;if(gross>500)ca=(Math.min(gross,1000)-500)*.02+Math.max(0,gross-1000)*.04;ca=Math.max(0,ca);
+  return{ss,medicare,sdi,federal,ca,total:ss+medicare+sdi+federal+ca};
+}
+function applyPendingIncidents(maxDeduction){
+  let available=Math.max(0,maxDeduction),used=0;
+  for(const x of state.incidents){
+    if(x.payment!=='payslip'||x.status!=='pending'||available<=0)continue;
+    const due=Number(x.remaining??x.amount??0);const take=Math.min(due,available);used+=take;available-=take;
+    const rem=due-take;if(rem<=.001){x.status='paid';x.remaining=0;}else{x.remaining=rem;}
+  }
+  return used;
+}
+function generatePayslip(){
+  const trips=currentWeekTrips();if(!trips.length&&!confirm(`A Semana ${state.currentWeek} não possui viagens registradas. Deseja fechar a semana mesmo assim?`))return;
+  const weeklyBenefits=Number(benefits.value||0);let gross=0,perDiem=0,detail='';
+  if(state.currentLevel===1){const base=Number(weeklyGross.value||850),over=Number(overrunHours.value||0)*21.25;gross=base+over;detail=`Salário-base: ${usd(base)}<br>Route Overrun: ${usd(over)}`;}
+  else{
+    const sum=mileagePaySummary(trips),rate=Number(perDiemRate.value||80),pd=perDiemDaysForTrips(trips);gross=sum.gross;perDiem=pd.days*rate;
+    detail=Object.keys(PAY_RATES).filter(k=>sum.totals[k]>0).map(k=>`${PAY_LABELS[k]}: ${sum.totals[k].toLocaleString('en-US')} mi × ${usd(PAY_RATES[k])} = ${usd(sum.totals[k]*PAY_RATES[k])}`).join('<br>')||'Sem milhas pagas';
+    detail+=`<br>Per diem automático: ${pd.days} dia(s) × ${usd(rate)} = ${usd(perDiem)}`;
+  }
+  const taxes=estimateTaxes(gross);let netBeforeIncidents=gross-taxes.total-weeklyBenefits;const incidentDeduction=applyPendingIncidents(Math.max(0,netBeforeIncidents));const netPay=Math.max(0,netBeforeIncidents-incidentDeduction);const deposit=netPay+perDiem;
+  if(!confirm(`Fechar a Semana ${state.currentWeek}?\n\nApós gerar o holerite, as viagens desta semana serão bloqueadas e a Semana ${state.currentWeek+1} será iniciada.`))return;
+  payslip.innerHTML=`<p>${detail}</p><hr style="border-color:#334155"><p>Salário bruto: <strong>${usd(gross)}</strong></p><p>Federal: − ${usd(taxes.federal)}</p><p>Social Security: − ${usd(taxes.ss)}</p><p>Medicare: − ${usd(taxes.medicare)}</p><p>California Income Tax: − ${usd(taxes.ca)}</p><p>California SDI: − ${usd(taxes.sdi)}</p><p>Benefícios: − ${usd(weeklyBenefits)}</p>${incidentDeduction?`<p>Infrações / acidentes: − ${usd(incidentDeduction)}</p>`:''}<p>Salário líquido: <strong>${usd(netPay)}</strong></p>${perDiem?`<p>Per diem: + <strong>${usd(perDiem)}</strong></p>`:''}<hr style="border-color:#334155"><p class="big">Depósito: ${usd(deposit)}</p>`;
+  const weekNo=state.currentWeek,total=currentWeekMiles();state.closedWeeks.push({week:weekNo,closedAt:now(),trips:JSON.parse(JSON.stringify(trips)),totalMiles:total,gross,perDiem,incidentDeduction,netDeposit:deposit});
+  addHistory(`Holerite Semana ${weekNo}`,deposit);state.currentWeek++;save();showToast(`Semana ${weekNo} fechada. ${usd(deposit)} foram depositados e a Semana ${state.currentWeek} foi iniciada.`,'success');
+}
+
+function exportCareerCSV(){
+  const rows=[['recordType','id','field1','field2','field3','field4','field5','field6','field7','field8','field9','field10','field11','field12']];
+  rows.push(['CAREER',career?.id||careerId||'',career?.driverName||'',career?.city||'',career?.company||'',career?.arrivalBalance??'',career?.startingBalance??state.balance,career?.biography||'',career?.createdAt||'',career?.updatedAt||'',career?.setupTotal??'']);
+  if(career?.setupCosts&&typeof career.setupCosts==='object')Object.entries(career.setupCosts).forEach(([name,value])=>rows.push(['SETUP_COST',name,value]));
+  rows.push(['STATE','currentLevel',state.currentLevel]);rows.push(['STATE','currentWeek',state.currentWeek]);rows.push(['STATE','balance',state.balance]);rows.push(['STATE','hazmatQualified',state.hazmatQualified?'true':'false']);rows.push(['STATE','academyLevel2',state.academy?.level2?'true':'false']);rows.push(['STATE','academyLevel3',state.academy?.level3?'true':'false']);
+  Object.entries(state.expenses).forEach(([k,v])=>rows.push(['EXPENSE',k,v,EXPENSE_LABELS[k]||k]));
+  state.customExpenses.forEach(x=>rows.push(['CUSTOM_EXPENSE',x.id,x.name,x.value,x.monthly?'true':'false']));
+  state.trips.forEach(t=>rows.push(['TRIP',t.id,t.week,t.departureAt||'',t.arrivalAt||'',t.from,t.fromCompany||'',t.to,t.toCompany||'',t.cargo,t.type,t.payCategory||'normal',t.miles]));
+  state.incidents.forEach(x=>rows.push(['INCIDENT',x.id,x.type,x.date,x.time,x.route||'',x.description,x.amount,x.payment,x.status,x.remaining??'']));
+  state.history.forEach(h=>rows.push(['HISTORY','',h.date,h.desc,h.amount,h.balance]));
+  state.closedWeeks.forEach(w=>rows.push(['CLOSED_WEEK',w.week,w.closedAt,w.totalMiles,w.gross,w.perDiem||0,w.incidentDeduction||0,w.netDeposit,JSON.stringify(w.trips||[])]));
+  const csv='\ufeff'+rows.map(r=>r.map(escapeCSV).join(',')).join('\r\n');const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`ats-carreira-${(career?.driverName||'backup').replace(/[^a-z0-9-_]+/gi,'-')}.csv`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),500);
+}
+
+function openTab(id){
+  const btn=document.querySelector(`.tab-btn[data-tab="${id}"]`);if(!btn)return;
+  document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.tab-panel').forEach(x=>x.classList.remove('active'));btn.classList.add('active');document.getElementById(id).classList.add('active');
+}
+function showToast(message,type='success'){
+  const stack=document.getElementById('toastStack');if(!stack)return;const el=document.createElement('div');el.className=`toast ${type==='success'?'':type}`.trim();el.textContent=message;stack.appendChild(el);setTimeout(()=>{el.style.opacity='0';el.style.transform='translateY(8px)';el.style.transition='.2s';setTimeout(()=>el.remove(),220);},3600);
+}
+function initOverviewShortcuts(){
+  document.querySelectorAll('[data-go-tab]').forEach(el=>{const go=()=>openTab(el.dataset.goTab);el.addEventListener('click',go);el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});});
+  const banner=document.getElementById('overviewPromotionBanner');if(banner){banner.addEventListener('click',openPromotionFromOverview);banner.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openPromotionFromOverview();}});}
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn=>btn.addEventListener('click',()=>openTab(btn.dataset.tab)));
+incidentType.addEventListener('change',()=>{incidentDescriptionLabel.textContent=incidentType.value==='accident'?'Descrição do acidente / dano':'Infração cometida';});
+tripType.addEventListener('change',updateTripCategoryOptions);
+
+const ATS_CITIES = [
+  "Aberdeen, WA","Alamogordo, NM","Alamosa, CO","Alliance, NE","Alpine, TX","Alturas, CA","Amarillo, TX","Artesia, NM","Astoria, OR","Bakersfield, CA","Bellingham, WA","Bend, OR","Big Spring, TX","Billings, MT","Boise, ID","Bremerton, WA","Brownsville, TX","Burlington, CO","Burns, OR","Butte, MT","Carlsbad, NM","Carlsbad, CA","Casper, WY","Cedar City, UT","Cheyenne, WY","Clifton, AZ","Clovis, NM","Coos Bay, OR","Corpus Christi, TX","Cortez, CO","Cody, WY","Colby, KS","Colorado Springs, CO","Dalhart, TX","Dallas, TX","Del Rio, TX","Denver, CO","Douglas, AZ","Durango, CO","El Centro, CA","El Paso, TX","Ely, NV","Enid, OK","Eugene, OR","Eureka, CA","Evanston, WY","Farmington, NM","Fort Collins, CO","Fort Stockton, TX","Fort Worth, TX","Fresno, CA","Gallup, NM","Garden City, KS","Gillette, WY","Glasgow, MT","Glendive, MT","Grand Coulee, WA","Grand Island, NE","Grand Junction, CO","Great Falls, MT","Green River, UT","Guymon, OK","Hays, KS","Havre, MT","Helena, MT","Hobbs, NM","Holbrook, AZ","Huntsville, TX","Hutchinson, KS","Idaho Falls, ID","Jackpot, NV","Jackson, WY","Junction, TX","Kalispell, MT","Kennewick, WA","Ketchum, ID","Kingman, AZ","Klamath Falls, OR","La Grande, OR","Lamar, CO","Laredo, TX","Las Cruces, NM","Las Vegas, NV","Lewiston, ID","Liberal, KS","Lincoln, NE","Logan, UT","Longview, TX","Los Angeles, CA","Lubbock, TX","Lufkin, TX","McAllen, TX","Medford, OR","Miles City, MT","Missoula, MT","Moab, UT","Montrose, CO","Nogales, AZ","North Platte, NE","Oakland, CA","Odessa, TX","Ogden, UT","Olympia, WA","Omaha, NE","Ontario, OR","Oxnard, CA","Page, AZ","Pendleton, OR","Phoenix, AZ","Pocatello, ID","Port Angeles, WA","Portland, OR","Primm, NV","Provo, UT","Pueblo, CO","Raton, NM","Rawlins, WY","Redding, CA","Reno, NV","Rock Springs, WY","Roswell, NM","Sacramento, CA","Salem, OR","Salina, KS","Salmon, ID","Salt Lake City, UT","San Angelo, TX","San Antonio, TX","San Diego, CA","San Francisco, CA","San Jose, CA","Santa Cruz, CA","Santa Fe, NM","Santa Maria, CA","Seattle, WA","Show Low, AZ","Sierra Vista, AZ","Sidney, MT","Socorro, NM","Spokane, WA","Sterling, CO","Stockton, CA","Tacoma, WA","The Dalles, OR","Tonopah, NV","Topeka, KS","Truckee, CA","Tucson, AZ","Tulsa, OK","Twin Falls, ID","Ukiah, CA","Vernal, UT","Victoria, TX","Wenatchee, WA","Wichita, KS","Winnemucca, NV","Yakima, WA","Yuma, AZ"
+];
+
+function cityMatchParts(name,q){
+  const lower=name.toLowerCase(),idx=lower.indexOf(q.toLowerCase());if(idx<0)return esc(name);return `${esc(name.slice(0,idx))}<span class="city-match">${esc(name.slice(idx,idx+q.length))}</span>${esc(name.slice(idx+q.length))}`;
+}
+function setupCityAutocomplete(inputId,resultsId,toggleId){
+  const input=document.getElementById(inputId),results=document.getElementById(resultsId),toggle=document.getElementById(toggleId);let items=[],active=-1;
+  function close(){results.classList.remove('open');active=-1;}
+  function selectValue(v){input.value=v;close();input.focus();}
+  function render(showAll=false){
+    const q=input.value.trim(),found=(showAll||!q)?ATS_CITIES:ATS_CITIES.filter(c=>c.toLowerCase().includes(q.toLowerCase()));
+    items=[];active=-1;let html=`<div class="city-results-header">${showAll||!q?'Todas as cidades':'Resultados da busca'}</div>`;
+    if(found.length){html+=found.map(c=>`<div class="city-option" data-value="${esc(c)}">${q&&!showAll?cityMatchParts(c,q):esc(c)}</div>`).join('');}
+    else if(q){html+=`<div class="city-option manual" data-value="${esc(q)}">＋ Adicionar manualmente: “${esc(q)}”</div>`;}
+    else html+='<div class="city-option empty">Digite uma cidade ou escolha na lista.</div>';
+    results.innerHTML=html;items=[...results.querySelectorAll('.city-option[data-value]')];items.forEach(el=>el.addEventListener('mousedown',e=>{e.preventDefault();selectValue(el.dataset.value)}));results.classList.add('open');
+  }
+  input.addEventListener('input',()=>{if(input.value.trim())render(false);else close();});input.addEventListener('focus',()=>{if(input.value.trim())render(false);});toggle.addEventListener('click',()=>{if(results.classList.contains('open'))close();else render(true);});
+  input.addEventListener('keydown',e=>{if(!results.classList.contains('open')&&(e.key==='ArrowDown'||e.key==='ArrowUp')){render(!input.value.trim());return}if(!items.length)return;if(e.key==='ArrowDown'){e.preventDefault();active=Math.min(items.length-1,active+1)}else if(e.key==='ArrowUp'){e.preventDefault();active=Math.max(0,active-1)}else if(e.key==='Enter'&&active>=0){e.preventDefault();selectValue(items[active].dataset.value);return}else if(e.key==='Escape'){close();return}else return;items.forEach((x,i)=>x.classList.toggle('active',i===active));items[active]?.scrollIntoView({block:'nearest'});});
+  document.addEventListener('mousedown',e=>{if(!input.closest('.city-autocomplete').contains(e.target))close();});
+}
+setupCityAutocomplete('tripFrom','tripFromResults','tripFromToggle');setupCityAutocomplete('tripTo','tripToResults','tripToToggle');initOverviewShortcuts();
+load();
+</script>
+</body>
+</html>
