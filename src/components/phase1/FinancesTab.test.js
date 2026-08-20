@@ -55,6 +55,35 @@ function baseState(overrides = {}) {
 }
 
 describe('FinancesTab reserve integration', () => {
+  it('shows the editable manual balance with exactly two decimal places', () => {
+    renderFinance(baseState({ balance: 475.54999999999995 }))
+    const balanceInput = container.querySelector('.finance-card input[inputmode="decimal"]')
+    expect(balanceInput.value).toBe('475.55')
+  })
+
+  it('accepts comma decimals for reserve deposits and stores cents exactly', () => {
+    const { commit } = renderFinance(baseState({ balance: 500, emergencyReserve: 200 }))
+    const addInput = container.querySelector('.reserve-inline-action input[placeholder="0.00"]')
+    setInputValue(addInput, '200,12')
+    const addButton = [...container.querySelectorAll('button')].find((item) => item.textContent.trim() === 'Adicionar')
+    act(() => addButton.click())
+
+    const nextState = commit.mock.calls[0][0]
+    expect(nextState.balance).toBe(299.88)
+    expect(nextState.emergencyReserve).toBe(400.12)
+  })
+
+  it('rejects monetary values with more than two decimal places', () => {
+    const { commit } = renderFinance(baseState({ balance: 500, emergencyReserve: 200 }))
+    const addInput = container.querySelector('.reserve-inline-action input[placeholder="0.00"]')
+    setInputValue(addInput, '10.123')
+    const addButton = [...container.querySelectorAll('button')].find((item) => item.textContent.trim() === 'Adicionar')
+    act(() => addButton.click())
+
+    expect(commit).not.toHaveBeenCalled()
+    expect(document.body.textContent).toContain('no máximo duas casas decimais')
+  })
+
   it('allows withdrawing the exact displayed reserve balance despite floating point noise', () => {
     const { commit } = renderFinance(baseState({
       balance: -1127.08,
