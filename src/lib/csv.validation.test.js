@@ -24,9 +24,10 @@ describe('CSV import required field validation', () => {
       career: 'CAREER,,Test Driver,,,5000,,,2026-08-20T00:00:00.000Z',
     })
 
-    expect(() => importCareerCSVText(csv)).toThrow(
-      'Arquivo incompleto. Campos obrigatórios ausentes: CAREER.city, CAREER.company, CAREER.initialBalance.',
-    )
+    expect(() => importCareerCSVText(csv)).toThrow(/Arquivo incompleto\. Campos obrigatórios ausentes:/)
+    expect(() => importCareerCSVText(csv)).toThrow(/CAREER\.city \(linha 3\)/)
+    expect(() => importCareerCSVText(csv)).toThrow(/CAREER\.company \(linha 3\)/)
+    expect(() => importCareerCSVText(csv)).toThrow(/CAREER\.initialBalance \(linha 3\)/)
     expect(JSON.parse(localStorage.getItem(CAREERS_KEY) || '[]')).toEqual([])
   })
 
@@ -45,7 +46,7 @@ describe('CSV import required field validation', () => {
 
   it('requires emergencyReserve for CSV v7 but keeps older backups compatible', () => {
     expect(() => importCareerCSVText(validV7({ state: 'STATE,793,1,1,0,0,0,' }))).toThrow(
-      'Arquivo incompleto. Campos obrigatórios ausentes: STATE.emergencyReserve.',
+      /Arquivo incompleto\. Campos obrigatórios ausentes: STATE\.emergencyReserve \(linha 5\)\./,
     )
 
     const oldCsv = [
@@ -63,10 +64,10 @@ describe('CSV import required field validation', () => {
   it('rejects invalid numeric state values with a useful message', () => {
     const csv = validV7({ state: 'STATE,abc,8,0,0,0,0,-20' })
     expect(() => importCareerCSVText(csv)).toThrow(/Arquivo inválido\. Revise estes campos:/)
-    expect(() => importCareerCSVText(csv)).toThrow(/STATE\.balance/)
-    expect(() => importCareerCSVText(csv)).toThrow(/STATE\.careerLevel/)
-    expect(() => importCareerCSVText(csv)).toThrow(/STATE\.currentWeek/)
-    expect(() => importCareerCSVText(csv)).toThrow(/STATE\.emergencyReserve/)
+    expect(() => importCareerCSVText(csv)).toThrow(/STATE\.balance \(linha 5\)/)
+    expect(() => importCareerCSVText(csv)).toThrow(/STATE\.careerLevel \(linha 5\)/)
+    expect(() => importCareerCSVText(csv)).toThrow(/STATE\.currentWeek \(linha 5\)/)
+    expect(() => importCareerCSVText(csv)).toThrow(/STATE\.emergencyReserve \(linha 5\)/)
     expect(JSON.parse(localStorage.getItem(CAREERS_KEY) || '[]')).toEqual([])
   })
 
