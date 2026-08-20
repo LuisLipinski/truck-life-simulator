@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { pendingIncidentTotal } from '../../lib/phase1.js'
+import { useToast } from '../ToastProvider.jsx'
 
 function money(value) {
   return Number(value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
@@ -14,6 +15,7 @@ function Label({ children, tip }) {
 }
 
 export default function IncidentsTab({ state, commit }) {
+  const toast = useToast()
   const [type, setType] = useState('Infração')
   const [amount, setAmount] = useState('')
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
@@ -37,7 +39,7 @@ export default function IncidentsTab({ state, commit }) {
     event.preventDefault()
     const value = Math.max(0, Number(amount) || 0)
     if (!description.trim() || value <= 0) {
-      window.alert('Informe a descrição da ocorrência e um valor maior que zero.')
+      toast.error('Informe a descrição da ocorrência e um valor maior que zero.')
       return
     }
 
@@ -58,13 +60,21 @@ export default function IncidentsTab({ state, commit }) {
 
     commit({ ...state, balance: nextBalance, incidents: [...(state.incidents || []), incident], history: nextHistory })
     setAmount(''); setDescription(''); setManualRoute(''); setRouteMode('manual')
+    toast.success(chargeMethod === 'balance' ? `Ocorrência registrada e ${money(value)} descontados do saldo.` : `Ocorrência registrada. ${money(value)} ficará pendente para o holerite.`)
   }
 
   function removeIncident(incident) {
-    if (incident.chargeMethod === 'balance') return window.alert('Uma ocorrência já descontada diretamente do saldo não pode ser excluída para evitar divergência financeira.')
-    if (Number(incident.remaining || 0) < Number(incident.amount || 0)) return window.alert('Esta ocorrência já teve parte descontada em holerite e não pode ser excluída.')
+    if (incident.chargeMethod === 'balance') {
+      toast.error('Uma ocorrência já descontada diretamente do saldo não pode ser excluída para evitar divergência financeira.')
+      return
+    }
+    if (Number(incident.remaining || 0) < Number(incident.amount || 0)) {
+      toast.error('Esta ocorrência já teve parte descontada em holerite e não pode ser excluída.')
+      return
+    }
     if (!window.confirm('Excluir esta ocorrência pendente?')) return
     commit({ ...state, incidents: (state.incidents || []).filter((item) => Number(item.id) !== Number(incident.id)) })
+    toast.success('Ocorrência pendente excluída com sucesso.')
   }
 
   return (
