@@ -21,14 +21,19 @@ function validRows() {
   ]
 }
 
-function rowsToWorkbookBuffer(rows, bookType = 'xlsx') {
+function rowsToWorkbookBuffer(rows, format = 'xlsx') {
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows), 'Carreira ATS')
-  return XLSX.write(workbook, { type: 'array', bookType })
+  return XLSX.write(workbook, { type: 'array', bookType: format === 'xls' ? 'biff8' : 'xlsx' })
+}
+
+function csvCell(value) {
+  const text = String(value ?? '')
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
 }
 
 function rowsToCsv(rows) {
-  return rows.map((row) => row.map((value) => String(value ?? '')).join(',')).join('\n')
+  return rows.map((row) => row.map(csvCell).join(',')).join('\n')
 }
 
 describe('backup numeric validation and Excel formats', () => {
