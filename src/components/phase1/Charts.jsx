@@ -6,19 +6,24 @@ function compactNumber(value) {
   return Number.isInteger(number) ? String(number) : number.toFixed(2)
 }
 
-function pointPath(points, width, height, padding) {
-  if (!points.length) return ''
+function chartPoints(points, width, height, padding) {
+  if (!points.length) return []
   const values = points.map((item) => Number(item.value || 0))
   const min = Math.min(...values)
   const max = Math.max(...values)
   const spread = max - min || 1
   const usableWidth = width - padding * 2
   const usableHeight = height - padding * 2
+
   return points.map((item, index) => {
     const x = padding + (points.length === 1 ? usableWidth / 2 : index * usableWidth / (points.length - 1))
     const y = padding + usableHeight - ((Number(item.value || 0) - min) / spread) * usableHeight
-    return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`
-  }).join(' ')
+    return { ...item, x, y }
+  })
+}
+
+function pointPath(points) {
+  return points.map((item, index) => `${index === 0 ? 'M' : 'L'} ${item.x.toFixed(2)} ${item.y.toFixed(2)}`).join(' ')
 }
 
 export function LineChart({ title, description, data = [], formatValue = compactNumber, emptyText = 'Ainda não há dados suficientes para este gráfico.' }) {
@@ -26,7 +31,8 @@ export function LineChart({ title, description, data = [], formatValue = compact
   const width = 640
   const height = 220
   const padding = 24
-  const path = pointPath(points, width, height, padding)
+  const positionedPoints = chartPoints(points, width, height, padding)
+  const path = pointPath(positionedPoints)
 
   return (
     <section className="panel career-chart-card">
@@ -41,18 +47,31 @@ export function LineChart({ title, description, data = [], formatValue = compact
             <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
               <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} className="chart-axis" />
               <path d={path} className="chart-line" />
-              {points.map((item, index) => {
-                const values = points.map((point) => Number(point.value || 0))
-                const min = Math.min(...values)
-                const max = Math.max(...values)
-                const spread = max - min || 1
-                const usableWidth = width - padding * 2
-                const usableHeight = height - padding * 2
-                const x = padding + index * usableWidth / (points.length - 1)
-                const y = padding + usableHeight - ((Number(item.value || 0) - min) / spread) * usableHeight
-                return <circle key={`${item.label}-${index}`} cx={x} cy={y} r="5" className="chart-dot" />
-              })}
+              {positionedPoints.map((item, index) => (
+                <circle key={`${item.label}-${index}`} cx={item.x} cy={item.y} r="5" className="chart-dot" />
+              ))}
             </svg>
+            <div className="career-line-hit-layer" aria-hidden="true">
+              {positionedPoints.map((item, index) => {
+                const left = item.x / width * 100
+                const top = item.y / height * 100
+                return (
+                  <button
+                    className="career-chart-point-hit"
+                    type="button"
+                    key={`${item.label}-hit-${index}`}
+                    style={{ left: `${left}%`, top: `${top}%` }}
+                    aria-label={`${item.label}: ${formatValue(item.value)}`}
+                    title={`${item.label}: ${formatValue(item.value)}`}
+                  >
+                    <span className="career-chart-tooltip" role="tooltip">
+                      <span>{item.label}</span>
+                      <strong>{formatValue(item.value)}</strong>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
           <div className="career-chart-labels"><span>{points[0].label}</span><span>{points.at(-1).label}</span></div>
         </>
