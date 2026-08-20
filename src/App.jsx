@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   createCareer,
   deleteCareer,
@@ -7,7 +7,9 @@ import {
   loadCareers,
   setActiveCareer,
 } from './lib/storage.js'
+import { downloadCSVTemplate, importCareerCSVText } from './lib/csv.js'
 import Phase1Page from './components/Phase1Page.jsx'
+import CityAutocomplete from './components/CityAutocomplete.jsx'
 
 const ATS_IMAGE = 'https://cdn.cloudflare.steamstatic.com/steam/apps/270880/header.jpg'
 const ETS_IMAGE = 'https://cdn.cloudflare.steamstatic.com/steam/apps/227300/header.jpg'
@@ -75,13 +77,16 @@ function HomePage() {
           <p>Área reservada para a futura simulação de carreira na Europa.</p>
         </article>
       </section>
-      <footer>Seus dados atuais continuam usando o mesmo armazenamento local da versão clássica.</footer>
+      <footer>Seus dados continuam salvos localmente neste navegador.</footer>
     </main>
   )
 }
 
 function CareersPage() {
   const [careers, setCareers] = useState(() => loadCareers())
+  const [importStatus, setImportStatus] = useState('')
+  const [showCsvHelp, setShowCsvHelp] = useState(false)
+  const fileInput = useRef(null)
 
   function removeCareer(career) {
     if (!window.confirm(`Excluir a carreira de ${career.driverName}? Essa ação não pode ser desfeita.`)) return
@@ -94,6 +99,22 @@ function CareersPage() {
     window.location.hash = `#/phases?career=${encodeURIComponent(career.id)}`
   }
 
+  async function importCsv(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setImportStatus('Lendo arquivo...')
+    try {
+      const result = importCareerCSVText(await file.text())
+      setCareers(loadCareers())
+      setImportStatus(`Carreira “${result.career.driverName}” importada com sucesso (CSV v${result.version}).`)
+    } catch (error) {
+      setImportStatus(`Erro: ${error.message}`)
+      window.alert(`Não foi possível importar a carreira: ${error.message}`)
+    } finally {
+      event.target.value = ''
+    }
+  }
+
   return (
     <main className="page-shell wide-shell">
       <AppLink className="back-link" to="/">← Voltar para jogos</AppLink>
@@ -101,19 +122,32 @@ function CareersPage() {
         <img className="ats-logo" src={ATS_IMAGE} alt="American Truck Simulator" />
         <span className="eyebrow">American Truck Simulator</span>
         <h1>Suas carreiras</h1>
-        <p>Crie uma nova carreira ou continue um personagem salvo neste navegador.</p>
+        <p>Crie uma nova carreira, importe um backup CSV ou continue um personagem salvo neste navegador.</p>
       </section>
 
       <div className="action-row">
         <AppLink className="button primary" to="/new">+ Criar nova carreira</AppLink>
-        <a className="button success" href="ats.html">Importar carreira CSV</a>
-        <a className="button secondary" href="ats.html">Modelo CSV / versão clássica</a>
+        <button className="button success" type="button" onClick={() => fileInput.current?.click()}>Importar carreira CSV</button>
+        <button className="button secondary" type="button" onClick={downloadCSVTemplate}>Baixar modelo CSV</button>
+        <button className="button secondary" type="button" onClick={() => setShowCsvHelp((value) => !value)}>Como funciona o CSV</button>
+        <input ref={fileInput} type="file" accept=".csv,text/csv" hidden onChange={importCsv} />
       </div>
+
+      {importStatus && <div className="import-status">{importStatus}</div>}
+      {showCsvHelp && (
+        <section className="panel csv-help">
+          <span className="eyebrow">Backup portátil</span>
+          <h2>CSV da carreira</h2>
+          <p>O arquivo usa a identificação <code>ATS_CAREER_BACKUP</code> e pode guardar perfil, custos iniciais, estado, viagens, histórico, gastos personalizados, ocorrências e semanas fechadas.</p>
+          <p>Ao importar, o React cria uma <strong>nova carreira</strong> com um novo ID. Backups antigos continuam aceitos e são normalizados para a estrutura atual.</p>
+          <p>Não altere os nomes da primeira coluna, como <code>CAREER</code>, <code>STATE</code>, <code>TRIP</code> e <code>CLOSED_WEEK</code>.</p>
+        </section>
+      )}
 
       {careers.length === 0 ? (
         <div className="empty-state">
           <h2>Nenhuma carreira criada</h2>
-          <p>Crie seu primeiro motorista para começar a simulação.</p>
+          <p>Crie seu primeiro motorista ou importe um backup CSV.</p>
           <AppLink className="button primary compact" to="/new">Criar carreira</AppLink>
         </div>
       ) : (
@@ -188,18 +222,14 @@ function NewCareerPage() {
         <div className="section-heading">
           <span className="eyebrow">Novo personagem</span>
           <h1>Criar nova carreira</h1>
-          <p>Os dados continuam compatíveis com as carreiras já gravadas pela versão clássica.</p>
+          <p>Cada carreira mantém progresso e finanças separados.</p>
         </div>
 
         <label>Nome do motorista</label>
         <input value={driverName} onChange={(e) => setDriverName(e.target.value)} placeholder="Ex.: Rafael Silva" required />
 
         <div className="two-columns">
-          <div>
-            <label>Cidade inicial</label>
-            <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ex.: Los Angeles, CA" required />
-            <small>O autocomplete completo será migrado junto com o módulo de cidades.</small>
-          </div>
+          <CityAutocomplete value={city} onChange={setCity} label="Cidade inicial" required />
           <div>
             <label>Nome da empresa</label>
             <input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Ex.: Pacific Horizon Logistics" required />
@@ -276,12 +306,11 @@ function PhasesPage({ careerId }) {
       <section className="phase-list">
         <AppLink className="phase-card interactive" to={`/phase1?career=${encodeURIComponent(career.id)}`}>
           <div><span className="eyebrow">Fase ativa</span><h2>Fase 1 — Motorista Empregado</h2><p>Company Driver • Níveis 1, 2 e 3 • Sem caminhão próprio.</p></div>
-          <span className="tag active">Abrir em React</span>
+          <span className="tag active">Abrir</span>
         </AppLink>
         <article className="phase-card disabled"><div><h2>Fase 2</h2><p>Primeiro caminhão próprio e operação como owner-operator.</p></div><span className="tag">Em breve</span></article>
         <article className="phase-card disabled"><div><h2>Fase 3</h2><p>Reservada para uma etapa futura da simulação.</p></div><span className="tag">Em breve</span></article>
       </section>
-      <div className="migration-note">Home, carreiras, criação, fases, Visão Geral e Progresso já estão em React. Os demais módulos da Fase 1 continuam disponíveis na versão clássica durante a migração.</div>
     </main>
   )
 }
