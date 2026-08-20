@@ -1,0 +1,145 @@
+  if((payCategory==='hazmat'||payCategory==='hazmat_doubles') && currentLevel<2){ alert('HazMat só pode ser registrado após liberar o Nível 2.'); return; }
+  if((payCategory==='hazmat'||payCategory==='hazmat_doubles') && !state.hazmatQualified){ alert('HazMat exige a qualificação adicional. Libere-a na área de progressão antes de registrar esta carga.'); return; }
+  if((payCategory==='doubles'||payCategory==='hazmat_doubles') && currentLevel<3){ alert('Doubles/bitrem só pode ser registrado após liberar o Nível 3.'); return; }
+  const miles=Math.max(0,parseFloat(document.getElementById('tripMiles').value)||0);
+  const departureAt=document.getElementById('tripDepartureAt').value;
+  const arrivalAt=document.getElementById('tripArrivalAt').value;
+  if(!origin || !destination || miles<=0 || !departureAt || !arrivalAt){ alert('Preencha origem, destino, milhas, data/hora de saída e data/hora de chegada.'); return; }
+  if(new Date(arrivalAt)<=new Date(departureAt)){ alert('A chegada precisa ser posterior à saída.'); return; }
+  const date=departureAt.slice(0,10);
+  state.trips=state.trips||[];
+  state.trips.push({id:Date.now(),date,departureAt,arrivalAt,origin,originCompany:originCompany||'—',destination,destinationCompany:destinationCompany||'—',cargo:cargo||'—',type,payCategory,miles,week:state.currentWeek});
+  const registeredWeek=state.currentWeek;
+  document.getElementById('tripOrigin').value='';
+  document.getElementById('tripDestination').value='';
+  document.getElementById('tripOriginCompany').value='';
+  document.getElementById('tripDestinationCompany').value='';
+  document.getElementById('tripCargo').value='';
+  document.getElementById('tripMiles').value='';
+  document.getElementById('tripDepartureAt').value='';
+  document.getElementById('tripArrivalAt').value='';
+  save();
+  showToast(`Viagem registrada na Semana ${registeredWeek}: ${miles.toLocaleString('pt-BR')} mi.`);
+}
+function deleteTrip(id){
+  const trip=(state.trips||[]).find(t=>t.id===id);
+  if(!trip) return;
+  if((Number(trip.week)||1)!==state.currentWeek){ alert('Esta viagem pertence a uma semana já fechada e não pode mais ser alterada.'); return; }
+  if(!confirm('Excluir esta viagem da semana atual e do total de milhas?')) return;
+  state.trips=(state.trips||[]).filter(t=>t.id!==id);
+  save();
+}
+function formatDateTime(value){ if(!value) return '—'; const d=new Date(value); return Number.isNaN(d.getTime())?escapeHtml(value):d.toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});}
+function renderTrips(){
+  const body=document.getElementById('tripsBody'); if(!body) return;
+  const currentWeek=state.currentWeek||1;
+  const activeTitle=document.getElementById('activeWeekTitle'); if(activeTitle) activeTitle.textContent=`Semana ${currentWeek}`;
+  const currentTrips=(state.trips||[]).filter(t=>(Number(t.week)||1)===currentWeek);
+  body.innerHTML='';
+  const displayTrips=[...currentTrips].reverse();
+  if(!displayTrips.length){
+    body.innerHTML=`<tr><td colspan="11" class="muted">Nenhuma viagem registrada na Semana ${currentWeek}.</td></tr>`;
+  } else displayTrips.forEach(t=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${formatDateTime(t.departureAt||t.date)}</td><td>${formatDateTime(t.arrivalAt)}</td><td>${escapeHtml(t.origin)}</td><td>${escapeHtml(t.originCompany||'—')}</td><td>${escapeHtml(t.destination)}</td><td>${escapeHtml(t.destinationCompany||'—')}</td><td>${escapeHtml(t.cargo||'—')}</td><td><span class="pill">${escapeHtml(t.type||'Loaded')}</span></td><td>${escapeHtml(String(t.type||'Loaded').toLowerCase()==='deadhead'?'US$ 0,50/mi':PAY_LABELS[t.payCategory||'normal'])}</td><td>${Number(t.miles).toLocaleString('pt-BR')} mi</td><td><button class="red small" onclick="deleteTrip(${t.id})">Excluir</button></td>`;
+    body.appendChild(tr);
+  });
+  const weekTotal=currentTrips.reduce((sum,t)=>sum+(Number(t.miles)||0),0);
+  const weekTotalEl=document.getElementById('weekTripsTotal'); if(weekTotalEl) weekTotalEl.textContent=weekTotal.toLocaleString('pt-BR')+' mi';
+  const milesInput=document.getElementById('miles'); if(milesInput) milesInput.value=weekTotal;
+  const weekHint=document.getElementById('weekMilesHint'); if(weekHint) weekHint.textContent=`Semana ${currentWeek}: ${weekTotal.toLocaleString('pt-BR')} milhas calculadas automaticamente pelas viagens registradas.`;
+  renderWeeklyPayBreakdown();
+
+  const total=(state.trips||[]).reduce((sum,t)=>sum+(Number(t.miles)||0),0);
+  const totalEl=document.getElementById('tripsTotal'); if(totalEl) totalEl.textContent=total.toLocaleString('pt-BR')+' mi';
+
+  const closed=document.getElementById('closedWeeksContainer');
+  if(closed){
+    const weeks=[...(state.closedWeeks||[])].sort((a,b)=>b.week-a.week);
+    if(!weeks.length){ closed.innerHTML='<p class="muted">Nenhuma semana fechada ainda.</p>'; }
+    else {
+      closed.innerHTML=weeks.map(w=>{
+        const trips=(state.trips||[]).filter(t=>(Number(t.week)||1)===w.week);
+        const rows=trips.map(t=>{
+          return `<tr><td>${formatDateTime(t.departureAt||t.date)}</td><td>${formatDateTime(t.arrivalAt)}</td><td>${escapeHtml(t.origin)}</td><td>${escapeHtml(t.originCompany||'—')}</td><td>${escapeHtml(t.destination)}</td><td>${escapeHtml(t.destinationCompany||'—')}</td><td>${escapeHtml(t.cargo||'—')}</td><td><span class="pill">${escapeHtml(t.type||'Loaded')}</span></td><td>${escapeHtml(String(t.type||'Loaded').toLowerCase()==='deadhead'?'US$ 0,50/mi':PAY_LABELS[t.payCategory||'normal'])}</td><td>${Number(t.miles).toLocaleString('pt-BR')} mi</td></tr>`;
+        }).join('') || '<tr><td colspan="10" class="muted">Nenhuma viagem registrada nesta semana.</td></tr>';
+        return `<details style="margin-bottom:10px"><summary>Semana ${w.week} — ${Number(w.miles||0).toLocaleString('pt-BR')} mi — depósito ${money(Number(w.deposit)||0)}</summary>
+          <p class="muted">Fechada em ${escapeHtml(w.closedAt||'—')} • Nível ${w.level||'—'} • Bruto ${money(Number(w.gross)||0)} • Líquido + per diem ${money(Number(w.deposit)||0)}</p>
+          <div style="overflow-x:auto"><table><thead><tr><th>Saída</th><th>Chegada</th><th>Origem</th><th>Empresa origem</th><th>Destino</th><th>Empresa destino</th><th>Carga</th><th>Tipo</th><th>Categoria</th><th>Milhas</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><th colspan="9">Total da Semana ${w.week}</th><th>${Number(w.miles||0).toLocaleString('pt-BR')} mi</th></tr></tfoot></table></div>
+        </details>`;
+      }).join('');
+    }
+  }
+}
+function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));}
+function renderPromotion(){
+  const box=document.getElementById('promotionBox'); if(!box) return;
+  const miles=Number(state.careerMiles)||0;
+  if(state.careerLevel===1){
+    if(miles<10000){box.innerHTML=`<div class="notice"><strong>Nível 2 bloqueado.</strong><br>Faltam ${(10000-miles).toLocaleString('pt-BR')} milhas para liberar o Academy de Proficiência.</div>`;return;}
+    box.innerHTML=`<div class="notice ok"><strong>Requisitos de milhagem concluídos.</strong><p>Para liberar o Nível 2, conclua o Truck Driving Proficiency e pague US$ 300.</p><label style="display:flex;gap:8px;align-items:center;color:var(--text)"><input id="academy2Check" type="checkbox" style="width:auto"> Concluí o Academy / Proficiência do Nível 2</label><button class="green" onclick="promoteToLevel2()">Confirmar, pagar US$ 300 e liberar Nível 2</button></div>`;
+  } else if(state.careerLevel===2){
+    if(miles<50000){box.innerHTML=`<div class="notice"><strong>Nível 3 bloqueado.</strong><br>Faltam ${(50000-miles).toLocaleString('pt-BR')} milhas totais para liberar o Double Trailer Handling.</div>`;return;}
+    box.innerHTML=`<div class="notice ok"><strong>Requisitos de milhagem concluídos.</strong><p>Para liberar o Nível 3, conclua o Double Trailer Handling e pague US$ 59 pelo endorsement T.</p><label style="display:flex;gap:8px;align-items:center;color:var(--text)"><input id="academy3Check" type="checkbox" style="width:auto"> Concluí o Academy / Double Trailer Handling</label><button class="green" onclick="promoteToLevel3()">Confirmar, pagar US$ 59 e liberar Nível 3</button></div>`;
+  } else box.innerHTML='<div class="notice ok"><strong>Nível 3 concluído.</strong><br>Doubles/bitrem está liberado nesta Fase 1.</div>';
+}
+function renderHazmatQualification(){
+  const box=document.getElementById('hazmatBox'); if(!box) return;
+  if(Number(state.careerLevel||1)<2){ box.innerHTML='<div class="notice"><strong>HazMat bloqueado.</strong><br>A qualificação fica disponível a partir do Nível 2.</div>'; return; }
+  if(state.hazmatQualified){ box.innerHTML='<div class="notice ok"><strong>HazMat qualificado.</strong><br>Cargas HazMat estão liberadas e pagam US$ 0,63/mi loaded. No Nível 3, HazMat + Doubles paga US$ 0,67/mi.</div>'; return; }
+  box.innerHTML='<div class="notice"><strong>Qualificação HazMat disponível.</strong><p>Custo pessoal adotado: US$ 144,25. O treinamento profissional é considerado pago pela empresa.</p><label style="display:flex;gap:8px;align-items:center;color:var(--text)"><input id="hazmatCheck" type="checkbox" style="width:auto"> Concluí os requisitos da qualificação HazMat</label><button class="green" onclick="qualifyHazmat()">Confirmar e pagar US$ 144,25</button></div>';
+}
+function qualifyHazmat(){
+  if(Number(state.careerLevel||1)<2 || state.hazmatQualified) return;
+  const check=document.getElementById('hazmatCheck'); if(!check?.checked){alert('Marque que concluiu os requisitos HazMat antes de confirmar.');return;}
+  const fee=144.25; if(state.balance<fee){alert(`Saldo insuficiente. Você precisa de ${money(fee)} para a qualificação HazMat.`);return;}
+  if(!confirm(`Confirmar qualificação HazMat e descontar ${money(fee)} do saldo?`)) return;
+  state.hazmatQualified=true; state.balance-=fee;
+  state.history.push({date:new Date().toLocaleString('pt-BR'),type:'Licença/Treinamento',desc:'Qualificação HazMat',value:-fee,balance:state.balance});
+  save(); showToast('HazMat liberado. As cargas HazMat agora aparecem no registro de viagem.');
+}
+function promoteToLevel2(){
+  if(state.careerLevel!==1 || state.careerMiles<10000) return;
+  const check=document.getElementById('academy2Check'); if(!check?.checked){alert('Marque que concluiu o Academy de Proficiência antes de confirmar.');return;}
+  const fee=300; if(state.balance<fee){alert(`Saldo insuficiente. Você precisa de ${money(fee)} para pagar o treinamento/avaliação.`);return;}
+  if(!confirm(`Confirmar conclusão do Academy, descontar ${money(fee)} do saldo e liberar o Nível 2?`)) return;
+  state.academy.level2=true; state.careerLevel=2;
+  state.balance-=fee; state.history.push({date:new Date().toLocaleString('pt-BR'),type:'Licença/Treinamento',desc:'Academy Nível 2 — Truck Driving Proficiency',value:-fee,balance:state.balance});
+  save(); showToast('Nível 2 liberado. OTR e pagamento por milha estão disponíveis.');
+}
+function promoteToLevel3(){
+  if(state.careerLevel!==2 || state.careerMiles<50000) return;
+  const check=document.getElementById('academy3Check'); if(!check?.checked){alert('Marque que concluiu o Double Trailer Handling antes de confirmar.');return;}
+  const fee=59; if(state.balance<fee){alert(`Saldo insuficiente. Você precisa de ${money(fee)} para pagar o endorsement T.`);return;}
+  if(!confirm(`Confirmar conclusão do Academy, descontar ${money(fee)} do saldo e liberar o Nível 3?`)) return;
+  state.academy.level3=true; state.careerLevel=3;
+  state.balance-=fee; state.history.push({date:new Date().toLocaleString('pt-BR'),type:'Licença/Treinamento',desc:'Endorsement T + Double Trailer Handling — Nível 3',value:-fee,balance:state.balance});
+  save(); showToast('Nível 3 liberado. Doubles/bitrem está disponível.');
+}
+function updateIncidentFields(){
+  const type=document.getElementById('incidentType')?.value||'Infração';
+  const label=document.getElementById('incidentDescLabel'); if(label) label.textContent=type==='Acidente'?'Descrição do acidente / reparo':'Qual infração?';
+  const input=document.getElementById('incidentDescription'); if(input) input.placeholder=type==='Acidente'?'Ex.: colisão ao estacionar, dano no para-choque...':'Ex.: excesso de velocidade, sinal vermelho...';
+}
+function renderIncidentRoutes(){
+  const sel=document.getElementById('incidentRoute'); if(!sel) return;
+  const current=sel.value;
+  const trips=[...(state.trips||[])].sort((a,b)=>(String(b.date||'')).localeCompare(String(a.date||'')) || (Number(b.id)||0)-(Number(a.id)||0));
+  sel.innerHTML='<option value="manual">Outra / informar na descrição</option>'+trips.map(t=>`<option value="trip:${t.id}">${escapeHtml(t.date||'—')} — ${escapeHtml(t.origin)} → ${escapeHtml(t.destination)} (${Number(t.miles||0).toLocaleString('pt-BR')} mi)</option>`).join('');
+  if([...sel.options].some(o=>o.value===current)) sel.value=current;
+}
+function incidentRouteLabel(value){
+  if(!value || value==='manual') return 'Rota informada manualmente';
+  const id=Number(String(value).replace('trip:','')); const t=(state.trips||[]).find(x=>Number(x.id)===id);
+  return t?`${t.origin} → ${t.destination} • Semana ${t.week||1}`:'Rota não encontrada';
+}
+function addIncident(){
+  const type=document.getElementById('incidentType').value;
+  const amount=Math.max(0,Number(document.getElementById('incidentAmount').value)||0);
+  const date=document.getElementById('incidentDate').value||new Date().toISOString().slice(0,10);
+  const time=document.getElementById('incidentTime').value||'';
+  const routeValue=document.getElementById('incidentRoute').value;
+  const route=incidentRouteLabel(routeValue);
+  const description=document.getElementById('incidentDescription').value.trim();
+  const chargeMethod=document.getElementById('incidentChargeMethod').value;
+  if(!description || amount<=0){alert('Informe a descrição da ocorrência e um valor maior que zero.');return;}
