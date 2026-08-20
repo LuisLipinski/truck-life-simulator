@@ -91,10 +91,71 @@ function boolValue(value) {
   return normalized === '1' || normalized === 'true' || normalized === 'yes'
 }
 
+function hasValue(value) {
+  return String(value ?? '').trim().length > 0
+}
+
+function validateRequiredImportFields(rows, version) {
+  const missing = []
+  const invalid = []
+  const careerRow = rows.find((row) => String(row[0] || '').trim() === 'CAREER' && row[1] !== 'id')
+  const stateRow = rows.find((row) => String(row[0] || '').trim() === 'STATE' && row[1] !== 'balance')
+
+  if (!careerRow) {
+    missing.push('linha CAREER')
+  } else {
+    const requiredCareerFields = [
+      [2, 'CAREER.driverName'],
+      [3, 'CAREER.city'],
+      [4, 'CAREER.company'],
+      [5, 'CAREER.arrivalBalance'],
+      [6, 'CAREER.initialBalance'],
+    ]
+    requiredCareerFields.forEach(([index, label]) => {
+      if (!hasValue(careerRow[index])) missing.push(label)
+    })
+    ;[[5, 'CAREER.arrivalBalance'], [6, 'CAREER.initialBalance']].forEach(([index, label]) => {
+      if (hasValue(careerRow[index]) && !Number.isFinite(Number(careerRow[index]))) invalid.push(label)
+    })
+  }
+
+  if (!stateRow) {
+    missing.push('linha STATE')
+  } else {
+    const requiredStateFields = [
+      [1, 'STATE.balance'],
+      [2, 'STATE.careerLevel'],
+      [3, 'STATE.currentWeek'],
+    ]
+    if (version >= 7) requiredStateFields.push([7, 'STATE.emergencyReserve'])
+    requiredStateFields.forEach(([index, label]) => {
+      if (!hasValue(stateRow[index])) missing.push(label)
+    })
+    requiredStateFields.forEach(([index, label]) => {
+      if (hasValue(stateRow[index]) && !Number.isFinite(Number(stateRow[index]))) invalid.push(label)
+    })
+    if (hasValue(stateRow[2])) {
+      const level = Number(stateRow[2])
+      if (!Number.isInteger(level) || level < 1 || level > 3) invalid.push('STATE.careerLevel (use 1, 2 ou 3)')
+    }
+    if (hasValue(stateRow[3])) {
+      const week = Number(stateRow[3])
+      if (!Number.isInteger(week) || week < 1) invalid.push('STATE.currentWeek (use 1 ou maior)')
+    }
+    if (version >= 7 && hasValue(stateRow[7]) && Number(stateRow[7]) < 0) invalid.push('STATE.emergencyReserve (não pode ser negativo)')
+  }
+
+  if (missing.length) throw new Error(`Arquivo incompleto. Campos obrigatórios ausentes: ${missing.join(', ')}.`)
+  if (invalid.length) throw new Error(`Arquivo inválido. Revise estes campos: ${[...new Set(invalid)].join(', ')}.`)
+}
+
 export function importCareerCSVText(text) {
   const rows = parseCSV(text)
   if (!rows.length || rows[0][0] !== 'ATS_CAREER_BACKUP') throw new Error('O arquivo não possui a identificação ATS_CAREER_BACKUP.')
   const version = Number(rows[0][1] || 1)
+  if (!Number.isInteger(version) || version < 1) throw new Error('A versão do backup CSV é inválida.')
+  validateRequiredImportFields(rows, version)
+
   const imported = {
     career: null,
     setupCosts: {},
@@ -104,17 +165,17 @@ export function importCareerCSVText(text) {
   for (const row of rows.slice(1)) {
     const type = String(row[0] || '').trim()
     if (type === 'CAREER' && row[1] !== 'id') {
-      imported.career = { driverName: row[2] || '', city: row[3] || '', company: row[4] || '', arrivalBalance: Number(row[5]) || 0, initialBalance: Number(row[6]) || 0, bio: row[7] || '', createdAt: version <= 1 ? new Date().toISOString() : (row[8] || new Date().toISOString()) }
+      imported.career = { driverName: row[2] || '', city: row[3] || '', company: row[4] || '', arrivalBalance: Number(row[5]), initialBalance: Number(row[6]), bio: row[7] || '', createdAt: version <= 1 ? new Date().toISOString() : (row[8] || new Date().toISOString()) }
     } else if (type === 'SETUP_COST' && row[1] && row[1] !== 'name') imported.setupCosts[row[1]] = Number(row[2]) || 0
     else if (type === 'STATE' && row[1] !== 'balance') {
       const level = Math.max(1, Math.min(3, Number(row[2]) || 1))
-      imported.state.balance = Number(row[1]) || 0
+      imported.state.balance = Number(row[1])
       imported.state.careerLevel = level
       imported.state.currentLevel = level
       imported.state.currentWeek = Math.max(1, Number(row[3]) || 1)
       imported.state.academy = { level2: boolValue(row[4]) || level >= 2, level3: boolValue(row[5]) || level >= 3 }
       imported.state.hazmatQualified = boolValue(row[6])
-      imported.state.emergencyReserve = version >= 7 ? Math.max(0, Number(row[7]) || 0) : 0
+      imported.state.emergencyReserve = version >= 7 ? Math.max(0, Number(row[7])) : 0
     } else if (type === 'TRIP' && row[1] !== 'id') {
       const modern = row.length >= 13
       imported.state.trips.push(modern ? {
@@ -131,15 +192,13 @@ export function importCareerCSVText(text) {
     }
   }
 
-  if (!imported.career || !String(imported.career.driverName || '').trim()) throw new Error('A linha CAREER precisa conter o nome do motorista.')
   const setup = Object.keys(imported.setupCosts).length ? { ...DEFAULT_SETUP, ...imported.setupCosts } : { ...DEFAULT_SETUP }
   const setupTotal = Object.values(setup).reduce((sum, value) => sum + (Number(value) || 0), 0)
   const newId = `career_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-  const initialBalance = Number(imported.career.initialBalance) || 0
-  const arrivalBalance = Number(imported.career.arrivalBalance) || initialBalance + setupTotal
-  const career = { id: newId, driverName: String(imported.career.driverName).trim(), city: imported.career.city || '', company: imported.career.company || '', arrivalBalance, setupCosts: setup, setupCostsTotal: setupTotal, initialBalance, currentBalance: Number(imported.state.balance ?? initialBalance), currentLevel: imported.state.currentLevel || 1, bio: imported.career.bio || '', createdAt: imported.career.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() }
+  const initialBalance = Number(imported.career.initialBalance)
+  const arrivalBalance = Number(imported.career.arrivalBalance)
+  const career = { id: newId, driverName: String(imported.career.driverName).trim(), city: String(imported.career.city).trim(), company: String(imported.career.company).trim(), arrivalBalance, setupCosts: setup, setupCostsTotal: setupTotal, initialBalance, currentBalance: Number(imported.state.balance), currentLevel: imported.state.currentLevel || 1, bio: imported.career.bio || '', createdAt: imported.career.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() }
   imported.state.careerMiles = imported.state.trips.reduce((sum, trip) => sum + Number(trip.miles || 0), 0)
-  if (!Number.isFinite(imported.state.balance)) imported.state.balance = initialBalance
   const careers = loadCareers()
   careers.push(career)
   saveCareers(careers)
