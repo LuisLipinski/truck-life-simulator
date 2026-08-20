@@ -1,0 +1,93 @@
+/* Ajustes complementares de espaçamento — mobile e desktop */
+
+/* Espaçamento geral entre cards em grids */
+.grid {
+  gap: 24px;
+}
+
+/* Visão Geral: separação mais clara entre grupos */
+#overview .overview-metrics {
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+#overview .quick-status-grid {
+  gap: 22px;
+  margin-bottom: 34px;
+}
+
+#overview .overview-profile {
+  margin-bottom: 32px;
+}
+
+#overview .overview-section {
+  margin-top: 32px;
+}
+
+/* Cards empilhados fora dos grids */
+.card + .card {
+  margin-top: 24px;
+}
+
+.grid .card + .card {
+  margin-top: 0;
+}
+
+@media (max-width: 760px) {
+  main {
+    padding-top: 24px;
+  }
+
+  .grid {
+    gap: 28px;
+  }
+
+  .card + .card {
+    margin-top: 28px;
+  }
+
+  .grid .card + .card {
+    margin-top: 0;
+  }
+
+  #overview .overview-metrics {
+    gap: 26px;
+    margin-bottom: 34px;
+  }
+
+  #overview .quick-status-grid {
+    grid-template-columns: 1fr;
+    gap: 26px;
+    margin-top: 0;
+    margin-bottom: 36px;
+  }
+
+  #overview .overview-profile {
+    margin-bottom: 34px;
+  }
+
+  #overview .overview-profile .grid {
+    gap: 26px;
+  }
+
+  #overview .overview-section {
+    margin-top: 34px;
+  }
+
+  /* Garante respiro entre blocos importantes do dashboard */
+  #overviewPromotionBanner {
+    margin-bottom: 30px;
+  }
+}
+
+@media (max-width: 420px) {
+  .grid {
+    gap: 30px;
+  }
+
+  #overview .overview-metrics,
+  #overview .quick-status-grid,
+  #overview .overview-profile .grid {
+    gap: 28px;
+  }
+}
