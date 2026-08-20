@@ -43,19 +43,19 @@ function downloadCsv(name, rows) {
 
 export function downloadCSVTemplate() {
   const rows = [
-    csvRow(['ATS_CAREER_BACKUP', '6']),
+    csvRow(['ATS_CAREER_BACKUP', '7']),
     csvRow(['CAREER','id','driverName','city','company','arrivalBalance','initialBalance','bio','createdAt']),
     csvRow(['CAREER','','Seu Nome','Los Angeles, CA','Nome da Empresa',5000,793,'Biografia do personagem','']),
     csvRow(['SETUP_COST','name','value']),
     ...Object.entries(DEFAULT_SETUP).map(([name, value]) => csvRow(['SETUP_COST', name, value])),
-    csvRow(['STATE','balance','careerLevel','currentWeek','academyLevel2','academyLevel3','hazmatQualified']),
-    csvRow(['STATE',793,1,1,0,0,0]),
+    csvRow(['STATE','balance','careerLevel','currentWeek','academyLevel2','academyLevel3','hazmatQualified','emergencyReserve']),
+    csvRow(['STATE',793,1,1,0,0,0,0]),
     csvRow(['TRIP','id','week','departureAt','arrivalAt','origin','originCompany','destination','destinationCompany','cargo','type','payCategory','miles']),
     csvRow(['TRIP','',1,'2026-08-19T07:00','2026-08-19T10:00','Los Angeles, CA','Filial Los Angeles','Bakersfield, CA','Filial Bakersfield','Alimentos','Loaded','normal',115]),
     csvRow(['HISTORY','date','type','desc','value','balance']),
     csvRow(['EXPENSE','id','name','value','monthly']),
     csvRow(['INCIDENT','id','type','date','time','route','description','amount','chargeMethod','status','remaining','createdAt']),
-    csvRow(['CLOSED_WEEK','week','closedAt','miles','level','gross','taxes','benefits','netSalary','perDiem','incidentDeduction','deposit','desc']),
+    csvRow(['CLOSED_WEEK','week','closedAt','miles','level','gross','taxes','benefits','netSalary','perDiem','incidentDeduction','reserveInterest','deposit','desc']),
   ]
   downloadCsv('modelo_carreira_ats.csv', rows)
 }
@@ -64,13 +64,13 @@ export function exportCareerCSV(career, state) {
   if (!career) throw new Error('Carreira não encontrada para exportação.')
   const safeState = state || {}
   const rows = [
-    csvRow(['ATS_CAREER_BACKUP', '6']),
+    csvRow(['ATS_CAREER_BACKUP', '7']),
     csvRow(['CAREER','id','driverName','city','company','arrivalBalance','initialBalance','bio','createdAt']),
     csvRow(['CAREER',career.id,career.driverName,career.city,career.company,career.arrivalBalance,career.initialBalance,career.bio || career.biography || '',career.createdAt || '']),
     csvRow(['SETUP_COST','name','value']),
     ...Object.entries({ ...DEFAULT_SETUP, ...(career.setupCosts || {}) }).map(([name, value]) => csvRow(['SETUP_COST', name, value])),
-    csvRow(['STATE','balance','careerLevel','currentWeek','academyLevel2','academyLevel3','hazmatQualified']),
-    csvRow(['STATE',safeState.balance ?? career.currentBalance ?? career.initialBalance ?? 0,safeState.currentLevel || safeState.careerLevel || career.currentLevel || 1,safeState.currentWeek || 1,safeState.academy?.level2 ? 1 : 0,safeState.academy?.level3 ? 1 : 0,safeState.hazmatQualified ? 1 : 0]),
+    csvRow(['STATE','balance','careerLevel','currentWeek','academyLevel2','academyLevel3','hazmatQualified','emergencyReserve']),
+    csvRow(['STATE',safeState.balance ?? career.currentBalance ?? career.initialBalance ?? 0,safeState.currentLevel || safeState.careerLevel || career.currentLevel || 1,safeState.currentWeek || 1,safeState.academy?.level2 ? 1 : 0,safeState.academy?.level3 ? 1 : 0,safeState.hazmatQualified ? 1 : 0,safeState.emergencyReserve || 0]),
     csvRow(['TRIP','id','week','departureAt','arrivalAt','origin','originCompany','destination','destinationCompany','cargo','type','payCategory','miles']),
     ...(safeState.trips || []).map((trip) => csvRow(['TRIP',trip.id,trip.week,trip.departureAt,trip.arrivalAt,trip.origin,trip.originCompany,trip.destination,trip.destinationCompany,trip.cargo,trip.type,trip.payCategory,trip.miles])),
     csvRow(['HISTORY','date','type','desc','value','balance']),
@@ -79,8 +79,8 @@ export function exportCareerCSV(career, state) {
     ...(safeState.customExpenses || []).map((item) => csvRow(['EXPENSE',item.id,item.name,item.value,item.monthly ? 1 : 0])),
     csvRow(['INCIDENT','id','type','date','time','route','description','amount','chargeMethod','status','remaining','createdAt']),
     ...(safeState.incidents || []).map((item) => csvRow(['INCIDENT',item.id,item.type,item.date,item.time,item.route,item.description,item.amount,item.chargeMethod,item.status,item.remaining,item.createdAt])),
-    csvRow(['CLOSED_WEEK','week','closedAt','miles','level','gross','taxes','benefits','netSalary','perDiem','incidentDeduction','deposit','desc']),
-    ...(safeState.closedWeeks || []).map((week) => csvRow(['CLOSED_WEEK',week.week,week.closedAt,week.miles,week.level,week.gross,week.taxes,week.benefits,week.netSalary,week.perDiem,week.incidentDeduction,week.deposit,week.desc])),
+    csvRow(['CLOSED_WEEK','week','closedAt','miles','level','gross','taxes','benefits','netSalary','perDiem','incidentDeduction','reserveInterest','deposit','desc']),
+    ...(safeState.closedWeeks || []).map((week) => csvRow(['CLOSED_WEEK',week.week,week.closedAt,week.miles,week.level,week.gross,week.taxes,week.benefits,week.netSalary,week.perDiem,week.incidentDeduction,week.reserveInterest || 0,week.deposit,week.desc])),
   ]
   const fileName = `ats_${String(career.driverName || 'carreira').trim().replace(/[^a-z0-9_-]+/gi, '_').replace(/^_+|_+$/g, '') || 'carreira'}.csv`
   downloadCsv(fileName, rows)
@@ -98,7 +98,7 @@ export function importCareerCSVText(text) {
   const imported = {
     career: null,
     setupCosts: {},
-    state: { balance: 0, history: [], careerMiles: 0, careerLevel: 1, currentLevel: 1, trips: [], customExpenses: [], currentWeek: 1, closedWeeks: [], incidents: [], academy: { level2: false, level3: false }, hazmatQualified: false },
+    state: { balance: 0, emergencyReserve: 0, history: [], careerMiles: 0, careerLevel: 1, currentLevel: 1, trips: [], customExpenses: [], currentWeek: 1, closedWeeks: [], incidents: [], academy: { level2: false, level3: false }, hazmatQualified: false },
   }
 
   for (const row of rows.slice(1)) {
@@ -114,6 +114,7 @@ export function importCareerCSVText(text) {
       imported.state.currentWeek = Math.max(1, Number(row[3]) || 1)
       imported.state.academy = { level2: boolValue(row[4]) || level >= 2, level3: boolValue(row[5]) || level >= 3 }
       imported.state.hazmatQualified = boolValue(row[6])
+      imported.state.emergencyReserve = version >= 7 ? Math.max(0, Number(row[7]) || 0) : 0
     } else if (type === 'TRIP' && row[1] !== 'id') {
       const modern = row.length >= 13
       imported.state.trips.push(modern ? {
@@ -124,7 +125,10 @@ export function importCareerCSVText(text) {
     } else if (type === 'HISTORY' && row[1] !== 'date') imported.state.history.push({ date: row[1] || '', type: row[2] || '', desc: row[3] || '', value: Number(row[4]) || 0, amount: Number(row[4]) || 0, balance: Number(row[5]) || 0 })
     else if (type === 'EXPENSE' && row[1] !== 'id') imported.state.customExpenses.push({ id: Number(row[1]) || Date.now() + Math.floor(Math.random() * 10000), name: row[2] || '', value: Number(row[3]) || 0, monthly: boolValue(row[4]) })
     else if (type === 'INCIDENT' && row[1] !== 'id') imported.state.incidents.push({ id: Number(row[1]) || Date.now() + Math.floor(Math.random() * 10000), type: row[2] || 'Infração', date: row[3] || '', time: row[4] || '', route: row[5] || '', description: row[6] || '', amount: Number(row[7]) || 0, chargeMethod: row[8] || 'balance', status: row[9] || '', remaining: Number(row[10]) || 0, createdAt: row[11] || '' })
-    else if (type === 'CLOSED_WEEK' && row[1] !== 'week') imported.state.closedWeeks.push({ week: Number(row[1]) || 1, closedAt: row[2] || '', miles: Number(row[3]) || 0, level: Number(row[4]) || 1, gross: Number(row[5]) || 0, taxes: Number(row[6]) || 0, benefits: Number(row[7]) || 0, netSalary: Number(row[8]) || 0, perDiem: Number(row[9]) || 0, incidentDeduction: row.length >= 13 ? Number(row[10]) || 0 : 0, deposit: Number(row[row.length >= 13 ? 11 : 10]) || 0, desc: row[row.length >= 13 ? 12 : 11] || '' })
+    else if (type === 'CLOSED_WEEK' && row[1] !== 'week') {
+      if (version >= 7) imported.state.closedWeeks.push({ week: Number(row[1]) || 1, closedAt: row[2] || '', miles: Number(row[3]) || 0, level: Number(row[4]) || 1, gross: Number(row[5]) || 0, taxes: Number(row[6]) || 0, benefits: Number(row[7]) || 0, netSalary: Number(row[8]) || 0, perDiem: Number(row[9]) || 0, incidentDeduction: Number(row[10]) || 0, reserveInterest: Number(row[11]) || 0, deposit: Number(row[12]) || 0, desc: row[13] || '' })
+      else imported.state.closedWeeks.push({ week: Number(row[1]) || 1, closedAt: row[2] || '', miles: Number(row[3]) || 0, level: Number(row[4]) || 1, gross: Number(row[5]) || 0, taxes: Number(row[6]) || 0, benefits: Number(row[7]) || 0, netSalary: Number(row[8]) || 0, perDiem: Number(row[9]) || 0, incidentDeduction: row.length >= 13 ? Number(row[10]) || 0 : 0, reserveInterest: 0, deposit: Number(row[row.length >= 13 ? 11 : 10]) || 0, desc: row[row.length >= 13 ? 12 : 11] || '' })
+    }
   }
 
   if (!imported.career || !String(imported.career.driverName || '').trim()) throw new Error('A linha CAREER precisa conter o nome do motorista.')
