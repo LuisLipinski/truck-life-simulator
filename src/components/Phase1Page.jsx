@@ -25,6 +25,7 @@ import RulesTab from './phase1/RulesTab.jsx'
 import ModsTab from './phase1/ModsTab.jsx'
 import HistoryTab from './phase1/HistoryTab.jsx'
 import AcademyGuideTab from './phase1/AcademyGuideTab.jsx'
+import MileageChart from './phase1/MileageChart.jsx'
 
 const TAB_HELP = {
   overview: {
@@ -335,6 +336,8 @@ function TripsTab({ state, onAddTrip, onDeleteTrip }) {
         <MetricCard label="Bruto por milhas" value={state.currentLevel <= 1 ? 'Salário semanal' : money(pay.gross)} detail={state.currentLevel <= 1 ? 'Nível 1 não é pago por milha' : 'Antes de impostos e per diem'} />
         <MetricCard label="Per diem potencial" value={state.currentLevel <= 1 ? 'Não se aplica' : `${perDiem.days} dia(s)`} detail={state.currentLevel <= 1 ? 'Disponível a partir do Nível 2' : `${money(perDiem.days * 80)} a US$ 80/dia`} />
       </section>
+
+      <MileageChart trips={state.trips} />
 
       <div className="phase1-two-panel">
         <TripForm state={state} onAdd={onAddTrip} />
