@@ -16,7 +16,9 @@ Branch: `react-migration`
 - Criação de nova carreira
 - Seleção de fases
 - Serviço central de leitura e gravação das carreiras
-- Sistema visual responsivo em `src/styles.css`
+- Sistema visual responsivo
+- Autocomplete reutilizável de cidades ATS
+- Inclusão manual de cidades de mods
 - Shell da Fase 1 em React
 - Abas React da Fase 1
 - Visão Geral da Fase 1
@@ -37,32 +39,37 @@ Branch: `react-migration`
 - Regras da Fase 1
 - Mods sugeridos
 - Histórico financeiro e de semanas fechadas
+- Importação de carreira CSV em React
+- Exportação de carreira CSV em React
+- Download do modelo CSV v6 em React
+- Ajuda/tutorial básico do CSV em React
+- Normalização de backups antigos para a chave atual de estado
 - Serviço compartilhado da Fase 1 em `src/lib/phase1.js`
 
 ## Compatibilidade de dados
 
-A versão React usa as mesmas chaves da versão clássica:
+A versão React usa as chaves atuais:
 
 - `ats_careers_v1`
 - `ats_active_career`
 - `ats_phase1_state_<careerId>`
 
-O React mantém `currentLevel` e `careerLevel` sincronizados para compatibilidade com versões anteriores da Fase 1, e novas viagens usam IDs numéricos compatíveis com a tela clássica.
+O React mantém `currentLevel` e `careerLevel` sincronizados para compatibilidade com versões anteriores da Fase 1, e novas viagens usam IDs numéricos compatíveis com dados antigos.
 
-Isso permite abrir a mesma carreira na versão React ou clássica sem criar uma cópia dos dados.
+O importador CSV aceita versões anteriores do backup e normaliza a carreira importada para a estrutura atual, criando um novo ID para evitar sobrescrever uma carreira existente.
 
-## Ponte temporária
+## Estado atual
 
-Neste ponto, a principal dependência funcional da interface clássica é o conjunto de ferramentas CSV (importação, exportação e tutorial/modelo). Os arquivos clássicos continuam preservados até a validação funcional completa da versão React.
+O fluxo normal do aplicativo React já não depende de `ats.html` ou `fase1.html`. Os arquivos clássicos permanecem no repositório apenas como fallback de segurança enquanto a nova versão é testada.
 
-## Próximos módulos
+## Próximas etapas
 
-1. Migrar autocomplete/lista de cidades para um componente reutilizável.
-2. Migrar importação/exportação e tutorial CSV.
-3. Fazer revisão funcional e visual completa da Fase 1 em desktop e mobile.
-4. Validar compatibilidade total com dados antigos do localStorage.
-5. Preparar build/deploy da branch React para teste separado da `master`.
-6. Remover arquivos legados apenas depois da validação completa.
+1. Rodar `npm install` e `npm run build` em um ambiente com acesso à internet.
+2. Fazer revisão funcional completa: criar carreira, registrar viagens, promoções, despesas, ocorrências, holerite e CSV.
+3. Fazer revisão visual em desktop e mobile.
+4. Validar importação de backups CSV antigos reais.
+5. Preparar uma publicação de teste da `react-migration` separada da `master`.
+6. Só depois da validação, decidir quando substituir a versão clássica e remover arquivos legados.
 
 ## Desenvolvimento local
 
@@ -77,3 +84,7 @@ Build de produção:
 npm run build
 npm run preview
 ```
+
+## Observação sobre validação neste ambiente
+
+A tentativa de clonar a branch e executar o build aqui falhou porque o ambiente de execução não conseguiu resolver `github.com`. Portanto, o build ainda precisa ser executado em um ambiente com acesso de rede antes de qualquer merge na `master`.
