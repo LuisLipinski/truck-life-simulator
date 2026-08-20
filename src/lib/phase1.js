@@ -18,6 +18,21 @@ export const DEFAULT_EXPENSES = {
   emergency: 200,
 }
 
+export const EXPENSE_LABELS = {
+  rent: 'Aluguel',
+  electricity: 'Eletricidade',
+  water: 'Água / lixo',
+  internet: 'Internet',
+  phone: 'Celular',
+  groceries: 'Mercado',
+  eatingOut: 'Alimentação fora',
+  health: 'Saúde / parcela pessoal',
+  publicTransport: 'Ônibus / metrô',
+  household: 'Higiene / casa',
+  leisure: 'Lazer',
+  emergency: 'Reserva / emergência',
+}
+
 export const PAY_RATES = {
   normal: 0.60,
   hazmat: 0.63,
@@ -39,6 +54,7 @@ export function phase1StorageKey(careerId) {
 }
 
 function makeDefaultState(career) {
+  const level = Number(career?.currentLevel || 1)
   return {
     balance: Number(career?.currentBalance ?? career?.initialBalance ?? 793),
     expenses: { ...DEFAULT_EXPENSES },
@@ -47,7 +63,8 @@ function makeDefaultState(career) {
     closedWeeks: [],
     customExpenses: [],
     incidents: [],
-    currentLevel: Number(career?.currentLevel || 1),
+    currentLevel: level,
+    careerLevel: level,
     hazmatQualified: false,
     academy: { level2: false, level3: false },
     currentWeek: 1,
@@ -63,7 +80,9 @@ function normalizeState(raw, career) {
   state.closedWeeks = Array.isArray(raw?.closedWeeks) ? raw.closedWeeks : []
   state.customExpenses = Array.isArray(raw?.customExpenses) ? raw.customExpenses : []
   state.incidents = Array.isArray(raw?.incidents) ? raw.incidents : []
-  state.currentLevel = Number(raw?.currentLevel || career?.currentLevel || 1)
+  const level = Number(raw?.currentLevel || raw?.careerLevel || career?.currentLevel || 1)
+  state.currentLevel = level
+  state.careerLevel = level
   state.currentWeek = Number(raw?.currentWeek || 1)
   state.hazmatQualified = Boolean(raw?.hazmatQualified)
   state.academy = {
@@ -86,14 +105,19 @@ export function loadPhase1State(careerId) {
 }
 
 export function savePhase1State(careerId, state) {
-  localStorage.setItem(phase1StorageKey(careerId), JSON.stringify(state))
+  const normalized = {
+    ...state,
+    currentLevel: Number(state.currentLevel || state.careerLevel || 1),
+    careerLevel: Number(state.currentLevel || state.careerLevel || 1),
+  }
+  localStorage.setItem(phase1StorageKey(careerId), JSON.stringify(normalized))
   const careers = loadCareers()
   const index = careers.findIndex((item) => item.id === careerId)
   if (index >= 0) {
     careers[index] = {
       ...careers[index],
-      currentBalance: Number(state.balance || 0),
-      currentLevel: Number(state.currentLevel || 1),
+      currentBalance: Number(normalized.balance || 0),
+      currentLevel: Number(normalized.currentLevel || 1),
       updatedAt: new Date().toISOString(),
     }
     saveCareers(careers)
@@ -160,6 +184,40 @@ export function monthlyExpenseTotal(state) {
     .filter((item) => item.monthly)
     .reduce((sum, item) => sum + Number(item.value || 0), 0)
   return base + custom
+}
+
+export function estimateTaxes(gross) {
+  const value = Math.max(0, Number(gross || 0))
+  const ss = value * 0.062
+  const medicare = value * 0.0145
+  const sdi = value * 0.013
+  let federal = 0
+  if (value > 260) federal = (value - 260) * 0.10
+  if (value > 1000) federal = 74 + (value - 1000) * 0.12
+  let ca = 0
+  if (value > 500) ca = (value - 500) * 0.0527
+  return { federal, ss, medicare, sdi, ca }
+}
+
+export function pendingIncidentTotal(state) {
+  return (state.incidents || []).reduce((sum, incident) => sum + Math.max(0, Number(incident.remaining || 0)), 0)
+}
+
+export function applyPendingIncidentDeductions(incidents, maxAmount) {
+  let available = Math.max(0, Number(maxAmount || 0))
+  let applied = 0
+  const nextIncidents = (incidents || []).map((incident) => {
+    const copy = { ...incident }
+    const remaining = Math.max(0, Number(copy.remaining || 0))
+    if (remaining <= 0 || available <= 0) return copy
+    const take = Math.min(remaining, available)
+    copy.remaining = remaining - take
+    available -= take
+    applied += take
+    copy.status = copy.remaining <= 0 ? 'Descontado no holerite' : 'Parcialmente descontado'
+    return copy
+  })
+  return { incidents: nextIncidents, applied }
 }
 
 export function getPromotionStatus(state) {
