@@ -153,7 +153,21 @@ function CareersPage() {
       ) : (
         <section className="career-grid">
           {careers.map((career) => (
-            <article className="panel career-card" key={career.id}>
+            <article
+              className="panel career-card career-card-clickable"
+              key={career.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`Abrir carreira ${career.driverName}`}
+              onClick={() => openCareer(career)}
+              onKeyDown={(event) => {
+                if (event.target !== event.currentTarget) return
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  openCareer(career)
+                }
+              }}
+            >
               <div className="career-card-top">
                 <div>
                   <span className="eyebrow">Nível {career.currentLevel || 1}</span>
@@ -166,9 +180,22 @@ function CareersPage() {
                 <span>Saldo inicial</span><strong>{money(career.initialBalance ?? career.currentBalance)}</strong>
               </div>
               <p className="career-bio">{career.bio || career.biography || 'Sem biografia cadastrada.'}</p>
-              <div className="card-actions">
-                <button className="button primary" onClick={() => openCareer(career)}>Continuar</button>
-                <button className="button danger" onClick={() => removeCareer(career)}>Excluir</button>
+              <div className="career-card-footer">
+                <span className="career-open-hint">Clique no card para continuar</span>
+                <button
+                  className="career-delete-icon"
+                  type="button"
+                  aria-label={`Excluir carreira ${career.driverName}`}
+                  title="Excluir carreira"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    removeCareer(career)
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-2 6h10l-.7 11H7.7L7 9Zm3 2v7h2v-7h-2Zm4 0v7h2v-7h-2Z" />
+                  </svg>
+                </button>
               </div>
             </article>
           ))}
