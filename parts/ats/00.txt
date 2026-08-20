@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>ATS — Carreiras</title>
+<style>
+:root{--bg:#070b14;--panel:#111827;--panel2:#1f2937;--line:#334155;--text:#f8fafc;--muted:#94a3b8;--blue:#0ea5e9;--green:#16a34a;--red:#dc2626;--amber:#f59e0b}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:linear-gradient(180deg,#08111f,#111827);color:var(--text);padding:28px}.wrap{width:min(1100px,100%);margin:auto}.back{color:var(--muted);text-decoration:none;font-weight:700}.head{text-align:center;margin:20px 0 28px}.head img{width:min(360px,80%);height:160px;object-fit:contain}.head h1{margin:4px 0 6px}.head p{margin:0;color:var(--muted)}
+.actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-bottom:24px}.btn{display:inline-block;padding:13px 18px;border-radius:12px;background:var(--blue);color:white;text-decoration:none;font-weight:800;border:0;cursor:pointer}.btn.green{background:var(--green)}.btn.secondary{background:#334155}.careers{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:16px}.card{border:1px solid var(--line);border-radius:18px;padding:20px;background:rgba(31,41,55,.88)}.card h2{margin:0 0 8px}.meta{color:var(--muted);font-size:14px;line-height:1.6}.bio{margin:12px 0;color:#cbd5e1;min-height:42px}.row{display:flex;gap:8px;margin-top:14px}.row .btn{flex:1;text-align:center;padding:10px 12px}.danger{background:var(--red)}.empty{text-align:center;border:1px dashed var(--line);border-radius:18px;padding:30px;color:var(--muted)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;padding:18px;z-index:100}.modal.open{display:flex}.modal-card{width:min(900px,100%);max-height:90vh;overflow:auto;background:#111827;border:1px solid var(--line);border-radius:20px;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.45)}.modal-head{display:flex;justify-content:space-between;gap:15px;align-items:flex-start}.modal-head h2{margin:0}.close{width:auto;background:#334155;padding:8px 12px;border:0;border-radius:10px;color:white;cursor:pointer}.tutorial{margin-top:18px}.tutorial h3{margin-bottom:6px}.tutorial p,.tutorial li{color:#cbd5e1;line-height:1.55}.tutorial code{background:#0b1220;border:1px solid #243044;border-radius:6px;padding:2px 5px;color:#bae6fd}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:12px;margin:12px 0 18px}table{width:100%;border-collapse:collapse;min-width:700px}th,td{padding:10px;border-bottom:1px solid #263244;text-align:left;vertical-align:top;font-size:13px}th{background:#0b1220;color:#e2e8f0}.notice{border-left:4px solid var(--amber);background:#171d2b;padding:12px 14px;border-radius:10px;margin:14px 0;color:#dbeafe}.download-row{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:20px}.status{margin-top:12px;color:var(--muted);font-size:13px}@media(max-width:650px){body{padding:18px}.row{flex-direction:column}.actions .btn{width:100%;text-align:center}}
+
+/* Layout polish v21 */
+body{line-height:1.5;padding:32px 24px 48px}.wrap{width:min(1120px,100%)}
+.back{display:inline-flex;align-items:center;gap:6px;padding:8px 0;margin-bottom:8px}.back:hover{color:#e2e8f0}
+.head{margin:12px 0 32px}.head img{height:140px;margin-bottom:8px}.head h1{font-size:clamp(28px,4vw,40px);line-height:1.15;letter-spacing:-.02em}.head p{max-width:720px;margin:8px auto 0;line-height:1.6}
+.actions{gap:12px;margin:0 auto 30px}.btn{min-height:46px;display:inline-flex;align-items:center;justify-content:center;line-height:1.2;transition:.18s ease}.btn:hover{filter:brightness(1.08);transform:translateY(-1px)}
+.status{min-height:20px;margin:0 0 16px;text-align:center}.careers{gap:20px}.card{padding:22px;box-shadow:0 12px 32px rgba(0,0,0,.16)}.card h2{line-height:1.25}.meta{margin-top:10px}.bio{line-height:1.55;margin:14px 0}.row{gap:10px;margin-top:18px}.row .btn{min-height:42px}
+.empty{padding:40px 24px;line-height:1.6}.modal{padding:24px}.modal-card{padding:28px;border-radius:22px}.modal-head{gap:20px;margin-bottom:8px}.modal-head>div{min-width:0}.modal-head p{margin:8px 0 0}.close{flex:0 0 auto;min-height:40px}.tutorial{margin-top:22px}.tutorial h3{margin:24px 0 8px;font-size:18px}.tutorial p,.tutorial li{line-height:1.65}.tutorial ul{padding-left:22px}.table-wrap{margin:14px 0 22px}.notice{line-height:1.55;margin:16px 0}.download-row{padding-top:8px}
+@media(max-width:650px){body{padding:20px 16px 36px}.head img{height:110px}.actions{display:grid;grid-template-columns:1fr}.actions .btn{width:100%}.careers{grid-template-columns:1fr}.modal{padding:10px}.modal-card{padding:18px}.modal-head{flex-direction:column}.close{width:100%}.download-row{flex-direction:column}.download-row .btn{width:100%}.row{flex-direction:column}}
+
+</style>
+</head>
+<body><main class="wrap">
+<a class="back" href="index.html">← Voltar para jogos</a>
+<section class="head"><img src="https://cdn.cloudflare.steamstatic.com/steam/apps/270880/header.jpg" alt="American Truck Simulator"><h1>Carreiras — American Truck Simulator</h1><p>Crie uma carreira, importe um backup CSV ou continue uma carreira salva neste navegador.</p></section>
+<div class="actions">
+  <a class="btn" href="nova-carreira.html">+ Criar nova carreira</a>
+  <button class="btn green" onclick="document.getElementById('careerCsvInput').click()">Importar carreira CSV</button>
+  <button class="btn secondary" onclick="openTutorial()">Baixar modelo CSV</button>
+  <input id="careerCsvInput" type="file" accept=".csv,text/csv" style="display:none" onchange="importCareerCSV(event)">
+</div>
+<div id="importStatus" class="status"></div>
+<section id="careerList" class="careers"></section>
+</main>
+
+<div id="csvTutorial" class="modal" onclick="if(event.target===this)closeTutorial()">
+  <div class="modal-card">
+    <div class="modal-head"><div><h2>Modelo CSV — como preencher</h2><p class="status">Você pode abrir o arquivo no Excel, preencher o que quiser e depois importar nesta tela.</p></div><button class="close" onclick="closeTutorial()">Fechar</button></div>
+    <div class="tutorial">
+      <div class="notice"><strong>Regra principal:</strong> não altere os nomes da primeira coluna (<code>CAREER</code>, <code>STATE</code>, <code>TRIP</code> etc.) nem os cabeçalhos. Linhas que você não precisa podem ser deixadas sem registros.</div>
+
+      <h3>1. Linha de identificação</h3>
+      <p><code>ATS_CAREER_BACKUP,2</code> identifica o arquivo como um CSV compatível com o simulador. Não altere essa linha.</p>
+
+      <h3>2. CAREER — dados do personagem</h3>
+      <div class="table-wrap"><table><tr><th>Coluna</th><th>O que significa</th></tr>
+      <tr><td>id</td><td>Pode ficar vazio. Ao importar, o site cria um novo ID automaticamente.</td></tr>
+      <tr><td>driverName</td><td>Nome do motorista. Obrigatório.</td></tr>
+      <tr><td>city</td><td>Cidade-base da carreira, por exemplo <code>Los Angeles, CA</code>.</td></tr>
+      <tr><td>company</td><td>Nome da transportadora onde o personagem trabalha.</td></tr>
+      <tr><td>arrivalBalance</td><td>Dinheiro que o personagem trouxe ao chegar aos EUA.</td></tr>
+      <tr><td>initialBalance</td><td>Saldo disponível depois dos gastos iniciais de mudança.</td></tr>
+      <tr><td>bio</td><td>Biografia do personagem. Texto livre.</td></tr>
+      <tr><td>createdAt</td><td>Data de criação. Pode ficar vazia; o site preencherá na importação.</td></tr></table></div>
+
+      <h3>3. SETUP_COST — gastos para começar a morar</h3>
+      <p>Uma linha por gasto inicial. <code>name</code> é o identificador do gasto e <code>value</code> é o valor em dólares. Os nomes sugeridos são: <code>rent</code>, <code>deposit</code>, <code>license</code>, <code>groceries</code>, <code>home</code>, <code>phone</code>, <code>internet</code> e <code>transit</code>.</p>
+
+      <h3>4. STATE — situação atual da carreira</h3>
+      <div class="table-wrap"><table><tr><th>Coluna</th><th>O que significa</th></tr>
+      <tr><td>balance</td><td>Saldo atual da conta.</td></tr><tr><td>careerLevel</td><td>Nível atual: 1, 2 ou 3.</td></tr><tr><td>currentWeek</td><td>Número da semana de trabalho aberta no momento.</td></tr><tr><td>academyLevel2</td><td>Use 1 se o Academy do Nível 2 já foi concluído; 0 se não.</td></tr><tr><td>academyLevel3</td><td>Use 1 se o Academy do Nível 3 já foi concluído; 0 se não.</td></tr><tr><td>hazmatQualified</td><td>Use 1 se a qualificação HazMat já foi obtida; 0 se não.</td></tr></table></div>
+
+      <h3>5. TRIP — viagens</h3>
+      <p>Adicione uma linha <code>TRIP</code> para cada viagem. <code>week</code> define a semana; <code>departureAt</code> e <code>arrivalAt</code> são obrigatórios e usam o formato <code>AAAA-MM-DDTHH:MM</code>; <code>origin</code>/<code>destination</code> são cidades; <code>originCompany</code>/<code>destinationCompany</code> são empresas; <code>cargo</code> é a carga; <code>type</code> use <code>Loaded</code> ou <code>Deadhead</code>; <code>payCategory</code> use <code>normal</code>, <code>hazmat</code>, <code>doubles</code>, <code>hazmat_doubles</code> ou <code>deadhead</code>; <code>miles</code> é a distância.</p>
+      <div class="notice"><strong>Per diem:</strong> não é preenchido por viagem. O sistema calcula os dias qualificáveis automaticamente com base em <code>departureAt</code> e <code>arrivalAt</code>. Uma viagem que começa e termina no mesmo dia não gera per diem.</div>
+
+      <h3>6. HISTORY — movimentações financeiras</h3>
+      <p>Opcional. Guarda entradas e saídas antigas. Colunas: <code>date</code>, <code>type</code>, <code>desc</code>, <code>value</code> e <code>balance</code>.</p>
+
+      <h3>7. EXPENSE — gastos personalizados</h3>
+      <p>Opcional. <code>name</code> é o gasto, <code>value</code> é o valor e <code>monthly</code> deve ser <code>1</code> para entrar no desconto mensal automático ou <code>0</code> para não entrar.</p>
+
+      <h3>8. INCIDENT — infrações e acidentes</h3>
+      <p>Opcional. Uma linha por ocorrência. Informe tipo, data, hora, rota, descrição, valor e método de cobrança. Em <code>chargeMethod</code>, use <code>balance</code> para desconto imediato ou <code>payslip</code> para desconto no holerite. <code>remaining</code> é o valor ainda pendente.</p>
+
+      <h3>9. CLOSED_WEEK — semanas já fechadas</h3>
+      <p>Opcional. Use para importar holerites/semanas antigas. Se estiver começando uma carreira nova no Excel, pode deixar somente o cabeçalho dessa seção e preencher as viagens em <code>TRIP</code>.</p>
+
+      <div class="notice"><strong>Mais simples para uma carreira nova:</strong> preencha CAREER, SETUP_COST e STATE. Depois adicione TRIP conforme necessário. HISTORY, EXPENSE, INCIDENT e CLOSED_WEEK são opcionais.</div>
+      <h3>Glossário dos termos do modelo</h3>
+      <ul>
+        <li><strong>Loaded:</strong> viagem com carga.</li>
+        <li><strong>Deadhead:</strong> viagem vazia.</li>
+        <li><strong>HazMat:</strong> hazardous materials; carga perigosa que exige qualificação específica.</li>
+        <li><strong>Doubles:</strong> dois reboques/bitrem na adaptação da simulação.</li>
+        <li><strong>CPM:</strong> valor por milha.</li>
+        <li><strong>Per diem:</strong> diária de viagem calculada automaticamente pelos dias válidos entre saída e chegada.</li>
+        <li><strong>OTR:</strong> viagens de longa distância com pernoite fora da base.</li>
+      </ul>
+      <div class="download-row"><button class="btn secondary" onclick="closeTutorial()">Cancelar</button><button class="btn green" onclick="downloadCSVTemplate()">Baixar modelo CSV</button></div>
+    </div>
+  </div>
+</div>
+<script>
+const CAREERS_KEY='ats_careers_v1';
+function money(v){return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(v)||0)}
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
+function loadCareers(){try{return JSON.parse(localStorage.getItem(CAREERS_KEY)||'[]')}catch{return []}}
+function saveCareers(items){localStorage.setItem(CAREERS_KEY,JSON.stringify(items))}
+function render(){const list=document.getElementById('careerList');const careers=loadCareers();if(!careers.length){list.innerHTML='<div class="empty">Nenhuma carreira criada ainda.<br>Crie ou importe a primeira para começar.</div>';return;}list.innerHTML=careers.map(c=>`<article class="card"><h2>${esc(c.driverName)}</h2><div class="meta"><strong>Cidade:</strong> ${esc(c.city)}<br><strong>Empresa:</strong> ${esc(c.company)}<br><strong>Saldo inicial:</strong> ${money(c.initialBalance)}</div><div class="bio">${esc(c.bio||'Sem biografia.')}</div><div class="row"><a class="btn" href="fases.html?career=${encodeURIComponent(c.id)}">Continuar</a><button class="btn danger" onclick="deleteCareer('${c.id}')">Excluir</button></div></article>`).join('')}
+function deleteCareer(id){if(!confirm('Excluir esta carreira e todos os dados dela?'))return;let careers=loadCareers().filter(c=>c.id!==id);saveCareers(careers);localStorage.removeItem('ats_phase1_state_v4_'+id);render()}
+function openTutorial(){document.getElementById('csvTutorial').classList.add('open')}
+function closeTutorial(){document.getElementById('csvTutorial').classList.remove('open')}
+function csvEscape(value){const text=String(value??'');return '"'+text.replace(/"/g,'""')+'"'}
+function csvRow(values){return values.map(csvEscape).join(',')}
