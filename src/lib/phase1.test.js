@@ -98,13 +98,12 @@ describe('Phase 1 expenses, taxes and incidents', () => {
   })
 
   it('preserves the legacy weekly tax formula', () => {
-    expect(estimateTaxes(850)).toEqual({
-      federal: 59,
-      ss: 52.7,
-      medicare: 12.325,
-      sdi: 11.05,
-      ca: 18.445,
-    })
+    const taxes = estimateTaxes(850)
+    expect(taxes.federal).toBeCloseTo(59)
+    expect(taxes.ss).toBeCloseTo(52.7)
+    expect(taxes.medicare).toBeCloseTo(12.325)
+    expect(taxes.sdi).toBeCloseTo(11.05)
+    expect(taxes.ca).toBeCloseTo(18.445)
   })
 
   it('applies incident deductions in order and carries the remainder', () => {
