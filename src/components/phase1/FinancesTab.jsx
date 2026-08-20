@@ -1,12 +1,28 @@
 import { useMemo, useState } from 'react'
 import { EXPENSE_LABELS, monthlyExpenseTotal } from '../../lib/phase1.js'
 
+const EXPENSE_TIPS = {
+  rent: 'Aluguel mensal da moradia do motorista. Ajuste quando houver mudança de apartamento ou de valor.',
+  groceries: 'Orçamento mensal para mercado e alimentação em casa.',
+  phone: 'Plano de celular e linha telefônica usados pelo motorista.',
+  internet: 'Internet residencial mensal da simulação.',
+  transit: 'Transporte pessoal fora do caminhão da empresa, como ônibus, metrô ou corridas ocasionais.',
+}
+
 function money(value) {
   return Number(value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
 }
 
 function now() {
   return new Date().toLocaleString('pt-BR')
+}
+
+function InfoTip({ text }) {
+  return <button className="react-info-tip" type="button" aria-label="Mais informações" data-tip={text}>i</button>
+}
+
+function TipLabel({ children, tip, className = '' }) {
+  return <label className={`label-with-tip ${className}`.trim()}><span>{children}</span><InfoTip text={tip} /></label>
 }
 
 export default function FinancesTab({ state, commit }) {
@@ -106,7 +122,7 @@ export default function FinancesTab({ state, commit }) {
             <h2>Saldo</h2>
             <p>Use ajuste manual apenas para corrigir ou sincronizar a simulação.</p>
           </div>
-          <label>Saldo atual</label>
+          <TipLabel tip="Altera diretamente o dinheiro disponível da carreira. Use para correções ou sincronização; a diferença fica registrada no histórico.">Saldo atual</TipLabel>
           <input type="number" step="0.01" value={manualBalance} onChange={(event) => setManualBalance(event.target.value)} />
           <button className="button secondary full-button" type="button" onClick={applyManualBalance}>Atualizar saldo</button>
         </section>
@@ -120,7 +136,7 @@ export default function FinancesTab({ state, commit }) {
           <div className="expense-fields-grid">
             {Object.entries(state.expenses || {}).map(([key, value]) => (
               <div key={key} className="expense-field">
-                <label>{EXPENSE_LABELS[key] || key}</label>
+                <TipLabel tip={EXPENSE_TIPS[key] || 'Valor mensal desta despesa pessoal. Ele entra no total quando você aplicar as despesas mensais.'}>{EXPENSE_LABELS[key] || key}</TipLabel>
                 <input type="number" min="0" step="0.01" value={value} onChange={(event) => updateExpense(key, event.target.value)} />
               </div>
             ))}
@@ -135,9 +151,9 @@ export default function FinancesTab({ state, commit }) {
           <p>Cadastre gastos extras e escolha se entram ou não no desconto mensal automático.</p>
         </div>
         <form className="inline-form-grid" onSubmit={addCustomExpense}>
-          <div><label>Nome do gasto</label><input value={customName} onChange={(event) => setCustomName(event.target.value)} placeholder="Ex.: Academia, lavanderia" /></div>
-          <div><label>Valor</label><input type="number" min="0" step="0.01" value={customValue} onChange={(event) => setCustomValue(event.target.value)} placeholder="0.00" /></div>
-          <label className="check-field"><input type="checkbox" checked={customMonthly} onChange={(event) => setCustomMonthly(event.target.checked)} /> Incluir no desconto mensal</label>
+          <div><TipLabel tip="Nome livre para identificar um custo que não existe na lista padrão, como academia, lavanderia ou assinatura.">Nome do gasto</TipLabel><input value={customName} onChange={(event) => setCustomName(event.target.value)} placeholder="Ex.: Academia, lavanderia" /></div>
+          <div><TipLabel tip="Valor deste gasto personalizado. Se ele for mensal, será incluído no total mensal; caso contrário, fica apenas cadastrado como gasto avulso.">Valor</TipLabel><input type="number" min="0" step="0.01" value={customValue} onChange={(event) => setCustomValue(event.target.value)} placeholder="0.00" /></div>
+          <label className="check-field"><input type="checkbox" checked={customMonthly} onChange={(event) => setCustomMonthly(event.target.checked)} /> Incluir no desconto mensal <InfoTip text="Marcado: esse gasto entra no botão Aplicar despesas mensais. Desmarcado: ele não será cobrado automaticamente no fechamento mensal." /></label>
           <button className="button secondary" type="submit">Adicionar gasto</button>
         </form>
 
