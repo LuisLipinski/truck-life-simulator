@@ -62,6 +62,27 @@ function setInputValue(input, value) {
   })
 }
 
+describe('PayslipTab Level 1 route overrun', () => {
+  it('keeps hours automatic while allowing the hourly rate to be edited', () => {
+    const state = baseState({
+      trips: [
+        { week: 1, departureAt: '2026-08-20T07:00:00', arrivalAt: '2026-08-20T17:00:00', miles: 200 },
+      ],
+    })
+    renderPayslip(state)
+
+    expect(container.textContent).toContain('2h')
+    expect(container.textContent).toContain('$42.50')
+
+    const rateLabel = [...container.querySelectorAll('label')].find((label) => label.textContent.includes('Valor por hora de Route Overrun'))
+    const rateInput = rateLabel.nextElementSibling
+    setInputValue(rateInput, '30')
+
+    expect(container.textContent).toContain('$60.00')
+    expect(container.textContent).toContain('$30.00/h')
+  })
+})
+
 describe('PayslipTab reserve automation', () => {
   it('transfers the configured amount after salary deposit without adding it to payslip lines', () => {
     const state = baseState()
