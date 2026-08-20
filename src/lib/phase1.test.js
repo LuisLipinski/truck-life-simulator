@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  EMERGENCY_RESERVE_ANNUAL_YIELD,
   applyPendingIncidentDeductions,
   currentWeekMiles,
   currentWeekTrips,
+  emergencyReserveContribution,
   estimateTaxes,
   getPromotionStatus,
   mileagePaySummary,
@@ -12,6 +14,7 @@ import {
   totalMiles,
   tripPayCategory,
   validPayCategories,
+  weeklyEmergencyReserveYield,
 } from './phase1.js'
 
 function makeState(overrides = {}) {
@@ -85,7 +88,7 @@ describe('Phase 1 per diem', () => {
   })
 })
 
-describe('Phase 1 expenses, taxes and incidents', () => {
+describe('Phase 1 expenses, reserve, taxes and incidents', () => {
   it('adds fixed and monthly custom expenses only', () => {
     const state = makeState({
       expenses: { rent: 1000, phone: 50 },
@@ -95,6 +98,23 @@ describe('Phase 1 expenses, taxes and incidents', () => {
       ],
     })
     expect(monthlyExpenseTotal(state)).toBe(1075)
+  })
+
+  it('keeps the emergency reserve contribution outside real monthly expenses', () => {
+    const state = makeState({
+      expenses: { rent: 1000, phone: 50, emergency: 200 },
+      customExpenses: [{ value: 25, monthly: true }],
+    })
+    expect(monthlyExpenseTotal(state)).toBe(1075)
+    expect(emergencyReserveContribution(state)).toBe(200)
+  })
+
+  it('calculates reserve yield proportionally using the annual simulated rate', () => {
+    expect(weeklyEmergencyReserveYield(200)).toBeCloseTo(200 * EMERGENCY_RESERVE_ANNUAL_YIELD / 52, 12)
+    expect(weeklyEmergencyReserveYield(5000)).toBeCloseTo(5000 * EMERGENCY_RESERVE_ANNUAL_YIELD / 52, 12)
+    expect(weeklyEmergencyReserveYield(5000)).toBeGreaterThan(weeklyEmergencyReserveYield(200))
+    expect(weeklyEmergencyReserveYield(0)).toBe(0)
+    expect(weeklyEmergencyReserveYield(-10)).toBe(0)
   })
 
   it('preserves the legacy weekly tax formula', () => {
@@ -123,13 +143,27 @@ describe('Phase 1 expenses, taxes and incidents', () => {
 })
 
 describe('Phase 1 promotions', () => {
-  it('unlocks Level 2 at 10,000 total miles and Level 3 at 50,000', () => {
+  it('does not unlock Level 2 before 10,000 total miles', () => {
+    const level1 = makeState({ currentLevel: 1, trips: [{ miles: 9999 }] })
+    expect(getPromotionStatus(level1)).toMatchObject({ ready: false, nextLevel: 2, remaining: 1 })
+  })
+
+  it('unlocks Level 2 exactly at 10,000 total miles', () => {
     const level1 = makeState({ currentLevel: 1, trips: [{ miles: 10000 }] })
     expect(getPromotionStatus(level1)).toMatchObject({ ready: true, nextLevel: 2, remaining: 0 })
+  })
 
+  it('does not unlock Level 3 before 50,000 total miles', () => {
+    const level2 = makeState({ currentLevel: 2, trips: [{ miles: 49999 }] })
+    expect(getPromotionStatus(level2)).toMatchObject({ ready: false, nextLevel: 3, remaining: 1 })
+  })
+
+  it('unlocks Level 3 exactly at 50,000 total miles', () => {
     const level2 = makeState({ currentLevel: 2, trips: [{ miles: 50000 }] })
     expect(getPromotionStatus(level2)).toMatchObject({ ready: true, nextLevel: 3, remaining: 0 })
+  })
 
+  it('keeps Level 3 as the maximum of Phase 1', () => {
     const max = makeState({ currentLevel: 3, trips: [{ miles: 80000 }] })
     expect(getPromotionStatus(max)).toMatchObject({ ready: false, nextLevel: null, remaining: 0 })
   })
