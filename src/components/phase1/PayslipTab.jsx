@@ -46,6 +46,8 @@ export default function PayslipTab({ state, commit }) {
   const [overrunRate, setOverrunRate] = useState(21.25)
   const [benefits, setBenefits] = useState(36)
   const [perDiemRate, setPerDiemRate] = useState(80)
+  const [autoReserveEnabled, setAutoReserveEnabled] = useState(Boolean(state.autoReserveContribution?.enabled))
+  const [autoReserveAmount, setAutoReserveAmount] = useState(state.autoReserveContribution?.amount ?? '')
   const [preview, setPreview] = useState(null)
 
   const weekTrips = useMemo(() => currentWeekTrips(state), [state])
@@ -98,11 +100,23 @@ export default function PayslipTab({ state, commit }) {
   function generatePayslip() {
     const result = calculate()
     setPreview(result)
+
+    const reserveContribution = autoReserveEnabled ? Math.max(0, Number(autoReserveAmount) || 0) : 0
+    if (autoReserveEnabled && reserveContribution <= 0) {
+      window.alert('Informe um valor maior que zero para o aporte automático à reserva.')
+      return
+    }
+    if (reserveContribution > result.deposit) {
+      window.alert(`O aporte automático não pode ser maior que o depósito desta semana (${money(result.deposit)}).`)
+      return
+    }
+
     if (!window.confirm(`Gerar o holerite e fechar a Semana ${state.currentWeek}? Depois disso, as viagens dessa semana ficarão fechadas no histórico.`)) return
 
     const weekNumber = Number(state.currentWeek || 1)
-    const nextBalance = Number(state.balance || 0) + result.deposit
-    const nextReserve = Number(state.emergencyReserve || 0) + result.reserveInterest
+    const balanceAfterSalary = Number(state.balance || 0) + result.deposit
+    const nextBalance = balanceAfterSalary - reserveContribution
+    const nextReserve = Number(state.emergencyReserve || 0) + result.reserveInterest + reserveContribution
     const closedWeek = {
       week: weekNumber,
       closedAt: new Date().toLocaleString('pt-BR'),
@@ -126,9 +140,20 @@ export default function PayslipTab({ state, commit }) {
         desc: `Semana ${weekNumber} fechada — ${result.desc}${result.incidentDeduction ? ` — ocorrências: -${money(result.incidentDeduction)}` : ''}`,
         value: result.deposit,
         amount: result.deposit,
-        balance: nextBalance,
+        balance: balanceAfterSalary,
       },
     ]
+    if (reserveContribution > 0) {
+      historyEntries.push({
+        date: new Date().toLocaleString('pt-BR'),
+        type: 'Reserva',
+        desc: `Aporte automático à reserva — Semana ${weekNumber}`,
+        value: -reserveContribution,
+        amount: -reserveContribution,
+        balance: nextBalance,
+        reserve: Number(state.emergencyReserve || 0) + reserveContribution,
+      })
+    }
     if (result.reserveInterest > 0) {
       historyEntries.push({
         date: new Date().toLocaleString('pt-BR'),
@@ -145,6 +170,7 @@ export default function PayslipTab({ state, commit }) {
       ...state,
       balance: nextBalance,
       emergencyReserve: nextReserve,
+      autoReserveContribution: { enabled: autoReserveEnabled, amount: reserveContribution },
       currentWeek: weekNumber + 1,
       incidents: result.incidents,
       closedWeeks: [...(state.closedWeeks || []), closedWeek],
@@ -205,6 +231,21 @@ export default function PayslipTab({ state, commit }) {
 
         <TipLabel tip="Desconto semanal dos benefícios do motorista. O padrão de US$ 36 representa médico/prescrição, dental e visão na simulação.">Benefícios semanais</TipLabel>
         <input type="number" min="0" step="0.01" value={benefits} onChange={(event) => setBenefits(event.target.value)} />
+
+        <div className="payslip-reserve-auto">
+          <label className="check-field">
+            <input type="checkbox" checked={autoReserveEnabled} onChange={(event) => setAutoReserveEnabled(event.target.checked)} />
+            Adicionar automaticamente à reserva ao fechar a semana
+            <InfoTip text="Depois que o holerite for depositado, o valor informado é transferido do saldo disponível para a Reserva de Emergência. Essa transferência não aparece nas linhas do holerite; fica registrada no Histórico." />
+          </label>
+          {autoReserveEnabled && (
+            <div className="payslip-reserve-amount">
+              <TipLabel tip="Valor fixo transferido automaticamente para a Reserva de Emergência em cada fechamento semanal enquanto esta opção permanecer ativa.">Valor do aporte automático</TipLabel>
+              <input type="number" min="0.01" step="0.01" value={autoReserveAmount} onChange={(event) => setAutoReserveAmount(event.target.value)} placeholder="0.00" />
+            </div>
+          )}
+        </div>
+
         <button className="button success full-button" type="button" onClick={generatePayslip}>Gerar holerite e depositar</button>
       </section>
 
@@ -225,7 +266,7 @@ export default function PayslipTab({ state, commit }) {
           <div className="emphasis-line"><LineLabel tip="Salário após impostos estimados e benefícios, antes de somar per diem e descontar ocorrências pendentes.">Salário líquido</LineLabel><strong>{money(shown.netSalary)}</strong></div>
           <div><LineLabel tip="Valor não salarial calculado pelos dias OTR qualificáveis da semana. No Nível 1 ele é zero.">Per diem</LineLabel><strong>+{money(shown.perDiem)}</strong></div>
           <div><LineLabel tip="Total de multas ou acidentes que você marcou para descontar do próximo holerite e que puderam ser aplicados nesta semana.">Infrações/acidentes</LineLabel><strong>-{money(shown.incidentDeduction)}</strong></div>
-          <div className="deposit-line"><LineLabel tip="Valor final que entra no saldo da carreira quando o holerite é gerado. Rendimentos da reserva são separados do holerite e aparecem somente no Histórico.">Depósito total</LineLabel><strong>{money(shown.deposit)}</strong></div>
+          <div className="deposit-line"><LineLabel tip="Valor final do pagamento semanal. Se o aporte automático à reserva estiver ativo, a transferência acontece depois do depósito e fica somente no Histórico.">Depósito total</LineLabel><strong>{money(shown.deposit)}</strong></div>
         </div>
       </section>
 
