@@ -7,6 +7,7 @@ import {
   loadCareers,
   setActiveCareer,
 } from './lib/storage.js'
+import Phase1Page from './components/Phase1Page.jsx'
 
 const ATS_IMAGE = 'https://cdn.cloudflare.steamstatic.com/steam/apps/270880/header.jpg'
 const ETS_IMAGE = 'https://cdn.cloudflare.steamstatic.com/steam/apps/227300/header.jpg'
@@ -273,14 +274,14 @@ function PhasesPage({ careerId }) {
         <span>{career.company}</span>
       </div>
       <section className="phase-list">
-        <a className="phase-card interactive" href={`fase1.html?career=${encodeURIComponent(career.id)}`}>
+        <AppLink className="phase-card interactive" to={`/phase1?career=${encodeURIComponent(career.id)}`}>
           <div><span className="eyebrow">Fase ativa</span><h2>Fase 1 — Motorista Empregado</h2><p>Company Driver • Níveis 1, 2 e 3 • Sem caminhão próprio.</p></div>
-          <span className="tag active">Abrir versão atual</span>
-        </a>
+          <span className="tag active">Abrir em React</span>
+        </AppLink>
         <article className="phase-card disabled"><div><h2>Fase 2</h2><p>Primeiro caminhão próprio e operação como owner-operator.</p></div><span className="tag">Em breve</span></article>
         <article className="phase-card disabled"><div><h2>Fase 3</h2><p>Reservada para uma etapa futura da simulação.</p></div><span className="tag">Em breve</span></article>
       </section>
-      <div className="migration-note">A seleção de jogos, carreiras, criação e fases já está em React. A Fase 1 ainda abre o módulo clássico enquanto suas regras são convertidas para componentes.</div>
+      <div className="migration-note">Home, carreiras, criação, fases, Visão Geral e Progresso já estão em React. Os demais módulos da Fase 1 continuam disponíveis na versão clássica durante a migração.</div>
     </main>
   )
 }
@@ -291,5 +292,9 @@ export default function App() {
   if (path === '/ats') return <CareersPage />
   if (path === '/new') return <NewCareerPage />
   if (path === '/phases') return <PhasesPage careerId={params.get('career')} />
+  if (path === '/phase1') {
+    const careerId = params.get('career') || getActiveCareerId()
+    return <Phase1Page careerId={careerId} onBack={() => { window.location.hash = `#/phases?career=${encodeURIComponent(careerId || '')}` }} />
+  }
   return <HomePage />
 }
