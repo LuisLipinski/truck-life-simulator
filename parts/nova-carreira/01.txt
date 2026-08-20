@@ -1,0 +1,64 @@
+const ATS_CITIES=["Camp Verde, AZ", "Clifton, AZ", "Flagstaff, AZ", "Grand Canyon Village, AZ", "Kayenta, AZ", "Kingman, AZ", "Lake Havasu City, AZ", "Nogales, AZ", "Page, AZ", "Phoenix, AZ", "San Simon, AZ", "Show Low, AZ", "Sierra Vista, AZ", "Tucson, AZ", "Winslow, AZ", "Yuma, AZ", "El Dorado, AR", "Fayetteville, AR", "Fort Smith, AR", "Harrison, AR", "Hot Springs, AR", "Jonesboro, AR", "Little Rock, AR", "Pine Bluff, AR", "Springdale, AR", "Texarkana, AR", "Bakersfield, CA", "Barstow, CA", "Carlsbad, CA", "El Centro, CA", "Eureka, CA", "Fresno, CA", "Hornbrook, CA", "Oakland, CA", "Oxnard, CA", "Redding, CA", "Sacramento, CA", "San Diego, CA", "Santa Maria, CA", "Santa Cruz, CA", "San Francisco, CA", "San Rafael, CA", "Truckee, CA", "Ukiah, CA", "Alamosa, CO", "Burlington, CO", "Colorado Springs, CO", "Denver, CO", "Durango, CO", "Fort Collins, CO", "Grand Junction, CO", "Lamar, CO", "Montrose, CO", "Pueblo, CO", "Rangely, CO", "Steamboat Springs, CO", "Sterling, CO", "Boise, ID", "Coeur d'Alene, ID", "Grangeville, ID", "Idaho Falls, ID", "Ketchum, ID", "Lewiston, ID", "Nampa, ID", "Pocatello, ID", "Salmon, ID", "Sandpoint, ID", "Twin Falls, ID", "Bloomington, IL", "Champaign, IL", "Chicago, IL", "East St. Louis, IL", "Effingham, IL", "Marion, IL", "Moline, IL", "Peoria, IL", "Quincy, IL", "Rockford, IL", "Springfield, IL", "Burlington, IA", "Cedar Rapids, IA", "Council Bluffs, IA", "Davenport, IA", "Des Moines, IA", "Dubuque, IA", "Fort Dodge, IA", "Iowa City, IA", "Mason City, IA", "Ottumwa, IA", "Sioux City, IA", "Waterloo, IA", "Colby, KS", "Dodge City, KS", "Emporia, KS", "Garden City, KS", "Hays, KS", "Hutchinson, KS", "Junction City, KS", "Kansas City, KS", "Marysville, KS", "Phillipsburg, KS", "Pittsburg, KS", "Salina, KS", "Topeka, KS", "Wichita, KS", "Alexandria, LA", "Baton Rouge, LA", "DeRidder, LA", "Houma, LA", "Lafayette, LA", "Lake Charles, LA", "Monroe, LA", "Natchitoches, LA", "New Orleans, LA", "Port Fourchon, LA", "Shreveport, LA", "Cape Girardeau, MO", "Columbia, MO", "Jefferson City, MO", "Joplin, MO", "Kansas City, MO", "Kirksville, MO", "Maryville, MO", "Poplar Bluff, MO", "Rolla, MO", "Springfield, MO", "St. Joseph, MO", "St. Louis, MO", "Billings, MT", "Bozeman, MT", "Butte, MT", "Glasgow, MT", "Glendive, MT", "Great Falls, MT", "Havre, MT", "Helena, MT", "Kalispell, MT", "Laurel, MT", "Lewistown, MT", "Miles City, MT", "Missoula, MT", "Sidney, MT", "Thompson Falls, MT", "Alliance, NE", "Chadron, NE", "Columbus, NE", "Grand Island, NE", "Lincoln, NE", "McCook, NE", "Norfolk, NE", "North Platte, NE", "Omaha, NE", "Scottsbluff, NE", "Sidney, NE", "Valentine, NE", "Carson City, NV", "Elko, NV", "Ely, NV", "Jackpot, NV", "Las Vegas, NV", "Pioche, NV", "Primm, NV", "Reno, NV", "Tonopah, NV", "Winnemucca, NV", "Alamogordo, NM", "Albuquerque, NM", "Artesia, NM", "Carlsbad, NM", "Clovis, NM", "Farmington, NM", "Gallup, NM", "Hobbs, NM", "Las Cruces, NM", "Raton, NM", "Roswell, NM", "Santa Fe, NM", "Socorro, NM", "Tucumcari, NM", "Ardmore, OK", "Clinton, OK", "Enid, OK", "Guymon, OK", "Idabel, OK", "Lawton, OK", "McAlester, OK", "Oklahoma City, OK", "Tulsa, OK", "Woodward, OK", "Astoria, OR", "Bend, OR", "Burns, OR", "Coos Bay, OR", "Eugene, OR", "Klamath Falls, OR", "Lakeview, OR", "Medford, OR", "Newport, OR", "Ontario, OR", "Pendleton, OR", "Portland, OR", "Salem, OR", "The Dalles, OR", "Abilene, TX", "Amarillo, TX", "Austin, TX", "Beaumont, TX", "Brownsville, TX", "Corpus Christi, TX", "Dalhart, TX", "Dallas, TX", "Del Rio, TX", "El Paso, TX", "Fort Stockton, TX", "Fort Worth, TX", "Galveston, TX", "Houston, TX", "Huntsville, TX", "Laredo, TX", "Longview, TX", "Lubbock, TX", "Lufkin, TX", "McAllen, TX", "Odessa, TX", "San Angelo, TX", "San Antonio, TX", "Texarkana, TX", "Tyler, TX", "Van Horn, TX", "Victoria, TX", "Waco, TX", "Wichita Falls, TX", "Cedar City, UT", "Logan, UT", "Moab, UT", "Ogden, UT", "Price, UT", "Provo, UT", "Salina, UT", "Salt Lake City, UT", "St. George, UT", "Vernal, UT", "Aberdeen, WA", "Bellingham, WA", "Colville, WA", "Everett, WA", "Grand Coulee, WA", "Kennewick, WA", "Longview, WA", "Olympia, WA", "Omak, WA", "Port Angeles, WA", "Seattle, WA", "Spokane, WA", "Tacoma, WA", "Vancouver, WA", "Wenatchee, WA", "Yakima, WA", "Casper, WY", "Cheyenne, WY", "Cody, WY", "Evanston, WY", "Gillette, WY", "Jackson, WY", "Laramie, WY", "Rawlins, WY", "Riverton, WY", "Rock Springs, WY", "Sheridan, WY", "Los Angeles, CA"];
+function normalizeCitySearch(value){return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
+function escapeHtml(value){return String(value).replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));}
+function cityLabel(city,raw){
+ const q=normalizeCitySearch(raw); if(!q) return escapeHtml(city);
+ const normalized=normalizeCitySearch(city); const pos=normalized.indexOf(q);
+ if(pos<0) return escapeHtml(city);
+ return escapeHtml(city.slice(0,pos))+'<span class="city-match">'+escapeHtml(city.slice(pos,pos+raw.length))+'</span>'+escapeHtml(city.slice(pos+raw.length));
+}
+function setupCityAutocomplete(){
+ const input=document.getElementById('city'),box=document.getElementById('cityResults'),toggle=document.getElementById('cityToggle');
+ if(!input||!box)return; let active=-1;
+ const close=()=>{box.classList.remove('open');box.innerHTML='';input.setAttribute('aria-expanded','false');active=-1;};
+ const choose=value=>{input.value=value;input.dataset.cityConfirmed='true';close();input.focus();};
+ const draw=(matches,raw,allowManual=false)=>{
+   box.innerHTML=''; active=-1;
+   const header=document.createElement('div'); header.className='city-results-header';
+   header.textContent=raw ? `${matches.length} cidade(s) encontrada(s)` : 'Todas as cidades';
+   box.appendChild(header);
+   matches.forEach(city=>{
+     const item=document.createElement('div'); item.className='city-option'; item.setAttribute('role','option');
+     item.innerHTML=cityLabel(city,raw); item.addEventListener('mousedown',e=>{e.preventDefault();choose(city);}); box.appendChild(item);
+   });
+   if(allowManual && raw){
+     const manual=document.createElement('div'); manual.className='city-option manual'; manual.setAttribute('role','option');
+     manual.textContent='＋ Adicionar manualmente: “'+raw+'”'; manual.addEventListener('mousedown',e=>{e.preventDefault();choose(raw);}); box.appendChild(manual);
+   }
+   box.classList.add('open'); input.setAttribute('aria-expanded','true');
+ };
+ const search=()=>{
+   const raw=input.value.trim();
+   if(!raw){close(); return;}
+   const q=normalizeCitySearch(raw);
+   const matches=[...new Set(ATS_CITIES.filter(c=>normalizeCitySearch(c).includes(q)))].sort((a,b)=>a.localeCompare(b));
+   draw(matches,raw,matches.length===0);
+ };
+ const showAll=()=>{
+   const matches=[...new Set(ATS_CITIES)].sort((a,b)=>a.localeCompare(b));
+   draw(matches,'',false);
+ };
+ input.addEventListener('input',()=>{input.dataset.cityConfirmed='false';search();});
+ toggle?.addEventListener('mousedown',e=>{e.preventDefault(); if(box.classList.contains('open')) close(); else {input.focus(); showAll();}});
+ input.addEventListener('keydown',e=>{
+   if(e.key==='ArrowDown'&&!box.classList.contains('open')){e.preventDefault(); if(input.value.trim())search(); else showAll(); return;}
+   const items=[...box.querySelectorAll('.city-option:not(.empty)')]; if(!box.classList.contains('open')||!items.length)return;
+   if(e.key==='ArrowDown'){e.preventDefault();active=(active+1)%items.length;}
+   else if(e.key==='ArrowUp'){e.preventDefault();active=(active-1+items.length)%items.length;}
+   else if(e.key==='Enter'&&active>=0){e.preventDefault();items[active].dispatchEvent(new MouseEvent('mousedown',{bubbles:true}));return;}
+   else if(e.key==='Escape'){close();return;} else return;
+   items.forEach((el,i)=>el.classList.toggle('active',i===active)); items[active]?.scrollIntoView({block:'nearest'});
+ });
+ input.addEventListener('blur',()=>setTimeout(close,160));
+}
+setupCityAutocomplete();
+document.getElementById('careerForm').addEventListener('submit',e=>{
+ e.preventDefault();const cityValue=document.getElementById('city').value.trim();if(!cityValue){alert('Selecione ou informe uma cidade inicial.');return;}const c=calc();
+ if(c.remaining<0&&!confirm('Os custos iniciais são maiores que o dinheiro disponível. Deseja criar a carreira mesmo assim com saldo negativo?'))return;
+ const setupCosts={rent:Number(costRent.value)||0,deposit:Number(costDeposit.value)||0,license:Number(costLicense.value)||0,groceries:Number(costGroceries.value)||0,home:Number(costHome.value)||0,phone:Number(costPhone.value)||0,internet:Number(costInternet.value)||0,transit:Number(costTransit.value)||0};
+ const career={id:'career_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),driverName:driverName.value.trim(),city:cityValue,company:company.value.trim(),arrivalBalance:c.arrival,setupCosts,setupCostsTotal:c.total,initialBalance:c.remaining,bio:bio.value.trim(),createdAt:new Date().toISOString()};
+ const careers=load();careers.push(career);localStorage.setItem(KEY,JSON.stringify(careers));localStorage.setItem('ats_active_career',career.id);location.href='fases.html?career='+encodeURIComponent(career.id)
+});
+calc();
+</script>
+</body></html>
