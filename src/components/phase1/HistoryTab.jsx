@@ -28,13 +28,6 @@ export default function HistoryTab({ state }) {
       value: Number(week.net ?? week.deposit ?? week.netPay ?? 0),
     }))
 
-  const weeklyMilesData = [...closedWeeks]
-    .slice(-8)
-    .map((week) => ({
-      label: `Semana ${week.week || '—'}`,
-      value: Number(week.miles || 0),
-    }))
-
   return (
     <>
       <section className="history-summary-grid">
@@ -43,7 +36,7 @@ export default function HistoryTab({ state }) {
         <article className="panel history-summary"><span className="metric-label line-label-with-tip">Ocorrências <Tip text="Total de infrações, acidentes e outras cobranças registradas durante a carreira." /></span><strong>{incidents.length}</strong><span>Infrações e acidentes cadastrados</span></article>
       </section>
 
-      <section className="career-charts-grid history-charts-grid" aria-label="Gráficos do histórico da carreira">
+      <section className="career-charts-grid history-charts-grid" aria-label="Gráficos financeiros do histórico da carreira">
         <LineChart
           title="Evolução do saldo"
           description="Últimas movimentações com saldo registrado. Ajuda a enxergar se a conta pessoal está crescendo ou diminuindo ao longo da carreira."
@@ -57,13 +50,6 @@ export default function HistoryTab({ state }) {
           data={weeklyDepositData}
           formatValue={money}
           emptyText="Feche um holerite para começar a comparar os depósitos semanais."
-        />
-        <BarChart
-          title="Milhas por semana"
-          description="Mostra o ritmo de trabalho das últimas semanas já encerradas."
-          data={weeklyMilesData}
-          formatValue={(value) => `${Number(value || 0).toLocaleString('en-US')} mi`}
-          emptyText="Feche um holerite com viagens registradas para visualizar as milhas por semana."
         />
       </section>
 
