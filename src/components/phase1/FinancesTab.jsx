@@ -17,21 +17,34 @@ const EXPENSE_TIPS = {
 }
 
 function money(value) {
-  return Number(value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+  return Number(value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function now() {
   return new Date().toLocaleString('pt-BR')
 }
 
+function parseMoneyNumber(value) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : NaN
+  const text = String(value ?? '').trim()
+  if (!text || !/^-?\d+(?:[.,]\d{1,2})?$/.test(text)) return NaN
+  const number = Number(text.replace(',', '.'))
+  return Number.isFinite(number) ? number : NaN
+}
+
 function toCents(value) {
-  const number = Number(value)
+  const number = parseMoneyNumber(value)
   if (!Number.isFinite(number)) return NaN
   return Math.round((number + Number.EPSILON) * 100)
 }
 
 function fromCents(value) {
   return Number(value || 0) / 100
+}
+
+function moneyInput(value) {
+  const cents = toCents(value)
+  return Number.isFinite(cents) ? fromCents(cents).toFixed(2) : ''
 }
 
 function InfoTip({ text }) {
@@ -44,7 +57,7 @@ function TipLabel({ children, tip, className = '' }) {
 
 export default function FinancesTab({ state, commit }) {
   const toast = useToast()
-  const [manualBalance, setManualBalance] = useState(state.balance)
+  const [manualBalance, setManualBalance] = useState(() => moneyInput(state.balance))
   const [customName, setCustomName] = useState('')
   const [customValue, setCustomValue] = useState('')
   const [customMonthly, setCustomMonthly] = useState(true)
@@ -54,29 +67,37 @@ export default function FinancesTab({ state, commit }) {
 
   const reserveCents = Math.max(0, toCents(state.emergencyReserve || 0) || 0)
   const reserve = fromCents(reserveCents)
-  const reserveContribution = emergencyReserveContribution(state)
+  const reserveContribution = fromCents(Math.max(0, toCents(emergencyReserveContribution(state)) || 0))
   const baseMonthly = useMemo(
-    () => Object.entries(state.expenses || {}).filter(([key]) => key !== 'emergency').reduce((sum, [, value]) => sum + Number(value || 0), 0),
+    () => Object.entries(state.expenses || {}).filter(([key]) => key !== 'emergency').reduce((sum, [, value]) => sum + fromCents(Math.max(0, toCents(value) || 0)), 0),
     [state.expenses],
   )
   const customMonthlyTotal = useMemo(
-    () => (state.customExpenses || []).filter((item) => item.monthly).reduce((sum, item) => sum + Number(item.value || 0), 0),
+    () => (state.customExpenses || []).filter((item) => item.monthly).reduce((sum, item) => sum + fromCents(Math.max(0, toCents(item.value) || 0)), 0),
     [state.customExpenses],
   )
-  const totalMonthly = monthlyExpenseTotal(state)
-  const totalAssets = Number(state.balance || 0) + reserve
+  const totalMonthly = fromCents(toCents(monthlyExpenseTotal(state)) || 0)
+  const totalAssets = fromCents((toCents(state.balance || 0) || 0) + reserveCents)
 
   function updateExpense(key, value) {
-    commit({ ...state, expenses: { ...state.expenses, [key]: Math.max(0, Number(value) || 0) } })
+    const cents = toCents(value)
+    if (!Number.isFinite(cents) || cents < 0) {
+      toast.error('Informe um valor monetário válido, com no máximo duas casas decimais.')
+      return false
+    }
+    commit({ ...state, expenses: { ...state.expenses, [key]: fromCents(cents) } })
+    return true
   }
 
   function applyManualBalance() {
-    const nextBalance = Number(manualBalance)
-    if (!Number.isFinite(nextBalance)) {
-      toast.error('Informe um saldo válido.')
+    const nextBalanceCents = toCents(manualBalance)
+    if (!Number.isFinite(nextBalanceCents)) {
+      toast.error('Informe um saldo válido, com no máximo duas casas decimais.')
       return
     }
-    const difference = nextBalance - Number(state.balance || 0)
+    const currentBalanceCents = toCents(state.balance || 0) || 0
+    const nextBalance = fromCents(nextBalanceCents)
+    const difference = fromCents(nextBalanceCents - currentBalanceCents)
     commit({
       ...state,
       balance: nextBalance,
@@ -85,6 +106,7 @@ export default function FinancesTab({ state, commit }) {
         { date: now(), type: 'Ajuste', desc: 'Ajuste manual de saldo', value: difference, amount: difference, balance: nextBalance },
       ],
     })
+    setManualBalance(moneyInput(nextBalance))
     toast.success(`Saldo atualizado para ${money(nextBalance)}.`)
   }
 
@@ -92,7 +114,7 @@ export default function FinancesTab({ state, commit }) {
     const amountCents = toCents(reserveDeposit)
     const balanceCents = toCents(state.balance || 0)
     if (!Number.isFinite(amountCents) || amountCents <= 0) {
-      toast.error('Informe um valor válido para adicionar à reserva.')
+      toast.error('Informe um valor válido para adicionar à reserva, com no máximo duas casas decimais.')
       return
     }
     if (!Number.isFinite(balanceCents) || amountCents > balanceCents) {
@@ -111,7 +133,7 @@ export default function FinancesTab({ state, commit }) {
         { date: now(), type: 'Reserva', desc: 'Aporte manual à reserva de emergência', value: -amount, amount: -amount, balance: nextBalance, reserve: nextReserve },
       ],
     })
-    setManualBalance(nextBalance)
+    setManualBalance(moneyInput(nextBalance))
     setReserveDeposit('')
     toast.success(`${money(amount)} adicionados à reserva.`)
   }
@@ -121,7 +143,7 @@ export default function FinancesTab({ state, commit }) {
     const amountCents = toCents(reserveUseAmount)
     const reason = reserveUseReason.trim()
     if (!Number.isFinite(amountCents) || amountCents <= 0) {
-      toast.error('Informe um valor válido para usar da reserva.')
+      toast.error('Informe um valor válido para usar da reserva, com no máximo duas casas decimais.')
       return
     }
     if (!reason) {
@@ -145,7 +167,7 @@ export default function FinancesTab({ state, commit }) {
         { date: now(), type: 'Reserva', desc: `Resgate da reserva — ${reason}`, value: amount, amount, balance: nextBalance, reserve: nextReserve },
       ],
     })
-    setManualBalance(nextBalance)
+    setManualBalance(moneyInput(nextBalance))
     setReserveUseAmount('')
     setReserveUseReason('')
     toast.success(`${money(amount)} transferidos da reserva para o saldo disponível.`)
@@ -153,11 +175,12 @@ export default function FinancesTab({ state, commit }) {
 
   function addCustomExpense(event) {
     event.preventDefault()
-    const value = Number(customValue)
-    if (!customName.trim() || !Number.isFinite(value) || value < 0) {
-      toast.error('Informe nome e valor válido para o gasto.')
+    const valueCents = toCents(customValue)
+    if (!customName.trim() || !Number.isFinite(valueCents) || valueCents < 0) {
+      toast.error('Informe nome e valor válido para o gasto, com no máximo duas casas decimais.')
       return
     }
+    const value = fromCents(valueCents)
     const expenseName = customName.trim()
     commit({
       ...state,
@@ -186,9 +209,10 @@ export default function FinancesTab({ state, commit }) {
   }
 
   function applyMonthlyExpenses() {
-    const totalOutflow = totalMonthly + reserveContribution
+    const totalOutflowCents = (toCents(totalMonthly) || 0) + (toCents(reserveContribution) || 0)
+    const totalOutflow = fromCents(totalOutflowCents)
     if (!window.confirm(`Aplicar ${money(totalMonthly)} de despesas mensais e transferir ${money(reserveContribution)} para a reserva? Saída total da conta: ${money(totalOutflow)}.`)) return
-    const nextBalance = Number(state.balance || 0) - totalOutflow
+    const nextBalance = fromCents((toCents(state.balance || 0) || 0) - totalOutflowCents)
     const nextReserve = fromCents(reserveCents + (toCents(reserveContribution) || 0))
     commit({
       ...state,
@@ -200,7 +224,7 @@ export default function FinancesTab({ state, commit }) {
         ...(reserveContribution > 0 ? [{ date: now(), type: 'Reserva', desc: 'Aporte mensal à reserva de emergência', value: -reserveContribution, amount: -reserveContribution, balance: nextBalance, reserve: nextReserve }] : []),
       ],
     })
-    setManualBalance(nextBalance)
+    setManualBalance(moneyInput(nextBalance))
     toast.success(`Despesas mensais aplicadas. ${reserveContribution > 0 ? `${money(reserveContribution)} foram para a reserva.` : ''}`.trim())
   }
 
@@ -220,8 +244,8 @@ export default function FinancesTab({ state, commit }) {
             <h2>Saldo</h2>
             <p>Use ajuste manual apenas para corrigir ou sincronizar a simulação.</p>
           </div>
-          <TipLabel tip="Altera diretamente o dinheiro disponível da carreira. Use para correções ou sincronização; a diferença fica registrada no histórico.">Saldo atual</TipLabel>
-          <input type="number" step="0.01" value={manualBalance} onChange={(event) => setManualBalance(event.target.value)} />
+          <TipLabel tip="Altera diretamente o dinheiro disponível da carreira. Aceita vírgula ou ponto e salva sempre com duas casas decimais.">Saldo atual</TipLabel>
+          <input type="text" inputMode="decimal" value={manualBalance} onChange={(event) => setManualBalance(event.target.value)} placeholder="0.00" />
           <button className="button secondary full-button" type="button" onClick={applyManualBalance}>Atualizar saldo</button>
         </section>
 
@@ -232,11 +256,11 @@ export default function FinancesTab({ state, commit }) {
             <p>Dinheiro separado do saldo disponível. O rendimento é creditado semanalmente quando o holerite é fechado.</p>
           </div>
           <div className="reserve-rate-note">Taxa simulada: <strong>{(EMERGENCY_RESERVE_ANNUAL_YIELD * 100).toFixed(2)}% ao ano</strong> ≈ <strong>{(EMERGENCY_RESERVE_ANNUAL_YIELD / 52 * 100).toFixed(4)}% por semana</strong>.</div>
-          <TipLabel tip="Transfere dinheiro da conta pessoal para a reserva. É uma transferência interna e não reduz seu patrimônio total.">Adicionar à reserva</TipLabel>
-          <div className="reserve-inline-action"><input type="number" min="0" step="0.01" value={reserveDeposit} onChange={(event) => setReserveDeposit(event.target.value)} placeholder="0.00" /><button className="button secondary" type="button" onClick={addToReserve}>Adicionar</button></div>
+          <TipLabel tip="Transfere dinheiro da conta pessoal para a reserva. Aceita vírgula ou ponto e usa no máximo duas casas decimais.">Adicionar à reserva</TipLabel>
+          <div className="reserve-inline-action"><input type="text" inputMode="decimal" value={reserveDeposit} onChange={(event) => setReserveDeposit(event.target.value)} placeholder="0.00" /><button className="button secondary" type="button" onClick={addToReserve}>Adicionar</button></div>
           <form className="reserve-use-form" onSubmit={useReserve}>
-            <TipLabel tip="O valor sai da reserva e volta para o saldo disponível. O motivo é obrigatório para manter o histórico da carreira organizado.">Usar reserva</TipLabel>
-            <div className="reserve-inline-action"><input type="number" min="0" step="0.01" value={reserveUseAmount} onChange={(event) => setReserveUseAmount(event.target.value)} placeholder="Valor" /><button className="button primary" type="submit">Usar reserva</button></div>
+            <TipLabel tip="O valor sai da reserva e volta para o saldo disponível. Aceita vírgula ou ponto e usa no máximo duas casas decimais.">Usar reserva</TipLabel>
+            <div className="reserve-inline-action"><input type="text" inputMode="decimal" value={reserveUseAmount} onChange={(event) => setReserveUseAmount(event.target.value)} placeholder="Valor" /><button className="button primary" type="submit">Usar reserva</button></div>
             <input value={reserveUseReason} onChange={(event) => setReserveUseReason(event.target.value)} placeholder="Motivo do resgate" />
           </form>
         </section>
@@ -246,13 +270,13 @@ export default function FinancesTab({ state, commit }) {
         <div className="section-heading compact-heading">
           <span className="eyebrow">Vida pessoal</span>
           <h2>Despesas mensais</h2>
-          <p>Edite os valores do custo de vida. O campo de reserva é um aporte, não uma despesa perdida.</p>
+          <p>Edite os valores do custo de vida. Valores monetários aceitam vírgula ou ponto e são salvos com duas casas decimais.</p>
         </div>
         <div className="expense-fields-grid">
           {Object.entries(state.expenses || {}).map(([key, value]) => (
             <div key={key} className="expense-field">
               <TipLabel tip={EXPENSE_TIPS[key] || 'Valor mensal desta despesa pessoal. Ele entra no total quando você aplicar as despesas mensais.'}>{EXPENSE_LABELS[key] || key}</TipLabel>
-              <input type="number" min="0" step="0.01" value={value} onChange={(event) => updateExpense(key, event.target.value)} />
+              <input type="text" inputMode="decimal" defaultValue={moneyInput(value)} onBlur={(event) => { if (updateExpense(key, event.target.value)) event.target.value = moneyInput(event.target.value); else event.target.value = moneyInput(value) }} />
             </div>
           ))}
         </div>
@@ -267,7 +291,7 @@ export default function FinancesTab({ state, commit }) {
         </div>
         <form className="inline-form-grid" onSubmit={addCustomExpense}>
           <div><TipLabel tip="Nome livre para identificar um custo que não existe na lista padrão, como academia, lavanderia ou assinatura.">Nome do gasto</TipLabel><input value={customName} onChange={(event) => setCustomName(event.target.value)} placeholder="Ex.: Academia, lavanderia" /></div>
-          <div><TipLabel tip="Valor deste gasto personalizado. Se ele for mensal, será incluído no total mensal; caso contrário, fica apenas cadastrado como gasto avulso.">Valor</TipLabel><input type="number" min="0" step="0.01" value={customValue} onChange={(event) => setCustomValue(event.target.value)} placeholder="0.00" /></div>
+          <div><TipLabel tip="Valor deste gasto personalizado. Aceita vírgula ou ponto e usa no máximo duas casas decimais.">Valor</TipLabel><input type="text" inputMode="decimal" value={customValue} onChange={(event) => setCustomValue(event.target.value)} placeholder="0.00" /></div>
           <label className="check-field"><input type="checkbox" checked={customMonthly} onChange={(event) => setCustomMonthly(event.target.checked)} /> Incluir no desconto mensal <InfoTip text="Marcado: esse gasto entra no botão Aplicar despesas mensais. Desmarcado: ele não será cobrado automaticamente no fechamento mensal." /></label>
           <button className="button secondary" type="submit">Adicionar gasto</button>
         </form>
