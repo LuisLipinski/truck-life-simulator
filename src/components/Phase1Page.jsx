@@ -24,6 +24,54 @@ import RulesTab from './phase1/RulesTab.jsx'
 import ModsTab from './phase1/ModsTab.jsx'
 import HistoryTab from './phase1/HistoryTab.jsx'
 
+const TAB_HELP = {
+  overview: {
+    label: 'Visão Geral',
+    description: 'Mostra um resumo da carreira: saldo disponível, nível atual, despesas mensais, progressão, semana em andamento e dados do motorista.',
+    tip: 'Use esta tela como painel principal. Os cartões são atalhos para as áreas correspondentes da carreira.',
+  },
+  finances: {
+    label: 'Saldo e Despesas',
+    description: 'Aqui você controla o dinheiro pessoal da carreira, despesas mensais, gastos personalizados e ajustes de saldo.',
+    tip: 'As despesas afetam o saldo pessoal da simulação. Gastos mensais podem ser aplicados quando chegar o momento de pagá-los.',
+  },
+  payslip: {
+    label: 'Holerite',
+    description: 'Calcula o pagamento semanal com salário ou milhas, impostos estimados, benefícios, per diem e descontos de ocorrências.',
+    tip: 'Ao gerar o holerite, a semana é fechada, o depósito entra no saldo e uma nova semana começa.',
+  },
+  progress: {
+    label: 'Registro de Viagens',
+    description: 'Registre cada trecho realizado no ATS, com horários, origem, destino, tipo da viagem, categoria de pagamento e milhas percorridas.',
+    tip: 'Viagens Loaded e Deadhead contam para a progressão. Nas semanas já fechadas pelo holerite, os trechos ficam protegidos contra exclusão.',
+  },
+  incidents: {
+    label: 'Infrações e Acidentes',
+    description: 'Registre multas, danos e outros incidentes da carreira e escolha se o valor sai do saldo ou do próximo holerite.',
+    tip: 'Ocorrências são financeiras e históricas. Elas não bloqueiam promoções, mas podem gerar descontos no pagamento.',
+  },
+  qualifications: {
+    label: 'Qualificações',
+    description: 'Acompanhe os requisitos de promoção, treinamentos da ATS Academy e qualificações opcionais como HazMat.',
+    tip: 'As promoções exigem a quilometragem mínima e a confirmação do treinamento antes do pagamento da taxa correspondente.',
+  },
+  rules: {
+    label: 'Regras',
+    description: 'Consulta rápida das regras da Fase 1: jornada, rotas, deadhead, per diem, pagamento e evolução dos níveis.',
+    tip: 'Estas regras servem como guia de roleplay para manter a carreira consistente e mais próxima de uma operação realista.',
+  },
+  mods: {
+    label: 'Mods sugeridos',
+    description: 'Reúne sugestões de mods que combinam com a proposta da carreira sem tornar a economia do ATS obrigatória para o aplicativo.',
+    tip: 'Os mods são opcionais. O simulador continua funcionando mesmo sem eles e não depende dos preços de frete do jogo.',
+  },
+  history: {
+    label: 'Histórico',
+    description: 'Mostra as movimentações financeiras e semanas fechadas para você acompanhar o que aconteceu ao longo da carreira.',
+    tip: 'Use o histórico para conferir depósitos, despesas, qualificações e outros eventos que alteraram o saldo.',
+  },
+}
+
 function money(value) {
   return Number(value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
 }
@@ -33,6 +81,28 @@ function formatDateTime(value) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+}
+
+function InfoTip({ text }) {
+  return (
+    <button className="react-info-tip" type="button" aria-label="Mais informações" data-tip={text}>
+      i
+    </button>
+  )
+}
+
+function TabIntro({ tabId }) {
+  const help = TAB_HELP[tabId] || TAB_HELP.overview
+  return (
+    <section className="react-tab-intro" aria-label={`Descrição: ${help.label}`}>
+      <div className="react-tab-intro-heading">
+        <span className="eyebrow">Para que serve</span>
+        <InfoTip text={help.tip} />
+      </div>
+      <strong>{help.label}</strong>
+      <p>{help.description}</p>
+    </section>
+  )
 }
 
 function MetricCard({ label, value, detail, onClick, children }) {
@@ -285,6 +355,7 @@ export default function Phase1Page({ careerId, onBack }) {
         {tabs.map(([id, label]) => <button key={id} className={activeTab === id ? 'active' : ''} onClick={() => setActiveTab(id)}>{label}</button>)}
       </div></nav>
       <main className="phase1-content">
+        <TabIntro tabId={activeTab} />
         {activeTab === 'overview' && <OverviewTab career={career} state={state} setActiveTab={setActiveTab} />}
         {activeTab === 'finances' && <FinancesTab state={state} commit={commit} />}
         {activeTab === 'payslip' && <PayslipTab state={state} commit={commit} />}
