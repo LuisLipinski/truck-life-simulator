@@ -7,7 +7,7 @@ import {
   loadCareers,
   setActiveCareer,
 } from './lib/storage.js'
-import { downloadCSVTemplate, downloadExcelTemplate, importCareerFile } from './lib/csv.js'
+import { downloadCSVTemplate, downloadExcelTemplate, exportCareersCSV, importCareerFile } from './lib/csv.js'
 import { formatMoney, gameIdFromPath, getGame, getGameForCareer, GAMES } from './config/games.js'
 import { convertAtsCurrency } from './config/atsCurrencies.js'
 import { convertEts2Currency, roundCurrency } from './config/ets2Currencies.js'
@@ -68,7 +68,14 @@ function CareersPage() {
   const confirm = useConfirm()
   const [careers, setCareers] = useState(() => loadCareers(game.id))
   const [showCsvHelp, setShowCsvHelp] = useState(false)
+  const [selectingForExport, setSelectingForExport] = useState(false)
+  const [selectedCareerIds, setSelectedCareerIds] = useState([])
   const fileInput = useRef(null)
+  const selectedCareers = useMemo(
+    () => careers.filter((career) => selectedCareerIds.includes(career.id)),
+    [careers, selectedCareerIds],
+  )
+  const allCareersSelected = careers.length > 0 && selectedCareers.length === careers.length
 
   async function removeCareer(career) {
     const confirmed = await confirm({
@@ -80,12 +87,34 @@ function CareersPage() {
     if (!confirmed) return
     deleteCareer(career.id, game.id)
     setCareers(loadCareers(game.id))
+    setSelectedCareerIds((current) => current.filter((id) => id !== career.id))
     toast.success(`A carreira de ${career.driverName} foi excluída.`)
   }
 
   function openCareer(career) {
     setActiveCareer(career.id, game.id)
     window.location.hash = `#${game.routes.phases}?career=${encodeURIComponent(career.id)}`
+  }
+
+  function toggleCareerSelection(careerId) {
+    setSelectedCareerIds((current) => current.includes(careerId)
+      ? current.filter((id) => id !== careerId)
+      : [...current, careerId])
+  }
+
+  function closeExportSelection() {
+    setSelectingForExport(false)
+    setSelectedCareerIds([])
+  }
+
+  function exportSelectedCareers() {
+    try {
+      exportCareersCSV(selectedCareers, game.id)
+      toast.success(`${selectedCareers.length} ${selectedCareers.length === 1 ? 'carreira exportada' : 'carreiras exportadas'} em um único arquivo CSV.`, { title: 'Exportação concluída' })
+      closeExportSelection()
+    } catch (error) {
+      toast.error(error.message, { title: 'Erro ao exportar carreiras' })
+    }
   }
 
   async function importBackup(event) {
@@ -96,7 +125,11 @@ function CareersPage() {
     try {
       const result = await importCareerFile(file, game.id)
       setCareers(loadCareers(game.id))
-      toast.success(`Carreira “${result.career.driverName}” importada em ${game.shortName} (${extension} • backup v${result.version}).`, { title: 'Importação concluída' })
+      const count = result.count || result.careers?.length || 1
+      const message = count === 1
+        ? `Carreira “${result.career.driverName}” importada em ${game.shortName} (${extension} • formato v${result.version}).`
+        : `${count} carreiras importadas em ${game.shortName} a partir do mesmo arquivo ${extension} (formato v${result.version}).`
+      toast.success(message, { title: 'Importação concluída' })
     } catch (error) {
       toast.error(`Não foi possível importar a carreira: ${error.message}`, { title: 'Erro ao importar arquivo' })
     } finally {
@@ -122,6 +155,7 @@ function CareersPage() {
       <div className="action-row">
         <AppLink className="button primary" to={game.routes.new}>+ Criar nova carreira</AppLink>
         <button className="button success" type="button" onClick={() => fileInput.current?.click()}>Importar carreira</button>
+        {careers.length > 0 && <button className="button secondary" type="button" onClick={() => { setSelectingForExport(true); setSelectedCareerIds([]) }}>Exportar carreiras</button>}
         <button className="button secondary" type="button" onClick={() => setShowCsvHelp((value) => !value)}>Como importar uma carreira</button>
         <input ref={fileInput} type="file" accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onChange={importBackup} />
       </div>
@@ -130,15 +164,31 @@ function CareersPage() {
         <section className="panel csv-help">
           <span className="eyebrow">Importação de carreira — {game.shortName}</span>
           <h2>Como importar uma carreira</h2>
-          <p>Backups CSV, XLS e XLSX desta área usam a identificação <code>{game.backupMarker}</code>. Assim, uma carreira de ATS nunca é importada por engano como ETS2 — ou o contrário.</p>
+          <p>A primeira linha contém os títulos dos campos. A segunda linha é uma carreira; para importar outras de uma vez, adicione uma carreira por linha abaixo dela.</p>
+          <p>Os campos com <code>*</code> são obrigatórios. O código da sede financeira é a sigla do estado no ATS, como <code>CA</code> ou <code>TX</code>, e a sigla do país no ETS2, como <code>DE</code> ou <code>GB</code>.</p>
           <p><strong>CSV:</strong> use ponto para casas decimais e não use separador de milhar nem símbolo de moeda. Exemplos: <code>850</code>, <code>1602.63</code> e <code>0.50</code>.</p>
           <p><strong>XLS/XLSX:</strong> use células numéricas normais. A exibição regional do Excel não altera o valor lido pelo aplicativo.</p>
-          <p>A importação cria uma nova carreira com outro ID e preserva perfil, sede fiscal (estado ou país), mercado da cidade-base, moeda, cotação registrada, custos iniciais, viagens, histórico, despesas, ocorrências, períodos fechados e reserva.</p>
-          <p>Não altere os nomes da primeira coluna, como <code>CAREER</code>, <code>STATE</code>, <code>TRIP</code> e <code>CLOSED_WEEK</code>.</p>
+          <p>As colunas marcadas como <code>JSON [não editar]</code> são preenchidas nas exportações e preservam viagens, histórico, despesas, ocorrências, holerites e reserva. No modelo novo elas ficam vazias e a aplicação calcula os padrões pela sede e cidade.</p>
+          <p>Não altere os títulos nem as colunas <code>Formato</code>, <code>Versão</code> e <code>Jogo</code>. Backups antigos com linhas <code>CAREER</code>, <code>STATE</code> e <code>TRIP</code> continuam aceitos.</p>
           <div className="action-row">
             <button className="button secondary" type="button" onClick={() => downloadCSVTemplate(game.id)}>Baixar modelo CSV</button>
             <button className="button secondary" type="button" onClick={() => downloadExcelTemplate('xlsx', game.id)}>Baixar modelo XLSX</button>
             <button className="button secondary" type="button" onClick={() => downloadExcelTemplate('xls', game.id)}>Baixar modelo XLS</button>
+          </div>
+        </section>
+      )}
+
+      {selectingForExport && careers.length > 0 && (
+        <section className="panel career-export-bar" aria-label="Selecionar carreiras para exportação">
+          <div>
+            <span className="eyebrow">Exportação em lote</span>
+            <strong>{selectedCareers.length} de {careers.length} {careers.length === 1 ? 'carreira selecionada' : 'carreiras selecionadas'}</strong>
+            <small>Toque nos cards que deseja reunir no mesmo arquivo.</small>
+          </div>
+          <div className="career-export-actions">
+            <button className="button secondary compact" type="button" onClick={() => setSelectedCareerIds(allCareersSelected ? [] : careers.map((career) => career.id))}>{allCareersSelected ? 'Limpar seleção' : 'Selecionar todas'}</button>
+            <button className="button success compact" type="button" disabled={selectedCareers.length === 0} onClick={exportSelectedCareers}>Exportar selecionadas</button>
+            <button className="button secondary compact" type="button" onClick={closeExportSelection}>Cancelar</button>
           </div>
         </section>
       )}
@@ -153,18 +203,21 @@ function CareersPage() {
         <section className="career-grid">
           {careers.map((career) => {
             const careerGame = getGameForCareer(career, game.id)
+            const selected = selectedCareerIds.includes(career.id)
             return <article
-              className="panel career-card career-card-clickable"
+              className={`panel career-card career-card-clickable${selectingForExport ? ' career-card-selecting' : ''}${selected ? ' career-card-selected' : ''}`}
               key={career.id}
               role="button"
               tabIndex={0}
-              aria-label={`Abrir carreira ${career.driverName}`}
-              onClick={() => openCareer(career)}
+              aria-label={selectingForExport ? `${selected ? 'Desmarcar' : 'Selecionar'} carreira ${career.driverName}` : `Abrir carreira ${career.driverName}`}
+              aria-pressed={selectingForExport ? selected : undefined}
+              onClick={() => selectingForExport ? toggleCareerSelection(career.id) : openCareer(career)}
               onKeyDown={(event) => {
                 if (event.target !== event.currentTarget) return
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault()
-                  openCareer(career)
+                  if (selectingForExport) toggleCareerSelection(career.id)
+                  else openCareer(career)
                 }
               }}
             >
@@ -182,10 +235,14 @@ function CareersPage() {
               </div>
               <p className="career-bio">{career.bio || career.biography || 'Sem biografia cadastrada.'}</p>
               <div className="career-card-footer">
-                <span className="career-open-hint">Clique no card para continuar</span>
-                <button className="career-delete-icon" type="button" aria-label={`Excluir carreira ${career.driverName}`} title="Excluir carreira" onClick={(event) => { event.stopPropagation(); removeCareer(career) }}>
-                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-2 6h10l-.7 11H7.7L7 9Zm3 2v7h2v-7h-2Zm4 0v7h2v-7h-2Z" /></svg>
-                </button>
+                <span className="career-open-hint">{selectingForExport ? 'Clique no card para selecionar' : 'Clique no card para continuar'}</span>
+                {selectingForExport ? (
+                  <input className="career-select-checkbox" type="checkbox" checked={selected} aria-label={`Selecionar carreira ${career.driverName}`} onClick={(event) => event.stopPropagation()} onChange={() => toggleCareerSelection(career.id)} />
+                ) : (
+                  <button className="career-delete-icon" type="button" aria-label={`Excluir carreira ${career.driverName}`} title="Excluir carreira" onClick={(event) => { event.stopPropagation(); removeCareer(career) }}>
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-2 6h10l-.7 11H7.7L7 9Zm3 2v7h2v-7h-2Zm4 0v7h2v-7h-2Z" /></svg>
+                  </button>
+                )}
               </div>
             </article>
           })}

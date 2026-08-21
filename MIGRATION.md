@@ -1,10 +1,10 @@
 # Migração React e estado atual
 
-Atualizado em: **20/08/2026**
+Atualizado em: **21/08/2026**
 
 Branch documentada originalmente: **`development`**
 
-> Este arquivo preserva o histórico detalhado da migração inicial do ATS para React. O estado funcional atual de ATS + ETS2, incluindo sede fiscal, mercado municipal, moeda independente, folha mensal e backup v11, está consolidado no [README.md](README.md).
+> Este arquivo preserva o histórico detalhado da migração inicial do ATS para React. O estado funcional atual de ATS + ETS2, incluindo sede fiscal, mercado municipal, moeda independente, folha mensal e backup tabular v12, está consolidado no [README.md](README.md).
 
 Aplicação publicada: **https://luislipinski.github.io/truck-life-simulator/**
 
@@ -54,7 +54,7 @@ Versões de Node aceitas pelo projeto:
 | `src/components/GuidedTutorial.jsx` | Tour guiado, navegação automática entre telas e destaque visual dos recursos |
 | `src/lib/storage.js` | Leitura e gravação das carreiras no `localStorage` |
 | `src/lib/phase1.js` | Estado, cálculos financeiros, progressão, milhas, per diem e Route Overrun |
-| `src/lib/csv.js` | Backup v7, CSV, XLS, XLSX, validação, importação e exportação |
+| `src/lib/csv.js` | Backup tabular v12, compatibilidade legada, CSV, XLS, XLSX, validação, importação e exportação múltipla |
 | `src/data/atsCities.js` | Cidades disponíveis no autocomplete do ATS |
 | `src/components/MobileHelp.jsx` | Exibição dos textos dos ícones de informação no mobile |
 | `.github/workflows/delivery-pipeline.yml` | Testes, promoções, rollback e deploy no GitHub Pages |
@@ -908,3 +908,18 @@ Atualização de 20/08/2026:
 - todos os valores continuam editáveis e servem apenas como estimativas de roleplay.
 
 Validação automatizada desta entrega: 16 arquivos e 98 testes aprovados; build de produção concluído com 50 módulos transformados e apenas o aviso não bloqueante já conhecido para o chunk principal maior que 500 kB.
+
+## 31. Importação tabular e exportação múltipla
+
+Atualização de 21/08/2026:
+
+- o formato v12 passa a usar a primeira linha como cabeçalho e uma carreira por linha abaixo;
+- os títulos são apresentados em português e indicam campos obrigatórios, padrões automáticos e colunas técnicas;
+- o modelo novo pode criar várias carreiras na mesma importação;
+- as colunas JSON de exportação mantêm todo o estado variável sem voltar ao formato antigo de dezenas de linhas;
+- a importação valida todas as carreiras antes de gravar e impede mistura de ATS e ETS2;
+- a tela de carreiras ganhou modo de seleção, ação de selecionar todas e exportação das selecionadas em um único CSV;
+- o botão interno de exportação individual foi mantido e agora também gera o formato tabular;
+- arquivos antigos de v1 a v11 continuam sendo importados pelo leitor legado.
+
+Validação automatizada desta entrega: 16 arquivos e 102 testes aprovados; build de produção concluído com 50 módulos transformados e apenas o aviso não bloqueante já conhecido para o chunk principal maior que 500 kB.

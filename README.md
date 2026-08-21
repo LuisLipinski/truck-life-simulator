@@ -14,7 +14,7 @@ Companion de carreira para American Truck Simulator e Euro Truck Simulator 2. Ca
 | Moeda | USD ou EUR | 16 moedas de exibição; país fiscal separado |
 | Carga perigosa | HazMat | ADR |
 | Combinação avançada | Doubles | Euro Combi |
-| Backup | `ATS_CAREER_BACKUP` | `ETS2_CAREER_BACKUP` |
+| Backup tabular | `ATS_CAREERS_TABLE` | `ETS2_CAREERS_TABLE` |
 
 As chaves de `localStorage` de ATS e ETS2 são separadas. A importação também recusa arquivos do jogo errado.
 
@@ -143,7 +143,22 @@ Ao criar uma carreira, a opção **Ver tutorial após criar a carreira** inicia 
 
 Ações financeiras, destrutivas ou que fecham períodos usam a modal compartilhada de confirmação/cancelamento; não há confirmações por `alert` nativo.
 
-## Backup v11
+## Backup tabular v12
+
+O formato v12 deixa CSV, XLS e XLSX em uma tabela simples:
+
+- a primeira linha contém os títulos em português;
+- cada linha seguinte representa uma carreira;
+- os campos obrigatórios aparecem com `*`;
+- saldo inicial, saldo atual, nível, semana e reserva aceitam os padrões indicados no título;
+- as colunas JSON técnicas ficam vazias no modelo para preenchimento;
+- nas exportações, essas colunas preservam perfil, viagens, histórico, despesas, ocorrências, holerites e reserva;
+- a tela de carreiras permite selecionar várias carreiras e exportá-las no mesmo CSV;
+- a exportação CSV individual continua disponível dentro de cada carreira.
+
+Toda importação cria IDs novos e valida todas as linhas antes de salvar. O mesmo arquivo não pode misturar ATS e ETS2. Backups v1 a v11 continuam aceitos nos formatos antigos `ATS_CAREER_BACKUP` e `ETS2_CAREER_BACKUP`.
+
+### Histórico do v11
 
 CSV, XLS e XLSX continuam compatíveis com versões anteriores. O formato v11 preserva tudo do v10 e acrescenta:
 
@@ -190,7 +205,7 @@ Backups ETS2 antigos têm o país inferido pela cidade-base quando possível; ca
 | `src/components/GuidedTutorial.jsx` | tour guiado contextual por jogo |
 | `src/components/ConfirmProvider.jsx` | modal compartilhada de confirmação |
 | `src/lib/phase1.js` | estado, folha, impostos, progressão e reserva |
-| `src/lib/csv.js` | backup v11, migração, validação e planilhas |
+| `src/lib/csv.js` | backup tabular v12, importação múltipla, migração legada, validação e planilhas |
 | `.github/workflows/delivery-pipeline.yml` | testes, promoção, rollback e Pages |
 
 ## Fontes oficiais usadas no modelo

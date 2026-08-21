@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx'
 import { activeCareerStorageKey, loadCareers, saveCareers } from './storage.js'
-import { phase1StorageKey, tripDistance } from './phase1.js'
+import { loadPhase1State, phase1StorageKey, tripDistance } from './phase1.js'
 import { gameIdFromBackupMarker, getGame, getGameForCareer } from '../config/games.js'
 import { getAtsStateProfile, inferAtsStateCode } from '../config/atsStates.js'
 import { getAtsCurrency } from '../config/atsCurrencies.js'
@@ -8,6 +8,37 @@ import { getEts2CountryProfile, inferEts2CountryCode } from '../config/ets2Count
 import { getEts2Currency } from '../config/ets2Currencies.js'
 
 const SUPPORTED_FORMATS = ['csv', 'xls', 'xlsx']
+const CAREER_TABLE_VERSION = 12
+const CAREER_TABLE_MARKERS = {
+  ats: 'ATS_CAREERS_TABLE',
+  ets2: 'ETS2_CAREERS_TABLE',
+}
+
+const CAREER_TABLE_COLUMNS = [
+  ['marker', 'Formato [não editar]'],
+  ['version', 'Versão [não editar]'],
+  ['game', 'Jogo [não editar]'],
+  ['driverName', 'Nome do motorista *'],
+  ['city', 'Cidade-base *'],
+  ['company', 'Empresa *'],
+  ['locationCode', 'Código da sede financeira *'],
+  ['currency', 'Moeda da carreira *'],
+  ['arrivalBalance', 'Dinheiro ao chegar *'],
+  ['bio', 'Biografia'],
+  ['initialBalance', 'Saldo inicial [calculado se vazio]'],
+  ['balance', 'Saldo atual [usa o inicial se vazio]'],
+  ['currentLevel', 'Nível atual [padrão 1]'],
+  ['currentWeek', 'Semana atual [padrão 1]'],
+  ['emergencyReserve', 'Reserva de emergência [padrão 0]'],
+  ['exchangeRate', 'Cotação [automática se vazio]'],
+  ['exchangeRateAsOf', 'Data da cotação [automática se vazio]'],
+  ['setupCosts', 'Custos iniciais JSON [opcional]'],
+  ['createdAt', 'Data de criação [opcional]'],
+  ['careerJson', 'Dados completos da carreira JSON [não editar]'],
+  ['stateJson', 'Progresso completo JSON [não editar]'],
+]
+
+export const CAREER_TABLE_HEADERS = CAREER_TABLE_COLUMNS.map(([, label]) => label)
 
 function csvCell(value) {
   const text = String(value ?? '')
@@ -16,20 +47,6 @@ function csvCell(value) {
 
 function csvRow(values) {
   return values.map(csvCell).join(',')
-}
-
-function instructionsRow() {
-  return ['INSTRUCTIONS', 'CSV: use ponto para casas decimais e não use separador de milhar. Ex.: 1602.63. XLS/XLSX: use células numéricas normais do Excel.']
-}
-
-function backupTripType(type, game) {
-  if (game.id === 'ats') return type || 'Loaded'
-  return type === 'Deadhead' ? 'Reposicionamento vazio' : 'Com carga'
-}
-
-function backupPayCategory(category, game) {
-  if (game.id === 'ats') return category || 'normal'
-  return ({ normal: 'standard', hazmat: 'adr', doubles: 'euro_combi', hazmat_doubles: 'adr_euro_combi', deadhead: 'empty' })[category] || 'standard'
 }
 
 function importedTripType(type) {
@@ -42,31 +59,19 @@ function importedPayCategory(category, type) {
   return ({ standard: 'normal', adr: 'hazmat', euro_combi: 'doubles', adr_euro_combi: 'hazmat_doubles' })[String(category || '').trim().toLowerCase()] || category || 'normal'
 }
 
-function templateRows(gameId = 'ats') {
+export function createCareerTemplateRows(gameId = 'ats') {
   const locationCode = gameId === 'ets2' ? 'DE' : 'CA'
   const baseGame = getGame(gameId, locationCode)
   const city = baseGame.baseCities?.[0] || baseGame.cities[0]
   const game = getGame(gameId, locationCode, null, null, null, city)
-  const destination = game.baseCities?.[1] || game.cities[1] || city
   const arrivalBalance = game.defaultArrivalBalance ?? 5000
-  const initialBalance = arrivalBalance - Object.values(game.setupCosts).reduce((sum, value) => sum + Number(value || 0), 0)
   return [
-    [game.backupMarker, '11'],
-    instructionsRow(),
-    ['CAREER','id','driverName','city','company','arrivalBalance','initialBalance','bio','createdAt','countryCode','countryName','currency','baseCurrency','exchangeRate','exchangeRateAsOf','stateCode','stateName','cityMarketVersion','cityMarketLabel','cityCostFactor','citySalaryFactor'],
-    ['CAREER','','Seu Nome',city,'Nome da Empresa',arrivalBalance,initialBalance,'Biografia do personagem','',game.countryCode || '',game.countryName || '',game.currency,game.baseCurrency || game.currency,game.exchangeRate || 1,game.exchangeRateAsOf || '',game.stateCode || '',game.stateName || '',game.cityMarketVersion,game.cityMarketLabel,game.cityCostFactor,game.citySalaryFactor],
-    ['SETUP_COST','name','value'],
-    ...Object.entries(game.setupCosts).map(([name, value]) => ['SETUP_COST', name, value]),
-    ['STATE','balance','careerLevel','currentWeek','academyLevel2','academyLevel3',game.id === 'ats' ? 'hazmatQualified' : 'adrQualified','emergencyReserve','currentPayrollMonth','payPeriodStartWeek','closedOperationalWeeks','autoReserveEnabled','autoReserveAmount'],
-    ['STATE',initialBalance,1,1,0,0,0,0,1,1,'',0,0],
-    ['BASE_EXPENSE','name','value'],
-    ...Object.entries(game.expenses).map(([name, value]) => ['BASE_EXPENSE', name, value]),
-    ['TRIP','id','week','departureAt','arrivalAt','origin','originCompany','destination','destinationCompany','cargo','type','payCategory',game.distanceField === 'miles' ? 'miles' : 'kilometers'],
-    ['TRIP','',1,'2026-08-19T07:00','2026-08-19T10:00',city,'Filial de origem',destination,'Filial de destino','Alimentos',backupTripType('Loaded', game),backupPayCategory('normal', game),115],
-    ['HISTORY','date','type','desc','value','balance'],
-    ['EXPENSE','id','name','value','monthly'],
-    ['INCIDENT','id','type','date','time','route','description','amount','chargeMethod','status','remaining','createdAt','week'],
-    ['CLOSED_WEEK','week','closedAt',game.distanceField === 'miles' ? 'miles' : 'kilometers','level','gross','taxes','benefits','netSalary','perDiem','incidentDeduction','reserveInterest','deposit','desc','periodType','month','startWeek','endWeek','weeks','countryCode','currency','taxBreakdown','baseCurrency','exchangeRate','exchangeRateAsOf','stateCode','stateName','city','cityMarketLabel','cityCostFactor','citySalaryFactor'],
+    CAREER_TABLE_HEADERS,
+    [
+      CAREER_TABLE_MARKERS[gameId], CAREER_TABLE_VERSION, game.shortName, 'Seu Nome', city, 'Nome da Empresa',
+      game.countryCode || game.stateCode || locationCode, game.currency, arrivalBalance, 'Biografia do personagem',
+      '', '', 1, 1, 0, '', '', '', '', '', '',
+    ],
   ]
 }
 
@@ -104,7 +109,10 @@ function downloadCsv(name, rows) {
 function writeWorkbook(rows, filename, gameId = 'ats') {
   const workbook = XLSX.utils.book_new()
   const worksheet = XLSX.utils.aoa_to_sheet(rows)
-  worksheet['!cols'] = Array.from({ length: 31 }, (_, index) => ({ wch: index === 7 || index === 21 || index === 28 ? 42 : index < 2 ? 18 : 22 }))
+  const columnCount = Math.max(1, ...rows.map((row) => row.length))
+  worksheet['!cols'] = Array.from({ length: columnCount }, (_, index) => ({
+    wch: index >= columnCount - 2 ? 48 : index === 9 ? 34 : index < 3 ? 20 : 24,
+  }))
   XLSX.utils.book_append_sheet(workbook, worksheet, getGame(gameId).sheetName)
   // SheetJS infere BIFF8 para .xls e XLSX para .xlsx pelo nome do arquivo.
   XLSX.writeFile(workbook, filename)
@@ -112,41 +120,41 @@ function writeWorkbook(rows, filename, gameId = 'ats') {
 
 export function downloadCSVTemplate(gameId = 'ats') {
   const game = getGame(gameId)
-  downloadCsv(`modelo_carreira_${game.backupStem}.csv`, templateRows(gameId))
+  downloadCsv(`modelo_carreiras_${game.backupStem}.csv`, createCareerTemplateRows(gameId))
 }
 
 export function downloadExcelTemplate(format = 'xlsx', gameId = 'ats') {
   if (!['xls', 'xlsx'].includes(format)) throw new Error('Formato de planilha não suportado.')
   const game = getGame(gameId)
-  writeWorkbook(templateRows(gameId), `modelo_carreira_${game.backupStem}.${format}`, gameId)
+  writeWorkbook(createCareerTemplateRows(gameId), `modelo_carreiras_${game.backupStem}.${format}`, gameId)
 }
 
-function careerRows(career, state, gameId = career?.gameId || 'ats') {
+function careerTableRow(career, state, gameId = career?.gameId || 'ats') {
   if (!career) throw new Error('Carreira não encontrada para exportação.')
   const game = getGameForCareer(career, gameId)
   const safeState = state || {}
+  const balance = safeState.balance ?? career.currentBalance ?? career.initialBalance ?? 0
+  const currentLevel = safeState.currentLevel || safeState.careerLevel || career.currentLevel || 1
   return [
-    [game.backupMarker, '11'],
-    instructionsRow(),
-    ['CAREER','id','driverName','city','company','arrivalBalance','initialBalance','bio','createdAt','countryCode','countryName','currency','baseCurrency','exchangeRate','exchangeRateAsOf','stateCode','stateName','cityMarketVersion','cityMarketLabel','cityCostFactor','citySalaryFactor'],
-    ['CAREER',career.id,career.driverName,career.city,career.company,career.arrivalBalance,career.initialBalance,career.bio || career.biography || '',career.createdAt || '',career.countryCode || game.countryCode || '',career.countryName || game.countryName || '',career.currency || game.currency,career.baseCurrency || game.baseCurrency || game.currency,career.exchangeRate || game.exchangeRate || 1,career.exchangeRateAsOf || game.exchangeRateAsOf || '',career.stateCode || game.stateCode || '',career.stateName || game.stateName || '',career.cityMarketVersion || game.cityMarketVersion,career.cityMarketLabel || game.cityMarketLabel,career.cityCostFactor || game.cityCostFactor,career.citySalaryFactor || game.citySalaryFactor],
-    ['SETUP_COST','name','value'],
-    ...Object.entries({ ...game.setupCosts, ...(career.setupCosts || {}) }).map(([name, value]) => ['SETUP_COST', name, value]),
-    ['STATE','balance','careerLevel','currentWeek','academyLevel2','academyLevel3',game.id === 'ats' ? 'hazmatQualified' : 'adrQualified','emergencyReserve','currentPayrollMonth','payPeriodStartWeek','closedOperationalWeeks','autoReserveEnabled','autoReserveAmount'],
-    ['STATE',safeState.balance ?? career.currentBalance ?? career.initialBalance ?? 0,safeState.currentLevel || safeState.careerLevel || career.currentLevel || 1,safeState.currentWeek || 1,safeState.academy?.level2 ? 1 : 0,safeState.academy?.level3 ? 1 : 0,(safeState.dangerousGoodsQualified ?? safeState.hazmatQualified) ? 1 : 0,safeState.emergencyReserve || 0,safeState.currentPayrollMonth || 1,safeState.payPeriodStartWeek || 1,(safeState.closedOperationalWeeks || []).join('|'),safeState.autoReserveContribution?.enabled ? 1 : 0,safeState.autoReserveContribution?.amount || 0],
-    ['BASE_EXPENSE','name','value'],
-    ...Object.entries(safeState.expenses || game.expenses).filter(([name]) => name !== 'emergency').map(([name, value]) => ['BASE_EXPENSE', name, value]),
-    ['TRIP','id','week','departureAt','arrivalAt','origin','originCompany','destination','destinationCompany','cargo','type','payCategory',game.distanceField === 'miles' ? 'miles' : 'kilometers'],
-    ...(safeState.trips || []).map((trip) => ['TRIP',trip.id,trip.week,trip.departureAt,trip.arrivalAt,trip.origin,trip.originCompany,trip.destination,trip.destinationCompany,trip.cargo,backupTripType(trip.type, game),backupPayCategory(trip.payCategory, game),tripDistance(trip)]),
-    ['HISTORY','date','type','desc','value','balance'],
-    ...(safeState.history || []).map((item) => ['HISTORY',item.date,item.type,item.desc,item.value ?? item.amount ?? 0,item.balance]),
-    ['EXPENSE','id','name','value','monthly'],
-    ...(safeState.customExpenses || []).map((item) => ['EXPENSE',item.id,item.name,item.value,item.monthly ? 1 : 0]),
-    ['INCIDENT','id','type','date','time','route','description','amount','chargeMethod','status','remaining','createdAt','week'],
-    ...(safeState.incidents || []).map((item) => ['INCIDENT',item.id,item.type,item.date,item.time,item.route,item.description,item.amount,item.chargeMethod,item.status,item.remaining,item.createdAt,item.week || '']),
-    ['CLOSED_WEEK','week','closedAt',game.distanceField === 'miles' ? 'miles' : 'kilometers','level','gross','taxes','benefits','netSalary','perDiem','incidentDeduction','reserveInterest','deposit','desc','periodType','month','startWeek','endWeek','weeks','countryCode','currency','taxBreakdown','baseCurrency','exchangeRate','exchangeRateAsOf','stateCode','stateName','city','cityMarketLabel','cityCostFactor','citySalaryFactor'],
-    ...(safeState.closedWeeks || []).map((period) => ['CLOSED_WEEK',period.week,period.closedAt,period.distance ?? period.miles,period.level,period.gross,period.taxes,period.benefits,period.netSalary,period.perDiem,period.incidentDeduction,period.reserveInterest || 0,period.deposit,period.desc,period.periodType || 'week',period.month || '',period.startWeek || period.week || '',period.endWeek || period.week || '',(period.weeks || [period.week]).filter(Boolean).join('|'),period.countryCode || career.countryCode || '',period.currency || career.currency || game.currency,JSON.stringify(period.taxBreakdown || {}),period.baseCurrency || career.baseCurrency || game.baseCurrency || game.currency,period.exchangeRate || career.exchangeRate || game.exchangeRate || 1,period.exchangeRateAsOf || career.exchangeRateAsOf || game.exchangeRateAsOf || '',period.stateCode || career.stateCode || game.stateCode || '',period.stateName || career.stateName || game.stateName || '',period.city || career.city || game.city || '',period.cityMarketLabel || career.cityMarketLabel || game.cityMarketLabel || '',period.cityCostFactor || career.cityCostFactor || game.cityCostFactor || 1,period.citySalaryFactor || career.citySalaryFactor || game.citySalaryFactor || 1]),
+    CAREER_TABLE_MARKERS[gameId], CAREER_TABLE_VERSION, game.shortName,
+    career.driverName || '', career.city || '', career.company || '',
+    career.countryCode || game.countryCode || career.stateCode || game.stateCode || '',
+    career.currency || game.currency, career.arrivalBalance ?? game.defaultArrivalBalance ?? 0,
+    career.bio || career.biography || '', career.initialBalance ?? balance, balance,
+    currentLevel, safeState.currentWeek || 1, safeState.emergencyReserve || 0,
+    career.exchangeRate || game.exchangeRate || 1,
+    career.exchangeRateAsOf || game.exchangeRateAsOf || '',
+    JSON.stringify(career.setupCosts || game.setupCosts || {}), career.createdAt || '',
+    JSON.stringify(career), JSON.stringify(safeState),
   ]
+}
+
+export function createCareerTableRows(entries, gameId = 'ats') {
+  const normalized = (entries || []).map((entry) => entry?.career
+    ? entry
+    : { career: entry, state: entry?.id ? loadPhase1State(entry.id, gameId) : {} })
+  if (!normalized.length) throw new Error('Selecione ao menos uma carreira para exportar.')
+  return [CAREER_TABLE_HEADERS, ...normalized.map(({ career, state }) => careerTableRow(career, state, gameId))]
 }
 
 function safeFileStem(career) {
@@ -155,13 +163,19 @@ function safeFileStem(career) {
 
 export function exportCareerCSV(career, state, gameId = career?.gameId || 'ats') {
   const game = getGame(gameId)
-  downloadCsv(`${game.backupStem}_${safeFileStem(career)}.csv`, careerRows(career, state, gameId))
+  downloadCsv(`${game.backupStem}_${safeFileStem(career)}.csv`, createCareerTableRows([{ career, state }], gameId))
 }
 
 export function exportCareerExcel(career, state, format = 'xlsx', gameId = career?.gameId || 'ats') {
   if (!['xls', 'xlsx'].includes(format)) throw new Error('Formato de planilha não suportado.')
   const game = getGame(gameId)
-  writeWorkbook(careerRows(career, state, gameId), `${game.backupStem}_${safeFileStem(career)}.${format}`, gameId)
+  writeWorkbook(createCareerTableRows([{ career, state }], gameId), `${game.backupStem}_${safeFileStem(career)}.${format}`, gameId)
+}
+
+export function exportCareersCSV(careers, gameId = 'ats') {
+  const game = getGame(gameId)
+  const selected = careers || []
+  downloadCsv(`${game.backupStem}_carreiras_${selected.length}.csv`, createCareerTableRows(selected, gameId))
 }
 
 function hasValue(value) {
@@ -200,6 +214,230 @@ function validateNumeric(value, label, invalid, options = {}) {
   if (options.integer && !Number.isInteger(number)) invalid.push(`${label} (deve ser inteiro)`)
   if (options.min != null && number < options.min) invalid.push(`${label} (mínimo ${options.min})`)
   if (options.max != null && number > options.max) invalid.push(`${label} (máximo ${options.max})`)
+}
+
+function normalizedHeader(value) {
+  return String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ')
+}
+
+function isCareerTable(rows) {
+  const header = (rows?.[0] || []).map(normalizedHeader)
+  return header.includes(normalizedHeader(CAREER_TABLE_COLUMNS[0][1]))
+    && header.includes(normalizedHeader(CAREER_TABLE_COLUMNS[3][1]))
+}
+
+function careerTableIndexes(header) {
+  const normalized = (header || []).map(normalizedHeader)
+  return Object.fromEntries(CAREER_TABLE_COLUMNS.map(([key, label]) => [key, normalized.indexOf(normalizedHeader(label))]))
+}
+
+function tableCell(row, indexes, key) {
+  const index = indexes[key]
+  return index >= 0 ? row[index] : ''
+}
+
+function tableNumber(row, indexes, key, lineIndex, options = {}) {
+  const value = tableCell(row, indexes, key)
+  const label = CAREER_TABLE_COLUMNS.find(([columnKey]) => columnKey === key)?.[1] || key
+  if (!hasValue(value)) {
+    if (options.required) throw new Error(`Arquivo incompleto. Preencha “${label}” na linha ${lineIndex + 1}.`)
+    return options.fallback
+  }
+  const number = parseStrictNumber(value)
+  if (!Number.isFinite(number)) throw new Error(`Arquivo inválido. “${label}” na linha ${lineIndex + 1} deve conter apenas números; no CSV, use ponto para decimais.`)
+  if (options.integer && !Number.isInteger(number)) throw new Error(`Arquivo inválido. “${label}” na linha ${lineIndex + 1} deve ser um número inteiro.`)
+  if (options.min != null && number < options.min) throw new Error(`Arquivo inválido. “${label}” na linha ${lineIndex + 1} deve ser no mínimo ${options.min}.`)
+  if (options.max != null && number > options.max) throw new Error(`Arquivo inválido. “${label}” na linha ${lineIndex + 1} deve ser no máximo ${options.max}.`)
+  return number
+}
+
+function tableJsonObject(row, indexes, key, lineIndex) {
+  const value = tableCell(row, indexes, key)
+  if (!hasValue(value)) return null
+  const label = CAREER_TABLE_COLUMNS.find(([columnKey]) => columnKey === key)?.[1] || key
+  try {
+    const parsed = typeof value === 'string' ? JSON.parse(value) : value
+    if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') throw new Error('invalid')
+    return parsed
+  } catch {
+    throw new Error(`Arquivo inválido. “${label}” na linha ${lineIndex + 1} possui um JSON inválido.`)
+  }
+}
+
+function tableRequiredText(row, indexes, key, lineIndex) {
+  const label = CAREER_TABLE_COLUMNS.find(([columnKey]) => columnKey === key)?.[1] || key
+  const value = String(tableCell(row, indexes, key) || '').trim()
+  if (!value) throw new Error(`Arquivo incompleto. Preencha “${label}” na linha ${lineIndex + 1}.`)
+  return value
+}
+
+function normalizeSetupCosts(record, fallback, lineIndex) {
+  const source = record || fallback || {}
+  const normalized = {}
+  for (const [name, value] of Object.entries(source)) {
+    const number = typeof value === 'number' ? value : parseStrictNumber(value)
+    if (!Number.isFinite(number) || number < 0) {
+      throw new Error(`Arquivo inválido. O custo inicial “${name}” na linha ${lineIndex + 1} deve ser um número maior ou igual a zero.`)
+    }
+    normalized[name] = number
+  }
+  return normalized
+}
+
+function normalizeTableState(rawState, game, initialBalance, row, indexes, lineIndex) {
+  const source = rawState || {}
+  const sourceLevel = Number(source.currentLevel || source.careerLevel || 1)
+  const sourceWeek = Number(source.currentWeek || 1)
+  const sourceReserve = Number(source.emergencyReserve || 0)
+  const sourceBalance = Number(source.balance)
+  const currentLevel = tableNumber(row, indexes, 'currentLevel', lineIndex, {
+    fallback: Number.isInteger(sourceLevel) ? sourceLevel : 1, integer: true, min: 1, max: 3,
+  })
+  const currentWeek = tableNumber(row, indexes, 'currentWeek', lineIndex, {
+    fallback: Number.isInteger(sourceWeek) && sourceWeek > 0 ? sourceWeek : 1, integer: true, min: 1,
+  })
+  const emergencyReserve = tableNumber(row, indexes, 'emergencyReserve', lineIndex, {
+    fallback: Number.isFinite(sourceReserve) ? sourceReserve : 0, min: 0,
+  })
+  const balance = tableNumber(row, indexes, 'balance', lineIndex, {
+    fallback: Number.isFinite(sourceBalance) ? sourceBalance : initialBalance,
+  })
+  const qualified = Boolean(source.dangerousGoodsQualified ?? source.hazmatQualified)
+  const state = {
+    ...source,
+    balance,
+    emergencyReserve,
+    expenses: source.expenses && !Array.isArray(source.expenses) && typeof source.expenses === 'object'
+      ? { ...game.expenses, ...source.expenses }
+      : { ...game.expenses },
+    history: Array.isArray(source.history) ? source.history : [],
+    trips: Array.isArray(source.trips) ? source.trips : [],
+    closedWeeks: Array.isArray(source.closedWeeks) ? source.closedWeeks : [],
+    customExpenses: Array.isArray(source.customExpenses) ? source.customExpenses : [],
+    incidents: Array.isArray(source.incidents) ? source.incidents : [],
+    currentLevel,
+    careerLevel: currentLevel,
+    currentWeek,
+    currentPayrollMonth: Math.max(1, Number(source.currentPayrollMonth || 1)),
+    payPeriodStartWeek: Math.max(1, Number(source.payPeriodStartWeek || 1)),
+    closedOperationalWeeks: Array.isArray(source.closedOperationalWeeks)
+      ? [...new Set(source.closedOperationalWeeks.map(Number).filter((week) => Number.isInteger(week) && week > 0))]
+      : [],
+    dangerousGoodsQualified: qualified,
+    hazmatQualified: qualified,
+    academy: {
+      level2: Boolean(source.academy?.level2 || currentLevel >= 2),
+      level3: Boolean(source.academy?.level3 || currentLevel >= 3),
+    },
+    autoReserveContribution: source.autoReserveContribution && typeof source.autoReserveContribution === 'object'
+      ? { enabled: Boolean(source.autoReserveContribution.enabled), amount: Math.max(0, Number(source.autoReserveContribution.amount || 0)) }
+      : { enabled: false, amount: 0 },
+  }
+  state.careerMiles = state.trips.reduce((sum, trip) => sum + tripDistance(trip), 0)
+  return state
+}
+
+function prepareCareerTableRow(row, indexes, lineIndex, expectedGameId, sequence) {
+  const marker = tableRequiredText(row, indexes, 'marker', lineIndex).toUpperCase()
+  const gameId = Object.entries(CAREER_TABLE_MARKERS).find(([, value]) => value === marker)?.[0]
+  if (!gameId) throw new Error(`Arquivo inválido. O formato da linha ${lineIndex + 1} não pertence ao ATS nem ao ETS2.`)
+  if (expectedGameId && expectedGameId !== gameId) throw new Error(`A linha ${lineIndex + 1} pertence ao ${getGame(gameId).shortName}. Importe-a na área de carreiras desse jogo.`)
+
+  const version = tableNumber(row, indexes, 'version', lineIndex, { required: true, integer: true, min: CAREER_TABLE_VERSION, max: CAREER_TABLE_VERSION })
+  const gameLabel = tableRequiredText(row, indexes, 'game', lineIndex).toUpperCase()
+  if (gameLabel !== getGame(gameId).shortName.toUpperCase()) throw new Error(`Arquivo inválido. O jogo informado na linha ${lineIndex + 1} não corresponde ao formato do arquivo.`)
+
+  const driverName = tableRequiredText(row, indexes, 'driverName', lineIndex)
+  const city = tableRequiredText(row, indexes, 'city', lineIndex)
+  const company = tableRequiredText(row, indexes, 'company', lineIndex)
+  const locationCode = tableRequiredText(row, indexes, 'locationCode', lineIndex).toUpperCase()
+  const currency = tableRequiredText(row, indexes, 'currency', lineIndex).toUpperCase()
+  if (gameId === 'ets2' && !getEts2CountryProfile(locationCode)) throw new Error(`Arquivo inválido. O país-sede “${locationCode}” da linha ${lineIndex + 1} não é suportado.`)
+  if (gameId === 'ats' && !getAtsStateProfile(locationCode)) throw new Error(`Arquivo inválido. O estado-sede “${locationCode}” da linha ${lineIndex + 1} não é suportado.`)
+  if (gameId === 'ets2' && !getEts2Currency(currency)) throw new Error(`Arquivo inválido. A moeda “${currency}” da linha ${lineIndex + 1} não é suportada no ETS2.`)
+  if (gameId === 'ats' && !getAtsCurrency(currency)) throw new Error(`Arquivo inválido. A moeda “${currency}” da linha ${lineIndex + 1} não é suportada no ATS.`)
+
+  const rawCareer = tableJsonObject(row, indexes, 'careerJson', lineIndex) || {}
+  const rawState = tableJsonObject(row, indexes, 'stateJson', lineIndex) || {}
+  const sameFinancialProfile = String(rawCareer.city || '').trim() === city
+    && String(gameId === 'ets2' ? rawCareer.countryCode : rawCareer.stateCode || '').trim().toUpperCase() === locationCode
+    && String(rawCareer.currency || '').trim().toUpperCase() === currency
+  const suppliedRate = tableNumber(row, indexes, 'exchangeRate', lineIndex, { fallback: null, min: Number.EPSILON })
+  const exchangeRate = suppliedRate || (sameFinancialProfile && Number(rawCareer.exchangeRate) > 0 ? Number(rawCareer.exchangeRate) : null)
+  const exchangeRateAsOf = String(tableCell(row, indexes, 'exchangeRateAsOf') || (sameFinancialProfile ? rawCareer.exchangeRateAsOf : '') || '').trim()
+  const game = getGame(
+    gameId, locationCode, currency, exchangeRate, exchangeRateAsOf || null, city,
+    sameFinancialProfile ? rawCareer.cityCostFactor : null,
+    sameFinancialProfile ? rawCareer.citySalaryFactor : null,
+    sameFinancialProfile ? rawCareer.cityMarketLabel : null,
+  )
+
+  const suppliedSetupCosts = tableJsonObject(row, indexes, 'setupCosts', lineIndex)
+  const setupCosts = normalizeSetupCosts(suppliedSetupCosts || (sameFinancialProfile ? rawCareer.setupCosts : null), game.setupCosts, lineIndex)
+  const setupCostsTotal = Object.values(setupCosts).reduce((sum, value) => sum + value, 0)
+  const arrivalBalance = tableNumber(row, indexes, 'arrivalBalance', lineIndex, { required: true })
+  const initialBalance = tableNumber(row, indexes, 'initialBalance', lineIndex, { fallback: arrivalBalance - setupCostsTotal })
+  const state = normalizeTableState(rawState, game, initialBalance, row, indexes, lineIndex)
+  const now = new Date().toISOString()
+  const createdAt = String(tableCell(row, indexes, 'createdAt') || rawCareer.createdAt || now).trim()
+  const bio = String(tableCell(row, indexes, 'bio') || '').trim()
+  const id = `career_${Date.now()}_${sequence}_${Math.random().toString(36).slice(2, 8)}`
+  const career = {
+    ...rawCareer,
+    id,
+    gameId,
+    driverName,
+    city,
+    company,
+    arrivalBalance,
+    setupCosts,
+    setupCostsTotal,
+    initialBalance,
+    currentBalance: state.balance,
+    currentLevel: state.currentLevel,
+    bio,
+    countryCode: game.countryCode || '',
+    countryName: game.countryName || '',
+    stateCode: game.stateCode || '',
+    stateName: game.stateName || '',
+    currency: game.currency,
+    baseCurrency: game.baseCurrency || game.currency,
+    exchangeRate: game.exchangeRate || 1,
+    exchangeRateAsOf: game.exchangeRateAsOf || '',
+    cityMarketVersion: game.cityMarketVersion,
+    cityMarketLabel: game.cityMarketLabel,
+    cityCostFactor: game.cityCostFactor,
+    citySalaryFactor: game.citySalaryFactor,
+    createdAt,
+    updatedAt: now,
+  }
+  return { career, state, version, gameId }
+}
+
+function importCareerTableRows(rows, expectedGameId) {
+  const indexes = careerTableIndexes(rows[0])
+  const requiredHeaders = ['marker', 'version', 'game', 'driverName', 'city', 'company', 'locationCode', 'currency', 'arrivalBalance']
+  const missingHeaders = requiredHeaders.filter((key) => indexes[key] < 0).map((key) => CAREER_TABLE_COLUMNS.find(([columnKey]) => columnKey === key)[1])
+  if (missingHeaders.length) throw new Error(`Arquivo incompleto. Colunas obrigatórias ausentes: ${missingHeaders.join(', ')}.`)
+  const dataRows = rows.slice(1).map((row, index) => ({ row, lineIndex: index + 1 })).filter(({ row }) => row.some((value) => hasValue(value)))
+  if (!dataRows.length) throw new Error('O arquivo possui apenas os títulos. Adicione ao menos uma carreira a partir da segunda linha.')
+
+  const prepared = dataRows.map(({ row, lineIndex }, index) => prepareCareerTableRow(row, indexes, lineIndex, expectedGameId, index + 1))
+  const gameIds = [...new Set(prepared.map((item) => item.gameId))]
+  if (gameIds.length !== 1) throw new Error('O mesmo arquivo não pode misturar carreiras de ATS e ETS2.')
+  const gameId = gameIds[0]
+  saveCareers([...loadCareers(gameId), ...prepared.map((item) => item.career)], gameId)
+  prepared.forEach(({ career, state }) => localStorage.setItem(phase1StorageKey(career.id, gameId), JSON.stringify(state)))
+  localStorage.setItem(activeCareerStorageKey(gameId), prepared[prepared.length - 1].career.id)
+  return {
+    career: prepared[0].career,
+    state: prepared[0].state,
+    careers: prepared.map((item) => item.career),
+    states: prepared.map((item) => item.state),
+    count: prepared.length,
+    version: prepared[0].version,
+    gameId,
+  }
 }
 
 function validateImportRows(rows, version, game = getGame('ats')) {
@@ -503,7 +741,8 @@ function importCareerRows(rows, expectedGameId) {
 }
 
 export function importCareerCSVText(text, expectedGameId) {
-  return importCareerRows(parseCSV(text), expectedGameId)
+  const rows = parseCSV(text)
+  return isCareerTable(rows) ? importCareerTableRows(rows, expectedGameId) : importCareerRows(rows, expectedGameId)
 }
 
 export function importCareerWorkbookData(data, expectedGameId) {
@@ -511,7 +750,8 @@ export function importCareerWorkbookData(data, expectedGameId) {
   const sheetName = workbook.SheetNames[0]
   if (!sheetName) throw new Error('A planilha não possui nenhuma aba para importar.')
   const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, raw: true, defval: '' })
-  return importCareerRows(rows.filter((row) => row.some((value) => hasValue(value))), expectedGameId)
+  const populatedRows = rows.filter((row) => row.some((value) => hasValue(value)))
+  return isCareerTable(populatedRows) ? importCareerTableRows(populatedRows, expectedGameId) : importCareerRows(populatedRows, expectedGameId)
 }
 
 export async function importCareerFile(file, expectedGameId) {

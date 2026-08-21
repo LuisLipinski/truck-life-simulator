@@ -122,6 +122,24 @@ describe('career card navigation', () => {
     expect(document.querySelector(`[aria-label="Abrir carreira ${career.driverName}"]`)).toBeNull()
   })
 
+  it('selects multiple careers for a single export from the careers page', async () => {
+    const first = seedCareer()
+    const second = { ...first, id: 'career_test_2', driverName: 'Second Driver', city: 'Dallas, TX' }
+    localStorage.setItem(CAREERS_KEY, JSON.stringify([first, second]))
+    await renderCareers()
+
+    const exportButton = [...document.querySelectorAll('button')].find((button) => button.textContent === 'Exportar carreiras')
+    await act(async () => exportButton.click())
+
+    expect(document.querySelector('.career-export-bar')?.textContent).toContain('0 de 2 carreiras selecionadas')
+    const selectAllButton = [...document.querySelectorAll('button')].find((button) => button.textContent === 'Selecionar todas')
+    await act(async () => selectAllButton.click())
+
+    expect(document.querySelector('.career-export-bar')?.textContent).toContain('2 de 2 carreiras selecionadas')
+    expect(document.querySelectorAll('.career-card-selected')).toHaveLength(2)
+    expect(document.querySelectorAll('.career-select-checkbox:checked')).toHaveLength(2)
+  })
+
   it('starts the guided tutorial when the option is checked during career creation', async () => {
     window.location.hash = '#/new'
     await act(async () => {

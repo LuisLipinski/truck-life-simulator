@@ -1,8 +1,15 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { importCareerCSVText, parseCSV } from './csv.js'
-import { getCareer } from './storage.js'
+import { CAREER_TABLE_HEADERS, createCareerTableRows, createCareerTemplateRows, importCareerCSVText, parseCSV } from './csv.js'
+import { CAREERS_KEY, getCareer } from './storage.js'
 import { loadPhase1State } from './phase1.js'
+
+function rowsToCsv(rows) {
+  return rows.map((row) => row.map((value) => {
+    const text = String(value ?? '')
+    return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
+  }).join(',')).join('\n')
+}
 
 describe('CSV backup integration', () => {
   beforeEach(() => {
@@ -12,6 +19,61 @@ describe('CSV backup integration', () => {
 
   it('parses quoted fields containing commas', () => {
     expect(parseCSV('A,"Los Angeles, CA",C\n')).toEqual([['A', 'Los Angeles, CA', 'C']])
+  })
+
+  it('creates a simple template with headers first and one career per following row', () => {
+    const rows = createCareerTemplateRows('ats')
+
+    expect(rows).toHaveLength(2)
+    expect(rows[0]).toEqual(CAREER_TABLE_HEADERS)
+    expect(rows[1][CAREER_TABLE_HEADERS.indexOf('Nome do motorista *')]).toBe('Seu Nome')
+    expect(rows[1][CAREER_TABLE_HEADERS.indexOf('Formato [não editar]')]).toBe('ATS_CAREERS_TABLE')
+  })
+
+  it('imports multiple careers from consecutive table rows', () => {
+    const rows = createCareerTemplateRows('ats')
+    const secondCareer = [...rows[1]]
+    secondCareer[CAREER_TABLE_HEADERS.indexOf('Nome do motorista *')] = 'Texas Driver'
+    secondCareer[CAREER_TABLE_HEADERS.indexOf('Cidade-base *')] = 'Dallas, TX'
+    secondCareer[CAREER_TABLE_HEADERS.indexOf('Empresa *')] = 'Lone Star Logistics'
+    secondCareer[CAREER_TABLE_HEADERS.indexOf('Código da sede financeira *')] = 'TX'
+    rows.push(secondCareer)
+
+    const result = importCareerCSVText(rowsToCsv(rows), 'ats')
+    const stored = JSON.parse(localStorage.getItem(CAREERS_KEY) || '[]')
+
+    expect(result.count).toBe(2)
+    expect(result.careers.map((career) => career.driverName)).toEqual(['Seu Nome', 'Texas Driver'])
+    expect(stored).toHaveLength(2)
+    expect(stored[1]).toMatchObject({ city: 'Dallas, TX', stateCode: 'TX', stateName: 'Texas' })
+    expect(loadPhase1State(stored[1].id).currentWeek).toBe(1)
+  })
+
+  it('round-trips a complete career in a single data row', () => {
+    const career = {
+      id: 'career_original', gameId: 'ats', driverName: 'Backup Driver', city: 'Los Angeles, CA', company: 'Pacific Logistics',
+      stateCode: 'CA', stateName: 'California', currency: 'USD', baseCurrency: 'USD', exchangeRate: 1, exchangeRateAsOf: '2026-08-20',
+      arrivalBalance: 5000, initialBalance: 793, currentBalance: 1200, currentLevel: 2, bio: 'Backup completo',
+      setupCosts: { rent: 1650, deposit: 1650, license: 100 }, createdAt: '2026-08-20T10:00:00.000Z',
+    }
+    const state = {
+      balance: 1200, emergencyReserve: 250, currentLevel: 2, careerLevel: 2, currentWeek: 4,
+      expenses: { rent: 1650 }, history: [{ desc: 'Teste', value: 10 }],
+      trips: [{ id: 1, week: 3, origin: 'Los Angeles, CA', destination: 'Fresno, CA', miles: 220, type: 'Loaded' }],
+      customExpenses: [{ id: 'exp_1', name: 'Lavanderia', value: 25, monthly: true }], incidents: [], closedWeeks: [],
+      academy: { level2: true, level3: false }, hazmatQualified: true, dangerousGoodsQualified: true,
+    }
+    const rows = createCareerTableRows([{ career, state }], 'ats')
+
+    expect(rows).toHaveLength(2)
+    const result = importCareerCSVText(rowsToCsv(rows), 'ats')
+    const importedState = loadPhase1State(result.career.id)
+
+    expect(result.career.id).not.toBe(career.id)
+    expect(result.career).toMatchObject({ driverName: 'Backup Driver', currentBalance: 1200, currentLevel: 2 })
+    expect(importedState).toMatchObject({ balance: 1200, emergencyReserve: 250, currentWeek: 4 })
+    expect(importedState.trips).toEqual(state.trips)
+    expect(importedState.customExpenses).toEqual(state.customExpenses)
   })
 
   it('imports CSV v7 with emergency reserve and reserve interest history fields', () => {

@@ -243,8 +243,8 @@ function OverviewTab({ career, state, setActiveTab }) {
       <section className="panel legacy-bridge" data-tour="career-backup">
         <div>
           <span className="eyebrow">Backup da carreira</span>
-          <h2>Exportação CSV já está em React</h2>
-          <p>O backup inclui perfil, sede fiscal, moeda e cotação registrada, estado da aplicação, viagens, histórico, gastos personalizados, ocorrências e holerites fechados. A importação fica na tela de Carreiras.</p>
+          <h2>Exportar somente esta carreira</h2>
+          <p>O arquivo tabular inclui esta carreira em uma única linha e preserva perfil, sede fiscal, moeda, viagens, histórico, gastos, ocorrências, holerites e reserva. A importação e a exportação de várias carreiras ficam na tela de Carreiras.</p>
         </div>
         <button className="button success compact" type="button" onClick={() => exportCareerCSV(career, state, game.id)}>Exportar carreira CSV</button>
       </section>
