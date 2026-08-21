@@ -1,6 +1,14 @@
 import { ATS_CITIES } from '../data/atsCities.js'
 import { ETS2_CITIES } from '../data/ets2Cities.js'
 import { ETS2_COUNTRY_OPTIONS, getEts2CountryProfile } from './ets2Countries.js'
+import {
+  convertEts2Currency,
+  ETS2_CURRENCY_OPTIONS,
+  ETS2_EXCHANGE_RATE_DATE,
+  getEts2Currency,
+  getEts2ExchangeRate,
+  roundCurrency,
+} from './ets2Currencies.js'
 
 const ATS_IMAGE = 'https://cdn.cloudflare.steamstatic.com/steam/apps/270880/header.jpg'
 const ETS2_IMAGE = 'https://cdn.cloudflare.steamstatic.com/steam/apps/227300/header.jpg'
@@ -77,7 +85,7 @@ export const GAMES = {
     routes: { careers: '/ets2', new: '/ets2/new', phases: '/ets2/phases', phase1: '/ets2/phase1' },
     storagePrefix: 'ets2', backupMarker: 'ETS2_CAREER_BACKUP', backupStem: 'ets2', sheetName: 'Carreira ETS2',
     currency: 'EUR', locale: 'de-DE', currencyLabel: '€', distanceUnit: 'km', distanceName: 'quilômetros', distanceField: 'distance',
-    countryOptions: ETS2_COUNTRY_OPTIONS, payrollPeriod: 'monthly', payrollPeriodLabel: 'mensal', payrollBenefits: 0, minWeeksPerPayroll: 4, maxWeeksPerPayroll: 5,
+    countryOptions: ETS2_COUNTRY_OPTIONS, currencyOptions: ETS2_CURRENCY_OPTIONS, payrollPeriod: 'monthly', payrollPeriodLabel: 'mensal', payrollBenefits: 0, minWeeksPerPayroll: 4, maxWeeksPerPayroll: 5,
     arrivalLabel: 'Dinheiro disponível ao iniciar no país', cityPlaceholder: 'Selecione primeiro o país-sede', companyPlaceholder: 'Euro Horizon Logistics',
     bioPlaceholder: 'Motorista que iniciou uma nova carreira internacional na Europa.',
     setupCosts: { rent: 950, deposit: 950, license: 150, groceries: 220, home: 300, phone: 35, internet: 40, transit: 60 },
@@ -102,24 +110,72 @@ export const GAMES = {
   },
 }
 
-export function getGame(gameId = 'ats', countryCode = null) {
+function convertedRecord(record, fromCurrency, toCurrency, exchangeRate, precision = 2) {
+  return Object.fromEntries(Object.entries(record || {}).map(([key, value]) => {
+    const converted = convertEts2Currency(value, fromCurrency, toCurrency, exchangeRate)
+    const factor = 10 ** precision
+    return [key, Math.round((converted + Number.EPSILON) * factor) / factor]
+  }))
+}
+
+export function getGame(gameId = 'ats', countryCode = null, currencyCode = null, savedExchangeRate = null, savedExchangeRateAsOf = null) {
   const game = GAMES[gameId] || GAMES.ats
   if (game.id !== 'ets2' || !countryCode) return game
   const country = getEts2CountryProfile(countryCode)
   if (!country) return game
+  const baseCurrency = country.currency
+  const baseCurrencyProfile = getEts2Currency(baseCurrency)
+  const selectedCurrency = getEts2Currency(currencyCode) || getEts2Currency(baseCurrency)
+  const exchangeRate = selectedCurrency.code === baseCurrency
+    ? 1
+    : Number(savedExchangeRate) > 0
+      ? Number(savedExchangeRate)
+      : getEts2ExchangeRate(baseCurrency, selectedCurrency.code)
+  const convertMoney = (value) => roundCurrency(convertEts2Currency(value, baseCurrency, selectedCurrency.code, exchangeRate))
   return {
     ...game,
     ...country,
+    currencyOptions: ETS2_CURRENCY_OPTIONS,
+    currency: selectedCurrency.code,
+    currencyName: selectedCurrency.name,
+    currencyLabel: selectedCurrency.symbol,
+    locale: selectedCurrency.locale,
+    baseCurrency,
+    baseCurrencyLabel: country.currencyLabel,
+    baseLocale: country.locale,
+    exchangeRate,
+    exchangeRateAsOf: savedExchangeRateAsOf || ETS2_EXCHANGE_RATE_DATE,
+    exchangeRateSources: [...new Map([baseCurrencyProfile.source, selectedCurrency.source].map((source) => [source[1], source])).values()],
+    defaultArrivalBalance: convertMoney(country.defaultArrivalBalance),
+    setupCosts: convertedRecord(country.setupCosts, baseCurrency, selectedCurrency.code, exchangeRate),
+    expenses: convertedRecord(country.expenses, baseCurrency, selectedCurrency.code, exchangeRate),
+    payRates: convertedRecord(country.payRates, baseCurrency, selectedCurrency.code, exchangeRate, 4),
+    level1Gross: convertMoney(country.level1Gross),
+    routeOverrunRate: convertMoney(country.routeOverrunRate),
+    payrollBenefits: convertMoney(country.payrollBenefits),
+    perDiemRate: convertMoney(country.perDiemRate),
+    promotionCosts: country.promotionCosts.map(convertMoney),
+    dangerousQualificationCost: convertMoney(country.dangerousQualificationCost),
     cities: game.cities,
     baseCities: country.cities,
     countryCode: country.code,
     countryName: country.name,
     countryFlag: country.flag,
     countryProfile: country,
-    weeklyBenefits: country.payrollBenefits,
-    academyModules: game.academyModules.map((module, index) => ({ ...module, cost: country.promotionCosts[index] })),
-    dangerousQualification: { ...game.dangerousQualification, cost: country.dangerousQualificationCost },
+    weeklyBenefits: convertMoney(country.payrollBenefits),
+    academyModules: game.academyModules.map((module, index) => ({ ...module, cost: convertMoney(country.promotionCosts[index]) })),
+    dangerousQualification: { ...game.dangerousQualification, cost: convertMoney(country.dangerousQualificationCost) },
   }
+}
+
+export function getGameForCareer(career, gameId = career?.gameId || 'ats') {
+  return getGame(
+    gameId,
+    career?.countryCode,
+    career?.currency,
+    career?.exchangeRate,
+    career?.exchangeRateAsOf,
+  )
 }
 
 export function gameIdFromPath(path = '') {

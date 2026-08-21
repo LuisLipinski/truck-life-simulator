@@ -1,5 +1,6 @@
 import { getGame } from '../config/games.js'
 import { getEts2CountryProfile, inferEts2CountryCode } from '../config/ets2Countries.js'
+import { ETS2_EXCHANGE_RATE_DATE, getEts2Currency, getEts2ExchangeRate } from '../config/ets2Currencies.js'
 
 export function careersStorageKey(gameId = 'ats') {
   return `${getGame(gameId).storagePrefix}_careers_v1`
@@ -19,12 +20,21 @@ function normalizeCareer(career, gameId = 'ats') {
   const inferredCode = inferEts2CountryCode(career.city)
   const countryCode = getEts2CountryProfile(career.countryCode)?.code || inferredCode || 'DE'
   const profile = getEts2CountryProfile(countryCode)
+  const currency = getEts2Currency(career.currency)?.code || profile.currency
+  const exchangeRate = currency === profile.currency
+    ? 1
+    : Number(career.exchangeRate) > 0
+      ? Number(career.exchangeRate)
+      : getEts2ExchangeRate(profile.currency, currency)
   return {
     ...career,
     gameId: 'ets2',
     countryCode,
     countryName: profile.name,
-    currency: profile.currency,
+    baseCurrency: profile.currency,
+    currency,
+    exchangeRate,
+    exchangeRateAsOf: career.exchangeRateAsOf || ETS2_EXCHANGE_RATE_DATE,
   }
 }
 

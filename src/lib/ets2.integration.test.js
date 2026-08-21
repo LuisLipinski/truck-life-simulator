@@ -49,6 +49,32 @@ describe('ETS2 career domain', () => {
     expect(estimateTaxes(1000, 'ets2')).toEqual({})
   })
 
+  it('applies tax thresholds in the country currency and returns deductions in the selected currency', () => {
+    const britishInPounds = getGame('ets2', 'GB', 'GBP')
+    const britishInEuro = getGame('ets2', 'GB', 'EUR')
+    const localTaxes = estimateTaxes(britishInPounds.level1Gross, britishInPounds)
+    const euroTaxes = estimateTaxes(britishInEuro.level1Gross, britishInEuro)
+
+    expect(britishInEuro.baseCurrency).toBe('GBP')
+    expect(britishInEuro.currency).toBe('EUR')
+    expect(euroTaxes.incomeTax).toBeCloseTo(localTaxes.incomeTax * britishInEuro.exchangeRate)
+    expect(euroTaxes.nationalInsurance).toBeCloseTo(localTaxes.nationalInsurance * britishInEuro.exchangeRate)
+  })
+
+  it('preserves a selected ETS2 currency and its exchange-rate snapshot in storage', () => {
+    const britishInEuro = getGame('ets2', 'GB', 'EUR')
+    const career = createCareer({
+      driverName: 'London Euro Driver', city: 'Londres, Reino Unido', company: 'Euro Logistics',
+      initialBalance: 1000, currentBalance: 1000, countryCode: 'GB', countryName: 'Reino Unido',
+      currency: 'EUR', baseCurrency: 'GBP', exchangeRate: britishInEuro.exchangeRate, exchangeRateAsOf: '2026-08-20',
+    }, 'ets2')
+
+    expect(getCareer(career.id, 'ets2')).toMatchObject({
+      countryCode: 'GB', currency: 'EUR', baseCurrency: 'GBP', exchangeRateAsOf: '2026-08-20',
+    })
+    expect(loadPhase1State(career.id, 'ets2').expenses.rent).toBeCloseTo(britishInEuro.expenses.rent)
+  })
+
   it('groups closed operational weeks into the current monthly payroll', () => {
     const germany = getGame('ets2', 'DE')
     const state = {
@@ -110,5 +136,22 @@ describe('ETS2 career domain', () => {
     expect(result.state.expenses.rent).toBe(3200)
     expect(result.state.autoReserveContribution).toEqual({ enabled: true, amount: 250 })
     expect(result.state.closedWeeks[0]).toMatchObject({ periodType: 'month', month: 1, weeks: [1, 2, 3, 4], countryCode: 'PL', currency: 'PLN', taxBreakdown: { incomeTax: 900 } })
+  })
+
+  it('imports backup v9 with an independent display currency and exchange-rate snapshot', () => {
+    const text = [
+      'ETS2_CAREER_BACKUP,9',
+      'CAREER,id,driverName,city,company,arrivalBalance,initialBalance,bio,createdAt,countryCode,countryName,currency,baseCurrency,exchangeRate,exchangeRateAsOf',
+      'CAREER,,London Euro Driver,"Londres, Reino Unido",Euro Logistics,4082.99,1699.34,Bio,2026-08-20T00:00:00.000Z,GB,Reino Unido,EUR,GBP,1.1665208516,2026-08-20',
+      'STATE,balance,careerLevel,currentWeek,academyLevel2,academyLevel3,adrQualified,emergencyReserve,currentPayrollMonth,payPeriodStartWeek,closedOperationalWeeks,autoReserveEnabled,autoReserveAmount',
+      'STATE,2000,1,1,0,0,0,0,1,1,,0,0',
+      'CLOSED_WEEK,week,closedAt,kilometers,level,gross,taxes,benefits,netSalary,perDiem,incidentDeduction,reserveInterest,deposit,desc,periodType,month,startWeek,endWeek,weeks,countryCode,currency,taxBreakdown,baseCurrency,exchangeRate,exchangeRateAsOf',
+    ].join('\n')
+
+    const result = importCareerCSVText(text, 'ets2')
+    expect(result.version).toBe(9)
+    expect(result.career).toMatchObject({ countryCode: 'GB', currency: 'EUR', baseCurrency: 'GBP', exchangeRateAsOf: '2026-08-20' })
+    expect(result.career.exchangeRate).toBeCloseTo(1.1665208516)
+    expect(result.state.expenses.rent).toBeCloseTo(1166.52)
   })
 })

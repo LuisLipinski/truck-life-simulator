@@ -167,6 +167,31 @@ describe('career card navigation', () => {
     expect(localStorage.getItem(CAREERS_KEY)).toBeNull()
   })
 
+  it('creates a London career with British fiscal rules displayed in euro', async () => {
+    window.location.hash = '#/ets2/new'
+    await act(async () => {
+      root.render(createElement(ToastProvider, null, createElement(ConfirmProvider, null, createElement(TutorialProvider, null, createElement(App)))))
+    })
+
+    setSelectValue(document.querySelector('#career-country'), 'GB')
+    expect(document.querySelector('#career-currency').value).toBe('GBP')
+    setSelectValue(document.querySelector('#career-currency'), 'EUR')
+    expect(document.querySelector('[data-tour="career-currency"]')?.textContent).toContain('calculadas em GBP e convertidas para EUR')
+    setInputValue(document.querySelector('input[placeholder="Ex.: Rafael Silva"]'), 'London Euro Driver')
+    setInputValue(document.querySelector('.react-city-autocomplete input'), 'Londres, Reino Unido')
+    setInputValue(document.querySelector('input[placeholder="Ex.: Euro Horizon Logistics"]'), 'Euro Logistics')
+
+    await act(async () => {
+      document.querySelector('.form-panel').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+      await Promise.resolve()
+    })
+
+    const [career] = JSON.parse(localStorage.getItem(ETS2_CAREERS_KEY) || '[]')
+    expect(career).toMatchObject({ countryCode: 'GB', countryName: 'Reino Unido', currency: 'EUR', baseCurrency: 'GBP', exchangeRateAsOf: '2026-08-20' })
+    expect(career.exchangeRate).toBeGreaterThan(1)
+    expect(career.setupCosts.rent).toBeCloseTo(1166.52)
+  })
+
   it('shows ETS2 qualifications and a European payslip without ATS fiscal copy', async () => {
     const career = createCareer({
       driverName: 'European Driver', city: 'Berlin, Alemanha', company: 'Euro Logistics', initialBalance: 1200, currentBalance: 1200,

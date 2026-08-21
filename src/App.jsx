@@ -8,7 +8,8 @@ import {
   setActiveCareer,
 } from './lib/storage.js'
 import { downloadCSVTemplate, downloadExcelTemplate, importCareerFile } from './lib/csv.js'
-import { formatMoney, gameIdFromPath, getGame, GAMES } from './config/games.js'
+import { formatMoney, gameIdFromPath, getGame, getGameForCareer, GAMES } from './config/games.js'
+import { convertEts2Currency, roundCurrency } from './config/ets2Currencies.js'
 import Phase1Page from './components/Phase1Page.jsx'
 import CityAutocomplete from './components/CityAutocomplete.jsx'
 import { GameProvider, useGame } from './components/GameContext.jsx'
@@ -125,7 +126,7 @@ function CareersPage() {
           <p>Backups CSV, XLS e XLSX desta área usam a identificação <code>{game.backupMarker}</code>. Assim, uma carreira de ATS nunca é importada por engano como ETS2 — ou o contrário.</p>
           <p><strong>CSV:</strong> use ponto para casas decimais e não use separador de milhar nem símbolo de moeda. Exemplos: <code>850</code>, <code>1602.63</code> e <code>0.50</code>.</p>
           <p><strong>XLS/XLSX:</strong> use células numéricas normais. A exibição regional do Excel não altera o valor lido pelo aplicativo.</p>
-          <p>A importação cria uma nova carreira com outro ID e preserva perfil, país-sede, moeda, custos iniciais, viagens, histórico, despesas, ocorrências, períodos fechados e reserva.</p>
+          <p>A importação cria uma nova carreira com outro ID e preserva perfil, país-sede, moeda, cotação registrada, custos iniciais, viagens, histórico, despesas, ocorrências, períodos fechados e reserva.</p>
           <p>Não altere os nomes da primeira coluna, como <code>CAREER</code>, <code>STATE</code>, <code>TRIP</code> e <code>CLOSED_WEEK</code>.</p>
           <div className="action-row">
             <button className="button secondary" type="button" onClick={() => downloadCSVTemplate(game.id)}>Baixar modelo CSV</button>
@@ -144,7 +145,7 @@ function CareersPage() {
       ) : (
         <section className="career-grid">
           {careers.map((career) => {
-            const careerGame = getGame(game.id, career.countryCode)
+            const careerGame = getGameForCareer(career, game.id)
             return <article
               className="panel career-card career-card-clickable"
               key={career.id}
@@ -166,6 +167,7 @@ function CareersPage() {
               </div>
               <div className="career-meta">
                 {game.id === 'ets2' && <><span>País-sede</span><strong>{careerGame.countryFlag} {careerGame.countryName}</strong></>}
+                {game.id === 'ets2' && <><span>Moeda</span><strong>{careerGame.currency}{careerGame.currency !== careerGame.baseCurrency ? ` • base ${careerGame.baseCurrency}` : ''}</strong></>}
                 <span>Empresa</span><strong>{career.company || '—'}</strong>
                 <span>Saldo inicial</span><strong>{formatMoney(career.initialBalance ?? career.currentBalance, careerGame)}</strong>
               </div>
@@ -192,14 +194,18 @@ function NewCareerPage() {
   const { startTutorial } = useTutorial()
   const [driverName, setDriverName] = useState('')
   const [countryCode, setCountryCode] = useState('')
+  const [currencyCode, setCurrencyCode] = useState('')
   const [city, setCity] = useState('')
   const [company, setCompany] = useState('')
   const [arrivalBalance, setArrivalBalance] = useState(game.id === 'ats' ? 5000 : 0)
   const [bio, setBio] = useState('')
   const [costs, setCosts] = useState(() => game.id === 'ats' ? { ...game.setupCosts } : {})
   const [showTutorial, setShowTutorial] = useState(false)
-  const selectedGame = useMemo(() => isEts2 && countryCode ? getGame('ets2', countryCode) : game, [countryCode, game, isEts2])
-  const financialProfileReady = !isEts2 || Boolean(countryCode)
+  const selectedGame = useMemo(
+    () => isEts2 && countryCode ? getGame('ets2', countryCode, currencyCode) : game,
+    [countryCode, currencyCode, game, isEts2],
+  )
+  const financialProfileReady = !isEts2 || Boolean(countryCode && currencyCode)
 
   const totalCosts = useMemo(() => Object.values(costs).reduce((sum, value) => sum + Number(value || 0), 0), [costs])
   const remaining = Number(arrivalBalance || 0) - totalCosts
@@ -212,13 +218,26 @@ function NewCareerPage() {
     setCountryCode(nextCountryCode)
     setCity('')
     if (!nextCountryCode) {
+      setCurrencyCode('')
       setArrivalBalance(0)
       setCosts({})
       return
     }
     const countryGame = getGame('ets2', nextCountryCode)
+    setCurrencyCode(countryGame.baseCurrency)
     setArrivalBalance(countryGame.defaultArrivalBalance)
     setCosts({ ...countryGame.setupCosts })
+  }
+
+  function changeCurrency(nextCurrencyCode) {
+    if (!countryCode || !nextCurrencyCode) return
+    const fromCurrency = selectedGame.currency
+    setArrivalBalance(roundCurrency(convertEts2Currency(arrivalBalance, fromCurrency, nextCurrencyCode)))
+    setCosts((current) => Object.fromEntries(Object.entries(current).map(([key, value]) => [
+      key,
+      roundCurrency(convertEts2Currency(value, fromCurrency, nextCurrencyCode)),
+    ])))
+    setCurrencyCode(nextCurrencyCode)
   }
 
   async function submit(event) {
@@ -247,6 +266,9 @@ function NewCareerPage() {
     const career = createCareer({
       driverName: driverName.trim(), city: city.trim(), company: company.trim(), currency: selectedGame.currency,
       countryCode: isEts2 ? countryCode : undefined, countryName: isEts2 ? selectedGame.countryName : undefined,
+      baseCurrency: isEts2 ? selectedGame.baseCurrency : undefined,
+      exchangeRate: isEts2 ? selectedGame.exchangeRate : undefined,
+      exchangeRateAsOf: isEts2 ? selectedGame.exchangeRateAsOf : undefined,
       arrivalBalance: Number(arrivalBalance) || 0, setupCosts: costs, setupCostsTotal: totalCosts,
       initialBalance: remaining, currentBalance: remaining, bio: bio.trim(),
     }, game.id)
@@ -262,7 +284,7 @@ function NewCareerPage() {
         <div className="section-heading">
           <span className="eyebrow">Novo personagem • {game.shortName}</span>
           <h1>Criar nova carreira</h1>
-          <p>{isEts2 ? 'Escolha o país-sede para definir moeda, custos e folha mensal; as viagens continuam em quilômetros por toda a Europa.' : `${game.region}, ${game.distanceName} e valores em ${game.currencyLabel}.`} Cada jogo mantém progresso separado.</p>
+          <p>{isEts2 ? 'Escolha o país-sede das regras financeiras e, separadamente, a moeda em que deseja controlar a carreira; as viagens continuam em quilômetros por toda a Europa.' : `${game.region}, ${game.distanceName} e valores em ${game.currencyLabel}.`} Cada jogo mantém progresso separado.</p>
         </div>
 
         {isEts2 && (
@@ -272,7 +294,22 @@ function NewCareerPage() {
               <option value="">Selecione o país-sede</option>
               {game.countryOptions.map((country) => <option value={country.code} key={country.code}>{country.flag} {country.name} — {country.currency}</option>)}
             </select>
-            <small>O país-sede define moeda, impostos, contribuições, salário e custos. O destino das viagens não altera sua folha.</small>
+            <small>O país-sede define impostos, contribuições, salário e custos-base. O destino das viagens não altera sua folha.</small>
+          </div>
+        )}
+
+        {isEts2 && (
+          <div className="country-selector" data-tour="career-currency">
+            <label htmlFor="career-currency">Moeda da carreira</label>
+            <select id="career-currency" value={currencyCode} onChange={(event) => changeCurrency(event.target.value)} disabled={!countryCode} required>
+              <option value="">Selecione primeiro o país-sede</option>
+              {game.currencyOptions.map((currency) => <option value={currency.code} key={currency.code}>{currency.code} — {currency.name} ({currency.symbol})</option>)}
+            </select>
+            <small>{countryCode && currencyCode
+              ? selectedGame.currency === selectedGame.baseCurrency
+                ? `Valores já estão na moeda-base de ${selectedGame.countryName}.`
+                : `Regras de ${selectedGame.countryName} são calculadas em ${selectedGame.baseCurrency} e convertidas para ${selectedGame.currency}. Cotação fixada em ${selectedGame.exchangeRateAsOf}: 1 ${selectedGame.baseCurrency} = ${formatMoney(selectedGame.exchangeRate, selectedGame)}.`
+              : 'A moeda escolhida será usada em todas as telas, lançamentos e holerites da carreira.'}</small>
           </div>
         )}
 
@@ -284,7 +321,7 @@ function NewCareerPage() {
           <div><label>Nome da empresa</label><input value={company} onChange={(e) => setCompany(e.target.value)} placeholder={`Ex.: ${selectedGame.companyPlaceholder}`} required /></div>
         </div>
 
-        <label>{selectedGame.arrivalLabel} ({selectedGame.currencyLabel})</label>
+        <label>{selectedGame.arrivalLabel} ({selectedGame.currency})</label>
         <input type="number" min="0" step="0.01" value={arrivalBalance} disabled={!financialProfileReady} onChange={(e) => setArrivalBalance(e.target.value)} />
 
         {financialProfileReady && <section className="setup-panel">
@@ -354,20 +391,31 @@ export default function App() {
 
   const gameId = gameIdFromPath(path)
   const game = getGame(gameId)
-  let countryCode = null
+  let career = null
   let page = null
   if (path === game.routes.careers) page = <CareersPage />
   else if (path === game.routes.new) page = <NewCareerPage />
   else if (path === game.routes.phases) {
     const careerId = params.get('career') || getActiveCareerId(game.id)
-    countryCode = getCareer(careerId, game.id)?.countryCode || null
+    career = getCareer(careerId, game.id)
     page = <PhasesPage careerId={careerId} />
   }
   else if (path === game.routes.phase1) {
     const careerId = params.get('career') || getActiveCareerId(game.id)
-    countryCode = getCareer(careerId, game.id)?.countryCode || null
+    career = getCareer(careerId, game.id)
     page = <Phase1Page gameId={game.id} careerId={careerId} onBack={() => { window.location.hash = `#${game.routes.phases}?career=${encodeURIComponent(careerId || '')}` }} />
   }
 
-  return page ? <GameProvider key={`${game.id}:${path}:${countryCode || ''}`} gameId={game.id} countryCode={countryCode}>{page}</GameProvider> : <HomePage />
+  return page ? (
+    <GameProvider
+      key={`${game.id}:${path}:${career?.countryCode || ''}:${career?.currency || ''}:${career?.exchangeRate || ''}`}
+      gameId={game.id}
+      countryCode={career?.countryCode || null}
+      currencyCode={career?.currency || null}
+      exchangeRate={career?.exchangeRate || null}
+      exchangeRateAsOf={career?.exchangeRateAsOf || null}
+    >
+      {page}
+    </GameProvider>
+  ) : <HomePage />
 }

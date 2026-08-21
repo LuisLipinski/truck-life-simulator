@@ -35,4 +35,15 @@ describe('Euro Truck Simulator 2 configuration', () => {
     expect([germany, unitedKingdom, poland].every((game) => game.payrollPeriod === 'monthly')).toBe(true)
     expect([germany, unitedKingdom, poland].every((game) => game.taxes.length > 0)).toBe(true)
   })
+
+  it('keeps the fiscal country currency separate from the career display currency', () => {
+    const londonInEuro = getGame('ets2', 'GB', 'EUR')
+
+    expect(londonInEuro.baseCurrency).toBe('GBP')
+    expect(londonInEuro.currency).toBe('EUR')
+    expect(londonInEuro.exchangeRate).toBeCloseTo(1 / 0.85725)
+    expect(londonInEuro.level1Gross).toBeCloseTo(3032.95, 1)
+    expect(londonInEuro.setupCosts.rent).toBeCloseTo(1166.52, 1)
+    expect(londonInEuro.currencyOptions.map((currency) => currency.code)).toEqual(expect.arrayContaining(['EUR', 'GBP', 'PLN', 'CHF', 'RSD']))
+  })
 })

@@ -4,7 +4,7 @@ Atualizado em: **20/08/2026**
 
 Branch documentada originalmente: **`development`**
 
-> Este arquivo preserva o histórico detalhado da migração inicial do ATS para React. O estado funcional atual de ATS + ETS2, incluindo países-sede, folha mensal e backup v8, está consolidado no [README.md](README.md).
+> Este arquivo preserva o histórico detalhado da migração inicial do ATS para React. O estado funcional atual de ATS + ETS2, incluindo países-sede, moeda independente, folha mensal e backup v9, está consolidado no [README.md](README.md).
 
 Aplicação publicada: **https://luislipinski.github.io/truck-life-simulator/**
 

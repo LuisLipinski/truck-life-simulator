@@ -1,5 +1,5 @@
 import { getCareer, loadCareers, saveCareers } from './storage.js'
-import { getGame } from '../config/games.js'
+import { getGame, getGameForCareer } from '../config/games.js'
 
 const LEGACY_STATE_KEY = 'ats_phase1_tabs_v3'
 const OLD_LEGACY_KEY = 'ats_phase1_tabs_v2'
@@ -19,7 +19,7 @@ export function phase1StorageKey(careerId, gameId = 'ats') {
 }
 
 function makeDefaultState(career, gameId = 'ats') {
-  const game = getGame(gameId, career?.countryCode)
+  const game = getGameForCareer(career, gameId)
   const level = Number(career?.currentLevel || 1)
   return {
     balance: Number(career?.currentBalance ?? career?.initialBalance ?? 793),
@@ -42,8 +42,8 @@ function makeDefaultState(career, gameId = 'ats') {
   }
 }
 
-function normalizeExpenses(expenses, gameId = 'ats', countryCode = null) {
-  const defaults = getGame(gameId, countryCode).expenses
+function normalizeExpenses(expenses, gameId = 'ats', career = null) {
+  const defaults = getGameForCareer(career, gameId).expenses
   return Object.fromEntries(
     Object.entries({ ...defaults, ...(expenses || {}) })
       .filter(([key]) => key !== 'emergency'),
@@ -55,7 +55,7 @@ function normalizeState(raw, career, gameId = 'ats') {
   const state = { ...base, ...(raw || {}) }
   state.balance = Number(raw?.balance ?? base.balance)
   state.emergencyReserve = Math.max(0, Number(raw?.emergencyReserve || 0))
-  state.expenses = normalizeExpenses(raw?.expenses, gameId, career?.countryCode)
+  state.expenses = normalizeExpenses(raw?.expenses, gameId, career)
   state.history = Array.isArray(raw?.history) ? raw.history : []
   state.trips = Array.isArray(raw?.trips) ? raw.trips : []
   state.closedWeeks = Array.isArray(raw?.closedWeeks) ? raw.closedWeeks : []
@@ -97,7 +97,7 @@ export function savePhase1State(careerId, state, gameId = 'ats') {
   const normalized = {
     ...state,
     emergencyReserve: Math.max(0, Number(state.emergencyReserve || 0)),
-    expenses: normalizeExpenses(state.expenses, gameId, career?.countryCode),
+    expenses: normalizeExpenses(state.expenses, gameId, career),
     dangerousGoodsQualified: Boolean(state.dangerousGoodsQualified ?? state.hazmatQualified),
     hazmatQualified: Boolean(state.dangerousGoodsQualified ?? state.hazmatQualified),
     currentLevel: Number(state.currentLevel || state.careerLevel || 1),
@@ -326,9 +326,13 @@ function estimatePolishTaxes(monthlyGross) {
 export function estimateTaxes(gross, gameOrId = 'ats') {
   const value = Math.max(0, Number(gross || 0))
   const game = typeof gameOrId === 'string' ? getGame(gameOrId) : gameOrId
-  if (game.taxModel === 'de-2026-simplified') return estimateGermanTaxes(value)
-  if (game.taxModel === 'gb-2026-simplified') return estimateBritishTaxes(value)
-  if (game.taxModel === 'pl-2026-simplified') return estimatePolishTaxes(value)
+  const exchangeRate = game.id === 'ets2' && Number(game.exchangeRate) > 0 ? Number(game.exchangeRate) : 1
+  const baseValue = value / exchangeRate
+  let result = null
+  if (game.taxModel === 'de-2026-simplified') result = estimateGermanTaxes(baseValue)
+  if (game.taxModel === 'gb-2026-simplified') result = estimateBritishTaxes(baseValue)
+  if (game.taxModel === 'pl-2026-simplified') result = estimatePolishTaxes(baseValue)
+  if (result) return Object.fromEntries(Object.entries(result).map(([key, amount]) => [key, amount * exchangeRate]))
   if (game.taxModel === 'country-required') return {}
   const ss = value * 0.062
   const medicare = value * 0.0145

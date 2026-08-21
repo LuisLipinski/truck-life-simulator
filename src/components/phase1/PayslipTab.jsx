@@ -197,6 +197,9 @@ export default function PayslipTab({ state, commit }) {
       desc: result.desc,
       countryCode: game.countryCode,
       currency: game.currency,
+      baseCurrency: game.baseCurrency || game.currency,
+      exchangeRate: game.exchangeRate || 1,
+      exchangeRateAsOf: game.exchangeRateAsOf || '',
     }
 
     const historyEntries = [
@@ -269,8 +272,8 @@ export default function PayslipTab({ state, commit }) {
         {monthlyPayroll && game.countryCode && (
           <div className="country-payroll-note">
             <strong>{game.countryFlag} Folha de {game.countryName} em {game.currency}</strong>
-            <span>{game.taxAssumptions}</span>
-            <div>{(game.financeSources || []).map(([label, url]) => <a href={url} target="_blank" rel="noreferrer" key={url}>{label}</a>)}</div>
+            <span>{game.taxAssumptions} Os cálculos usam {game.baseCurrency} como moeda fiscal{game.currency !== game.baseCurrency ? ` e são convertidos pela cotação registrada em ${game.exchangeRateAsOf}` : ''}.</span>
+            <div>{[...(game.financeSources || []), ...(game.currency !== game.baseCurrency ? game.exchangeRateSources || [] : [])].map(([label, url]) => <a href={url} target="_blank" rel="noreferrer" key={url}>{label}</a>)}</div>
           </div>
         )}
 
