@@ -236,6 +236,7 @@ function OverviewTab({ career, state, setActiveTab }) {
         <div><span className="metric-label">Empresa</span><strong>{career.company || '—'}</strong></div>
         {game.id === 'ets2' && <div><span className="metric-label">País-sede</span><strong>{game.countryFlag} {game.countryName}</strong></div>}
         {game.id === 'ats' && <div><span className="metric-label">Estado-sede</span><strong>{game.stateName} ({game.stateCode})</strong></div>}
+        <div><span className="metric-label">Mercado da cidade</span><strong>{game.cityMarketLabel}</strong></div>
         <div><span className="metric-label">Moeda da carreira</span><strong>{game.currency} {game.currency !== game.baseCurrency ? `• base fiscal ${game.baseCurrency}` : '• moeda fiscal local'}</strong></div>
       </section>
 

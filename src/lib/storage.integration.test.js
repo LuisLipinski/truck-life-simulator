@@ -53,8 +53,19 @@ describe('career and Phase 1 storage integration', () => {
     }]))
 
     const [career] = loadCareers('ats')
-    expect(career).toMatchObject({ gameId: 'ats', stateCode: 'TX', stateName: 'Texas', currency: 'USD', baseCurrency: 'USD', exchangeRate: 1 })
+    expect(career).toMatchObject({ gameId: 'ats', stateCode: 'TX', stateName: 'Texas', currency: 'USD', baseCurrency: 'USD', exchangeRate: 1, cityMarketLabel: 'Metrópole principal', cityCostFactor: 1.10, citySalaryFactor: 1.05 })
     expect(career.exchangeRateAsOf).toBe('2026-08-20')
+  })
+
+  it('preserves a previously stored city market snapshot', () => {
+    localStorage.setItem(CAREERS_KEY, JSON.stringify([{
+      id: 'snapshot_ca', driverName: 'Snapshot Driver', city: 'San Francisco, CA', company: 'Historic Logistics',
+      stateCode: 'CA', currency: 'USD', initialBalance: 900,
+      cityMarketLabel: 'Mercado histórico', cityCostFactor: 1.11, citySalaryFactor: 1.03,
+    }]))
+
+    const [career] = loadCareers('ats')
+    expect(career).toMatchObject({ cityMarketLabel: 'Mercado histórico', cityCostFactor: 1.11, citySalaryFactor: 1.03 })
   })
 
   it('persists Phase 1 state and synchronizes balance and level back to the career record', () => {

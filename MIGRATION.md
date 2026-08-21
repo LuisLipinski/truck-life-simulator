@@ -4,7 +4,7 @@ Atualizado em: **20/08/2026**
 
 Branch documentada originalmente: **`development`**
 
-> Este arquivo preserva o histórico detalhado da migração inicial do ATS para React. O estado funcional atual de ATS + ETS2, incluindo países-sede, moeda independente, folha mensal e backup v9, está consolidado no [README.md](README.md).
+> Este arquivo preserva o histórico detalhado da migração inicial do ATS para React. O estado funcional atual de ATS + ETS2, incluindo sede fiscal, mercado municipal, moeda independente, folha mensal e backup v11, está consolidado no [README.md](README.md).
 
 Aplicação publicada: **https://luislipinski.github.io/truck-life-simulator/**
 
@@ -890,3 +890,21 @@ Validação automatizada desta entrega:
 - build concluído, com o aviso não bloqueante já conhecido para o chunk principal maior que 500 kB.
 
 Os valores de salário e custo de vida continuam editáveis e são aproximações de roleplay. As retenções não substituem folha oficial e não incluem todos os créditos pessoais nem impostos municipais ou distritais.
+
+## 30. Mercado municipal no ATS e no ETS2
+
+Atualização de 20/08/2026:
+
+- o estado do ATS e o país do ETS2 continuam sendo a sede fiscal e a origem das retenções;
+- cada cidade mapeada recebe um perfil municipal de custo e salário;
+- aluguel, caução, alimentação, transporte e despesas urbanas usam o multiplicador de custo da cidade-base;
+- salário fixo, hora extra e tarifas dos Níveis 2 e 3 usam o multiplicador salarial da cidade-base;
+- no ATS, as tarifas por milha também passam a variar pela referência salarial de cada estado;
+- cidades manuais de mods usam a referência neutra da sede;
+- destino de viagem não altera impostos, aluguel ou salário da carreira;
+- os multiplicadores são congelados na carreira e em cada holerite para preservar o histórico;
+- o backup v11 acrescenta `cityMarketVersion`, `cityMarketLabel`, `cityCostFactor` e `citySalaryFactor`, mantendo importação de v1 a v10;
+- HUD e BLS fundamentam as diferenças metropolitanas do ATS; Eurostat fundamenta as diferenças urbanas e regionais do ETS2;
+- todos os valores continuam editáveis e servem apenas como estimativas de roleplay.
+
+Validação automatizada desta entrega: 16 arquivos e 98 testes aprovados; build de produção concluído com 50 módulos transformados e apenas o aviso não bloqueante já conhecido para o chunk principal maior que 500 kB.

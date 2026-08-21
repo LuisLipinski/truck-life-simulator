@@ -9,6 +9,7 @@ import {
   getAtsExchangeRate,
 } from './atsCurrencies.js'
 import { ETS2_COUNTRY_OPTIONS, getEts2CountryProfile } from './ets2Countries.js'
+import { getCityMarketProfile } from './cityMarkets.js'
 import {
   convertEts2Currency,
   ETS2_CURRENCY_OPTIONS,
@@ -125,7 +126,49 @@ function convertedRecord(record, fromCurrency, toCurrency, exchangeRate, precisi
   }))
 }
 
-export function getGame(gameId = 'ats', locationCode = null, currencyCode = null, savedExchangeRate = null, savedExchangeRateAsOf = null) {
+const CITY_SENSITIVE_SETUP_KEYS = new Set(['rent', 'deposit', 'groceries', 'home', 'transit'])
+const CITY_SENSITIVE_EXPENSE_KEYS = new Set(['rent', 'electricity', 'water', 'groceries', 'eatingOut', 'publicTransport', 'household', 'leisure'])
+
+function scaledSelectedRecord(record, factor, keys, precision = 2) {
+  const scale = 10 ** precision
+  return Object.fromEntries(Object.entries(record || {}).map(([key, value]) => {
+    const adjusted = Number(value || 0) * (keys.has(key) ? factor : 1)
+    return [key, Math.round((adjusted + Number.EPSILON) * scale) / scale]
+  }))
+}
+
+function cityMarketSnapshot(gameId, city, savedCityCostFactor, savedCitySalaryFactor, savedCityMarketLabel) {
+  return getCityMarketProfile(gameId, city, {
+    costFactor: savedCityCostFactor,
+    salaryFactor: savedCitySalaryFactor,
+    label: savedCityMarketLabel,
+  })
+}
+
+function cityMarketFields(market) {
+  return {
+    city: market.city,
+    cityMarketVersion: market.version,
+    cityMarketLabel: market.label,
+    cityCostFactor: market.costFactor,
+    citySalaryFactor: market.salaryFactor,
+    cityMarketKnown: market.isKnown,
+    cityMarketSnapshot: market.isSnapshot,
+    cityMarketSources: market.sources,
+  }
+}
+
+export function getGame(
+  gameId = 'ats',
+  locationCode = null,
+  currencyCode = null,
+  savedExchangeRate = null,
+  savedExchangeRateAsOf = null,
+  city = '',
+  savedCityCostFactor = null,
+  savedCitySalaryFactor = null,
+  savedCityMarketLabel = null,
+) {
   const game = GAMES[gameId] || GAMES.ats
   if (!locationCode) return game
   if (game.id === 'ats') {
@@ -140,9 +183,14 @@ export function getGame(gameId = 'ats', locationCode = null, currencyCode = null
         ? Number(savedExchangeRate)
         : getAtsExchangeRate(baseCurrency, selectedCurrency.code)
     const convertMoney = (value) => roundCurrency(convertAtsCurrency(value, baseCurrency, selectedCurrency.code, exchangeRate))
+    const cityMarket = cityMarketSnapshot(game.id, city, savedCityCostFactor, savedCitySalaryFactor, savedCityMarketLabel)
+    const setupCosts = scaledSelectedRecord(state.setupCosts, cityMarket.costFactor, CITY_SENSITIVE_SETUP_KEYS)
+    const expenses = scaledSelectedRecord(state.expenses, cityMarket.costFactor, CITY_SENSITIVE_EXPENSE_KEYS)
+    const payRates = scaledSelectedRecord(state.payRates, cityMarket.salaryFactor, new Set(Object.keys(state.payRates)), 4)
     return {
       ...game,
       ...state,
+      ...cityMarketFields(cityMarket),
       stateOptions: ATS_STATE_OPTIONS,
       currencyOptions: ATS_CURRENCY_OPTIONS,
       currency: selectedCurrency.code,
@@ -155,12 +203,12 @@ export function getGame(gameId = 'ats', locationCode = null, currencyCode = null
       exchangeRate,
       exchangeRateAsOf: savedExchangeRateAsOf || ATS_EXCHANGE_RATE_DATE,
       exchangeRateSources: [...new Map([baseCurrencyProfile.source, selectedCurrency.source].map((source) => [source[1], source])).values()],
-      defaultArrivalBalance: convertMoney(state.defaultArrivalBalance),
-      setupCosts: convertedRecord(state.setupCosts, baseCurrency, selectedCurrency.code, exchangeRate, 2, convertAtsCurrency),
-      expenses: convertedRecord(state.expenses, baseCurrency, selectedCurrency.code, exchangeRate, 2, convertAtsCurrency),
-      payRates: convertedRecord(state.payRates, baseCurrency, selectedCurrency.code, exchangeRate, 4, convertAtsCurrency),
-      level1Gross: convertMoney(state.level1Gross),
-      routeOverrunRate: convertMoney(state.routeOverrunRate),
+      defaultArrivalBalance: convertMoney(state.defaultArrivalBalance * cityMarket.costFactor),
+      setupCosts: convertedRecord(setupCosts, baseCurrency, selectedCurrency.code, exchangeRate, 2, convertAtsCurrency),
+      expenses: convertedRecord(expenses, baseCurrency, selectedCurrency.code, exchangeRate, 2, convertAtsCurrency),
+      payRates: convertedRecord(payRates, baseCurrency, selectedCurrency.code, exchangeRate, 4, convertAtsCurrency),
+      level1Gross: convertMoney(state.level1Gross * cityMarket.salaryFactor),
+      routeOverrunRate: convertMoney(state.routeOverrunRate * cityMarket.salaryFactor),
       payrollBenefits: convertMoney(state.payrollBenefits),
       perDiemRate: convertMoney(state.perDiemRate),
       promotionCosts: state.promotionCosts.map(convertMoney),
@@ -186,9 +234,14 @@ export function getGame(gameId = 'ats', locationCode = null, currencyCode = null
       ? Number(savedExchangeRate)
       : getEts2ExchangeRate(baseCurrency, selectedCurrency.code)
   const convertMoney = (value) => roundCurrency(convertEts2Currency(value, baseCurrency, selectedCurrency.code, exchangeRate))
+  const cityMarket = cityMarketSnapshot(game.id, city, savedCityCostFactor, savedCitySalaryFactor, savedCityMarketLabel)
+  const setupCosts = scaledSelectedRecord(country.setupCosts, cityMarket.costFactor, CITY_SENSITIVE_SETUP_KEYS)
+  const expenses = scaledSelectedRecord(country.expenses, cityMarket.costFactor, CITY_SENSITIVE_EXPENSE_KEYS)
+  const payRates = scaledSelectedRecord(country.payRates, cityMarket.salaryFactor, new Set(Object.keys(country.payRates)), 4)
   return {
     ...game,
     ...country,
+    ...cityMarketFields(cityMarket),
     currencyOptions: ETS2_CURRENCY_OPTIONS,
     currency: selectedCurrency.code,
     currencyName: selectedCurrency.name,
@@ -200,12 +253,12 @@ export function getGame(gameId = 'ats', locationCode = null, currencyCode = null
     exchangeRate,
     exchangeRateAsOf: savedExchangeRateAsOf || ETS2_EXCHANGE_RATE_DATE,
     exchangeRateSources: [...new Map([baseCurrencyProfile.source, selectedCurrency.source].map((source) => [source[1], source])).values()],
-    defaultArrivalBalance: convertMoney(country.defaultArrivalBalance),
-    setupCosts: convertedRecord(country.setupCosts, baseCurrency, selectedCurrency.code, exchangeRate),
-    expenses: convertedRecord(country.expenses, baseCurrency, selectedCurrency.code, exchangeRate),
-    payRates: convertedRecord(country.payRates, baseCurrency, selectedCurrency.code, exchangeRate, 4),
-    level1Gross: convertMoney(country.level1Gross),
-    routeOverrunRate: convertMoney(country.routeOverrunRate),
+    defaultArrivalBalance: convertMoney(country.defaultArrivalBalance * cityMarket.costFactor),
+    setupCosts: convertedRecord(setupCosts, baseCurrency, selectedCurrency.code, exchangeRate),
+    expenses: convertedRecord(expenses, baseCurrency, selectedCurrency.code, exchangeRate),
+    payRates: convertedRecord(payRates, baseCurrency, selectedCurrency.code, exchangeRate, 4),
+    level1Gross: convertMoney(country.level1Gross * cityMarket.salaryFactor),
+    routeOverrunRate: convertMoney(country.routeOverrunRate * cityMarket.salaryFactor),
     payrollBenefits: convertMoney(country.payrollBenefits),
     perDiemRate: convertMoney(country.perDiemRate),
     promotionCosts: country.promotionCosts.map(convertMoney),
@@ -229,6 +282,10 @@ export function getGameForCareer(career, gameId = career?.gameId || 'ats') {
     career?.currency,
     career?.exchangeRate,
     career?.exchangeRateAsOf,
+    career?.city,
+    career?.cityCostFactor,
+    career?.citySalaryFactor,
+    career?.cityMarketLabel,
   )
 }
 

@@ -31,13 +31,13 @@ export const TUTORIAL_STEPS = [
   },
   {
     id: 'career-profile', route: '/phase1', tab: 'overview', target: 'career-profile',
-    title: 'Estado-sede e moeda da carreira',
-    text: 'O estado-sede define salário, custos e retenções estaduais. A moeda escolhida define como os valores aparecem; em euro, a aplicação converte as regras em dólar pela cotação registrada na criação da carreira.',
+    title: 'Sede fiscal, cidade e moeda',
+    text: 'O estado-sede define impostos e a referência financeira. A cidade-base ajusta aluguel, despesas e salários dos três níveis; a moeda define como os valores aparecem. O destino das viagens não muda sua folha.',
   },
   {
     id: 'career-backup', route: '/phase1', tab: 'overview', target: 'career-backup',
     title: 'Backup da carreira',
-    text: 'Exporte um CSV para guardar perfil, viagens, finanças, ocorrências e semanas fechadas. A importação do arquivo fica na lista de carreiras.',
+    text: 'Exporte um CSV para guardar sede fiscal, perfil municipal, moeda, viagens, finanças, ocorrências e semanas fechadas. A importação do arquivo fica na lista de carreiras.',
   },
   {
     id: 'journal-navigation', route: '/phase1', tab: 'progress', target: 'journal-navigation',
@@ -156,8 +156,8 @@ export function tutorialStepsForGame(gameId = 'ats') {
   const overrides = {
     'career-summary': 'No topo ficam saldo, nível atual, progresso em quilômetros, mês do holerite e semana operacional. Esses números se atualizam conforme você usa a aplicação.',
     'overview-shortcuts': 'Estes cartões mostram as despesas mensais e a situação do mês. Você também pode clicar neles para abrir diretamente Despesas ou Holerite.',
-    'career-profile': 'O país-sede define salário, custos, impostos e contribuições na moeda fiscal local. A moeda escolhida define como todos os valores aparecem; quando elas diferem, a aplicação converte pela cotação registrada na criação da carreira.',
-    'career-backup': 'Exporte um CSV para guardar país-sede, moeda, cotação registrada, perfil, viagens, finanças, ocorrências, semanas operacionais e holerites mensais. A importação fica na lista de carreiras.',
+    'career-profile': 'O país-sede define impostos, contribuições e a referência financeira. A cidade-base representa a região e ajusta aluguel, despesas e salários dos três níveis. A moeda escolhida controla a exibição e o destino das viagens não muda a folha.',
+    'career-backup': 'Exporte um CSV para guardar país-sede, cidade e perfil municipal, moeda, cotação registrada, viagens, finanças, ocorrências, semanas operacionais e holerites mensais. A importação fica na lista de carreiras.',
     'trip-summary': 'Aqui você acompanha quilômetros da semana operacional e da carreira, estimativa por categoria e diárias. No Nível 1, o salário permanece mensal.',
     'trip-history': 'Todas as viagens ficam listadas por semana operacional. Ao encerrar uma semana no Holerite, seus trechos ficam congelados e não podem mais ser excluídos.',
     'reserve-tools': 'Faça aportes manuais ou resgates com motivo. A reserva fica separada do saldo e recebe rendimento mensal quando o holerite é fechado.',
@@ -169,7 +169,7 @@ export function tutorialStepsForGame(gameId = 'ats') {
   return TUTORIAL_STEPS.flatMap((step) => {
     const transformed = {
       ...step,
-      title: (step.id === 'career-profile' ? 'País-sede e moeda da carreira' : step.title)
+      title: (step.id === 'career-profile' ? 'Sede fiscal, cidade e moeda' : step.title)
         .replaceAll('Milhas', 'Quilômetros')
         .replaceAll('HazMat', 'ADR')
         .replaceAll('Semanas fechadas', 'Meses fechados'),

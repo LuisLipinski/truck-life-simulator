@@ -203,6 +203,10 @@ export default function PayslipTab({ state, commit }) {
       baseCurrency: game.baseCurrency || game.currency,
       exchangeRate: game.exchangeRate || 1,
       exchangeRateAsOf: game.exchangeRateAsOf || '',
+      city: game.city || '',
+      cityMarketLabel: game.cityMarketLabel || '',
+      cityCostFactor: game.cityCostFactor || 1,
+      citySalaryFactor: game.citySalaryFactor || 1,
     }
 
     const historyEntries = [
@@ -274,9 +278,9 @@ export default function PayslipTab({ state, commit }) {
 
         {(game.countryCode || game.stateCode) && (
           <div className="country-payroll-note">
-            <strong>{game.countryFlag || '🇺🇸'} Folha de {game.countryName || `${game.stateName} (${game.stateCode})`} em {game.currency}</strong>
-            <span>{game.taxAssumptions} Os cálculos usam {game.baseCurrency} como moeda fiscal{game.currency !== game.baseCurrency ? ` e são convertidos pela cotação registrada em ${game.exchangeRateAsOf}` : ''}.</span>
-            <div>{[...(game.financeSources || []), ...(game.currency !== game.baseCurrency ? game.exchangeRateSources || [] : [])].map(([label, url]) => <a href={url} target="_blank" rel="noreferrer" key={url}>{label}</a>)}</div>
+            <strong>{game.countryFlag || '🇺🇸'} Folha de {game.countryName || `${game.stateName} (${game.stateCode})`} em {game.currency} • {game.city || 'cidade de referência'}</strong>
+            <span>{game.taxAssumptions} Os salários usam o perfil municipal “{game.cityMarketLabel}”. Os cálculos usam {game.baseCurrency} como moeda fiscal{game.currency !== game.baseCurrency ? ` e são convertidos pela cotação registrada em ${game.exchangeRateAsOf}` : ''}.</span>
+            <div>{[...(game.financeSources || []), ...(game.cityMarketSources || []), ...(game.currency !== game.baseCurrency ? game.exchangeRateSources || [] : [])].map(([label, url]) => <a href={url} target="_blank" rel="noreferrer" key={url}>{label}</a>)}</div>
           </div>
         )}
 

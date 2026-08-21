@@ -43,16 +43,18 @@ function importedPayCategory(category, type) {
 }
 
 function templateRows(gameId = 'ats') {
-  const game = getGame(gameId, gameId === 'ets2' ? 'DE' : 'CA')
-  const city = game.baseCities?.[0] || game.cities[0]
+  const locationCode = gameId === 'ets2' ? 'DE' : 'CA'
+  const baseGame = getGame(gameId, locationCode)
+  const city = baseGame.baseCities?.[0] || baseGame.cities[0]
+  const game = getGame(gameId, locationCode, null, null, null, city)
   const destination = game.baseCities?.[1] || game.cities[1] || city
   const arrivalBalance = game.defaultArrivalBalance ?? 5000
   const initialBalance = arrivalBalance - Object.values(game.setupCosts).reduce((sum, value) => sum + Number(value || 0), 0)
   return [
-    [game.backupMarker, '10'],
+    [game.backupMarker, '11'],
     instructionsRow(),
-    ['CAREER','id','driverName','city','company','arrivalBalance','initialBalance','bio','createdAt','countryCode','countryName','currency','baseCurrency','exchangeRate','exchangeRateAsOf','stateCode','stateName'],
-    ['CAREER','','Seu Nome',city,'Nome da Empresa',arrivalBalance,initialBalance,'Biografia do personagem','',game.countryCode || '',game.countryName || '',game.currency,game.baseCurrency || game.currency,game.exchangeRate || 1,game.exchangeRateAsOf || '',game.stateCode || '',game.stateName || ''],
+    ['CAREER','id','driverName','city','company','arrivalBalance','initialBalance','bio','createdAt','countryCode','countryName','currency','baseCurrency','exchangeRate','exchangeRateAsOf','stateCode','stateName','cityMarketVersion','cityMarketLabel','cityCostFactor','citySalaryFactor'],
+    ['CAREER','','Seu Nome',city,'Nome da Empresa',arrivalBalance,initialBalance,'Biografia do personagem','',game.countryCode || '',game.countryName || '',game.currency,game.baseCurrency || game.currency,game.exchangeRate || 1,game.exchangeRateAsOf || '',game.stateCode || '',game.stateName || '',game.cityMarketVersion,game.cityMarketLabel,game.cityCostFactor,game.citySalaryFactor],
     ['SETUP_COST','name','value'],
     ...Object.entries(game.setupCosts).map(([name, value]) => ['SETUP_COST', name, value]),
     ['STATE','balance','careerLevel','currentWeek','academyLevel2','academyLevel3',game.id === 'ats' ? 'hazmatQualified' : 'adrQualified','emergencyReserve','currentPayrollMonth','payPeriodStartWeek','closedOperationalWeeks','autoReserveEnabled','autoReserveAmount'],
@@ -64,7 +66,7 @@ function templateRows(gameId = 'ats') {
     ['HISTORY','date','type','desc','value','balance'],
     ['EXPENSE','id','name','value','monthly'],
     ['INCIDENT','id','type','date','time','route','description','amount','chargeMethod','status','remaining','createdAt','week'],
-    ['CLOSED_WEEK','week','closedAt',game.distanceField === 'miles' ? 'miles' : 'kilometers','level','gross','taxes','benefits','netSalary','perDiem','incidentDeduction','reserveInterest','deposit','desc','periodType','month','startWeek','endWeek','weeks','countryCode','currency','taxBreakdown','baseCurrency','exchangeRate','exchangeRateAsOf','stateCode','stateName'],
+    ['CLOSED_WEEK','week','closedAt',game.distanceField === 'miles' ? 'miles' : 'kilometers','level','gross','taxes','benefits','netSalary','perDiem','incidentDeduction','reserveInterest','deposit','desc','periodType','month','startWeek','endWeek','weeks','countryCode','currency','taxBreakdown','baseCurrency','exchangeRate','exchangeRateAsOf','stateCode','stateName','city','cityMarketLabel','cityCostFactor','citySalaryFactor'],
   ]
 }
 
@@ -102,7 +104,7 @@ function downloadCsv(name, rows) {
 function writeWorkbook(rows, filename, gameId = 'ats') {
   const workbook = XLSX.utils.book_new()
   const worksheet = XLSX.utils.aoa_to_sheet(rows)
-  worksheet['!cols'] = Array.from({ length: 27 }, (_, index) => ({ wch: index === 7 || index === 21 ? 42 : index < 2 ? 18 : 22 }))
+  worksheet['!cols'] = Array.from({ length: 31 }, (_, index) => ({ wch: index === 7 || index === 21 || index === 28 ? 42 : index < 2 ? 18 : 22 }))
   XLSX.utils.book_append_sheet(workbook, worksheet, getGame(gameId).sheetName)
   // SheetJS infere BIFF8 para .xls e XLSX para .xlsx pelo nome do arquivo.
   XLSX.writeFile(workbook, filename)
@@ -124,10 +126,10 @@ function careerRows(career, state, gameId = career?.gameId || 'ats') {
   const game = getGameForCareer(career, gameId)
   const safeState = state || {}
   return [
-    [game.backupMarker, '10'],
+    [game.backupMarker, '11'],
     instructionsRow(),
-    ['CAREER','id','driverName','city','company','arrivalBalance','initialBalance','bio','createdAt','countryCode','countryName','currency','baseCurrency','exchangeRate','exchangeRateAsOf','stateCode','stateName'],
-    ['CAREER',career.id,career.driverName,career.city,career.company,career.arrivalBalance,career.initialBalance,career.bio || career.biography || '',career.createdAt || '',career.countryCode || game.countryCode || '',career.countryName || game.countryName || '',career.currency || game.currency,career.baseCurrency || game.baseCurrency || game.currency,career.exchangeRate || game.exchangeRate || 1,career.exchangeRateAsOf || game.exchangeRateAsOf || '',career.stateCode || game.stateCode || '',career.stateName || game.stateName || ''],
+    ['CAREER','id','driverName','city','company','arrivalBalance','initialBalance','bio','createdAt','countryCode','countryName','currency','baseCurrency','exchangeRate','exchangeRateAsOf','stateCode','stateName','cityMarketVersion','cityMarketLabel','cityCostFactor','citySalaryFactor'],
+    ['CAREER',career.id,career.driverName,career.city,career.company,career.arrivalBalance,career.initialBalance,career.bio || career.biography || '',career.createdAt || '',career.countryCode || game.countryCode || '',career.countryName || game.countryName || '',career.currency || game.currency,career.baseCurrency || game.baseCurrency || game.currency,career.exchangeRate || game.exchangeRate || 1,career.exchangeRateAsOf || game.exchangeRateAsOf || '',career.stateCode || game.stateCode || '',career.stateName || game.stateName || '',career.cityMarketVersion || game.cityMarketVersion,career.cityMarketLabel || game.cityMarketLabel,career.cityCostFactor || game.cityCostFactor,career.citySalaryFactor || game.citySalaryFactor],
     ['SETUP_COST','name','value'],
     ...Object.entries({ ...game.setupCosts, ...(career.setupCosts || {}) }).map(([name, value]) => ['SETUP_COST', name, value]),
     ['STATE','balance','careerLevel','currentWeek','academyLevel2','academyLevel3',game.id === 'ats' ? 'hazmatQualified' : 'adrQualified','emergencyReserve','currentPayrollMonth','payPeriodStartWeek','closedOperationalWeeks','autoReserveEnabled','autoReserveAmount'],
@@ -142,8 +144,8 @@ function careerRows(career, state, gameId = career?.gameId || 'ats') {
     ...(safeState.customExpenses || []).map((item) => ['EXPENSE',item.id,item.name,item.value,item.monthly ? 1 : 0]),
     ['INCIDENT','id','type','date','time','route','description','amount','chargeMethod','status','remaining','createdAt','week'],
     ...(safeState.incidents || []).map((item) => ['INCIDENT',item.id,item.type,item.date,item.time,item.route,item.description,item.amount,item.chargeMethod,item.status,item.remaining,item.createdAt,item.week || '']),
-    ['CLOSED_WEEK','week','closedAt',game.distanceField === 'miles' ? 'miles' : 'kilometers','level','gross','taxes','benefits','netSalary','perDiem','incidentDeduction','reserveInterest','deposit','desc','periodType','month','startWeek','endWeek','weeks','countryCode','currency','taxBreakdown','baseCurrency','exchangeRate','exchangeRateAsOf','stateCode','stateName'],
-    ...(safeState.closedWeeks || []).map((period) => ['CLOSED_WEEK',period.week,period.closedAt,period.distance ?? period.miles,period.level,period.gross,period.taxes,period.benefits,period.netSalary,period.perDiem,period.incidentDeduction,period.reserveInterest || 0,period.deposit,period.desc,period.periodType || 'week',period.month || '',period.startWeek || period.week || '',period.endWeek || period.week || '',(period.weeks || [period.week]).filter(Boolean).join('|'),period.countryCode || career.countryCode || '',period.currency || career.currency || game.currency,JSON.stringify(period.taxBreakdown || {}),period.baseCurrency || career.baseCurrency || game.baseCurrency || game.currency,period.exchangeRate || career.exchangeRate || game.exchangeRate || 1,period.exchangeRateAsOf || career.exchangeRateAsOf || game.exchangeRateAsOf || '',period.stateCode || career.stateCode || game.stateCode || '',period.stateName || career.stateName || game.stateName || '']),
+    ['CLOSED_WEEK','week','closedAt',game.distanceField === 'miles' ? 'miles' : 'kilometers','level','gross','taxes','benefits','netSalary','perDiem','incidentDeduction','reserveInterest','deposit','desc','periodType','month','startWeek','endWeek','weeks','countryCode','currency','taxBreakdown','baseCurrency','exchangeRate','exchangeRateAsOf','stateCode','stateName','city','cityMarketLabel','cityCostFactor','citySalaryFactor'],
+    ...(safeState.closedWeeks || []).map((period) => ['CLOSED_WEEK',period.week,period.closedAt,period.distance ?? period.miles,period.level,period.gross,period.taxes,period.benefits,period.netSalary,period.perDiem,period.incidentDeduction,period.reserveInterest || 0,period.deposit,period.desc,period.periodType || 'week',period.month || '',period.startWeek || period.week || '',period.endWeek || period.week || '',(period.weeks || [period.week]).filter(Boolean).join('|'),period.countryCode || career.countryCode || '',period.currency || career.currency || game.currency,JSON.stringify(period.taxBreakdown || {}),period.baseCurrency || career.baseCurrency || game.baseCurrency || game.currency,period.exchangeRate || career.exchangeRate || game.exchangeRate || 1,period.exchangeRateAsOf || career.exchangeRateAsOf || game.exchangeRateAsOf || '',period.stateCode || career.stateCode || game.stateCode || '',period.stateName || career.stateName || game.stateName || '',period.city || career.city || game.city || '',period.cityMarketLabel || career.cityMarketLabel || game.cityMarketLabel || '',period.cityCostFactor || career.cityCostFactor || game.cityCostFactor || 1,period.citySalaryFactor || career.citySalaryFactor || game.citySalaryFactor || 1]),
   ]
 }
 
@@ -237,6 +239,14 @@ function validateImportRows(rows, version, game = getGame('ats')) {
       if (!hasValue(row[14])) missing.push(labelAt('CAREER', 'exchangeRateAsOf', careerIndex))
       if (!hasValue(row[15])) missing.push(labelAt('CAREER', 'stateCode', careerIndex))
       else if (!getAtsStateProfile(row[15])) invalid.push(`${labelAt('CAREER', 'stateCode', careerIndex)} (estado não suportado)`)
+    }
+    if (version >= 11) {
+      ;[[17, 'cityMarketVersion'], [18, 'cityMarketLabel'], [19, 'cityCostFactor'], [20, 'citySalaryFactor']].forEach(([column, field]) => {
+        if (!hasValue(row[column])) missing.push(labelAt('CAREER', field, careerIndex))
+      })
+      validateNumeric(row[17], labelAt('CAREER', 'cityMarketVersion', careerIndex), invalid, { integer: true, min: 1 })
+      validateNumeric(row[19], labelAt('CAREER', 'cityCostFactor', careerIndex), invalid, { min: Number.EPSILON })
+      validateNumeric(row[20], labelAt('CAREER', 'citySalaryFactor', careerIndex), invalid, { min: Number.EPSILON })
     }
   }
 
@@ -338,6 +348,13 @@ function validateImportRows(rows, version, game = getGame('ats')) {
         validateNumeric(row[23], labelAt(type, 'exchangeRate', index), invalid, { min: Number.EPSILON })
       }
       if (version >= 10 && game.id === 'ats' && hasValue(row[25]) && !getAtsStateProfile(row[25])) invalid.push(`${labelAt(type, 'stateCode', index)} (estado não suportado)`)
+      if (version >= 11) {
+        ;[[27, 'city'], [28, 'cityMarketLabel'], [29, 'cityCostFactor'], [30, 'citySalaryFactor']].forEach(([column, field]) => {
+          if (!hasValue(row[column])) missing.push(labelAt(type, field, index))
+        })
+        validateNumeric(row[29], labelAt(type, 'cityCostFactor', index), invalid, { min: Number.EPSILON })
+        validateNumeric(row[30], labelAt(type, 'citySalaryFactor', index), invalid, { min: Number.EPSILON })
+      }
     }
   })
 
@@ -366,7 +383,20 @@ function importCareerRows(rows, expectedGameId) {
       : null
   const savedExchangeRate = version >= 9 && Number(parseStrictNumber(careerDataRow?.[13])) > 0 ? parseStrictNumber(careerDataRow[13]) : null
   const savedExchangeRateAsOf = version >= 9 ? String(careerDataRow?.[14] || '').trim() : null
-  const game = getGame(gameId, gameId === 'ets2' ? countryCode : stateCode, currencyCode, savedExchangeRate, savedExchangeRateAsOf)
+  const savedCityMarketLabel = version >= 11 ? String(careerDataRow?.[18] || '').trim() : null
+  const savedCityCostFactor = version >= 11 && Number(parseStrictNumber(careerDataRow?.[19])) > 0 ? parseStrictNumber(careerDataRow[19]) : null
+  const savedCitySalaryFactor = version >= 11 && Number(parseStrictNumber(careerDataRow?.[20])) > 0 ? parseStrictNumber(careerDataRow[20]) : null
+  const game = getGame(
+    gameId,
+    gameId === 'ets2' ? countryCode : stateCode,
+    currencyCode,
+    savedExchangeRate,
+    savedExchangeRateAsOf,
+    careerDataRow?.[3],
+    savedCityCostFactor,
+    savedCitySalaryFactor,
+    savedCityMarketLabel,
+  )
   validateImportRows(rows, version, game)
 
   const imported = {
@@ -384,6 +414,8 @@ function importCareerRows(rows, expectedGameId) {
         countryCode: game.countryCode || '', countryName: game.countryName || '', currency: game.currency,
         stateCode: game.stateCode || '', stateName: game.stateName || '',
         baseCurrency: game.baseCurrency || game.currency, exchangeRate: game.exchangeRate || 1, exchangeRateAsOf: game.exchangeRateAsOf || '',
+        cityMarketVersion: game.cityMarketVersion, cityMarketLabel: game.cityMarketLabel,
+        cityCostFactor: game.cityCostFactor, citySalaryFactor: game.citySalaryFactor,
       }
     } else if (type === 'SETUP_COST' && row[1] && row[1] !== 'name') {
       imported.setupCosts[row[1]] = parseStrictNumber(row[2])
@@ -429,7 +461,7 @@ function importCareerRows(rows, expectedGameId) {
     } else if (type === 'CLOSED_WEEK' && row[1] !== 'week') {
       const n = (column, fallback = 0) => hasValue(row[column]) ? parseStrictNumber(row[column]) : fallback
       const closed = version >= 8
-        ? { week: n(1,1), closedAt: row[2] || '', level: n(4,1), gross: n(5), taxes: n(6), benefits: n(7), netSalary: n(8), perDiem: n(9), incidentDeduction: n(10), reserveInterest: n(11), deposit: n(12), desc: row[13] || '', periodType: row[14] || 'week', month: hasValue(row[15]) ? n(15) : undefined, startWeek: n(16,n(1,1)), endWeek: n(17,n(1,1)), weeks: parseWeekList(row[18]).length ? parseWeekList(row[18]) : [n(1,1)], countryCode: row[19] || game.countryCode || '', currency: row[20] || game.currency, taxBreakdown: (() => { try { return JSON.parse(row[21] || '{}') } catch { return {} } })(), baseCurrency: version >= 9 ? (row[22] || game.baseCurrency || game.currency) : (game.baseCurrency || game.currency), exchangeRate: version >= 9 && hasValue(row[23]) ? n(23, game.exchangeRate || 1) : (game.exchangeRate || 1), exchangeRateAsOf: version >= 9 ? (row[24] || game.exchangeRateAsOf || '') : (game.exchangeRateAsOf || ''), stateCode: version >= 10 ? (row[25] || game.stateCode || '') : (game.stateCode || ''), stateName: version >= 10 ? (row[26] || game.stateName || '') : (game.stateName || '') }
+        ? { week: n(1,1), closedAt: row[2] || '', level: n(4,1), gross: n(5), taxes: n(6), benefits: n(7), netSalary: n(8), perDiem: n(9), incidentDeduction: n(10), reserveInterest: n(11), deposit: n(12), desc: row[13] || '', periodType: row[14] || 'week', month: hasValue(row[15]) ? n(15) : undefined, startWeek: n(16,n(1,1)), endWeek: n(17,n(1,1)), weeks: parseWeekList(row[18]).length ? parseWeekList(row[18]) : [n(1,1)], countryCode: row[19] || game.countryCode || '', currency: row[20] || game.currency, taxBreakdown: (() => { try { return JSON.parse(row[21] || '{}') } catch { return {} } })(), baseCurrency: version >= 9 ? (row[22] || game.baseCurrency || game.currency) : (game.baseCurrency || game.currency), exchangeRate: version >= 9 && hasValue(row[23]) ? n(23, game.exchangeRate || 1) : (game.exchangeRate || 1), exchangeRateAsOf: version >= 9 ? (row[24] || game.exchangeRateAsOf || '') : (game.exchangeRateAsOf || ''), stateCode: version >= 10 ? (row[25] || game.stateCode || '') : (game.stateCode || ''), stateName: version >= 10 ? (row[26] || game.stateName || '') : (game.stateName || ''), city: version >= 11 ? (row[27] || game.city || '') : (game.city || ''), cityMarketLabel: version >= 11 ? (row[28] || game.cityMarketLabel || '') : (game.cityMarketLabel || ''), cityCostFactor: version >= 11 && hasValue(row[29]) ? n(29, game.cityCostFactor || 1) : (game.cityCostFactor || 1), citySalaryFactor: version >= 11 && hasValue(row[30]) ? n(30, game.citySalaryFactor || 1) : (game.citySalaryFactor || 1) }
         : version >= 7
         ? { week: n(1,1), closedAt: row[2] || '', level: n(4,1), gross: n(5), taxes: n(6), benefits: n(7), netSalary: n(8), perDiem: n(9), incidentDeduction: n(10), reserveInterest: n(11), deposit: n(12), desc: row[13] || '' }
         : { week: n(1,1), closedAt: row[2] || '', level: n(4,1), gross: n(5), taxes: n(6), benefits: n(7), netSalary: n(8), perDiem: n(9), incidentDeduction: row.length >= 13 ? n(10) : 0, reserveInterest: 0, deposit: n(row.length >= 13 ? 11 : 10), desc: row[row.length >= 13 ? 12 : 11] || '' }
@@ -450,6 +482,8 @@ function importCareerRows(rows, expectedGameId) {
     countryCode: game.countryCode || '', countryName: game.countryName || '', currency: game.currency,
     stateCode: game.stateCode || '', stateName: game.stateName || '',
     baseCurrency: game.baseCurrency || game.currency, exchangeRate: game.exchangeRate || 1, exchangeRateAsOf: game.exchangeRateAsOf || '',
+    cityMarketVersion: game.cityMarketVersion, cityMarketLabel: game.cityMarketLabel,
+    cityCostFactor: game.cityCostFactor, citySalaryFactor: game.citySalaryFactor,
     createdAt: imported.career.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString(),
   }
   if (game.payrollPeriod === 'monthly' && imported.state.closedOperationalWeeks.length === 0) {

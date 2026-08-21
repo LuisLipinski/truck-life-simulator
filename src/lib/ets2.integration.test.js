@@ -62,7 +62,7 @@ describe('ETS2 career domain', () => {
   })
 
   it('preserves a selected ETS2 currency and its exchange-rate snapshot in storage', () => {
-    const britishInEuro = getGame('ets2', 'GB', 'EUR')
+    const britishInEuro = getGame('ets2', 'GB', 'EUR', null, null, 'Londres, Reino Unido')
     const career = createCareer({
       driverName: 'London Euro Driver', city: 'Londres, Reino Unido', company: 'Euro Logistics',
       initialBalance: 1000, currentBalance: 1000, countryCode: 'GB', countryName: 'Reino Unido',
@@ -152,6 +152,6 @@ describe('ETS2 career domain', () => {
     expect(result.version).toBe(9)
     expect(result.career).toMatchObject({ countryCode: 'GB', currency: 'EUR', baseCurrency: 'GBP', exchangeRateAsOf: '2026-08-20' })
     expect(result.career.exchangeRate).toBeCloseTo(1.1665208516)
-    expect(result.state.expenses.rent).toBeCloseTo(1166.52)
+    expect(result.state.expenses.rent).toBeCloseTo(1493.15)
   })
 })

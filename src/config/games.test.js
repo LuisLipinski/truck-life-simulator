@@ -13,7 +13,26 @@ describe('American Truck Simulator financial configuration', () => {
       expect(profile.taxes.length).toBeGreaterThanOrEqual(3)
       expect(profile.level1Gross).toBeGreaterThan(0)
       expect(profile.expenses.rent).toBeGreaterThan(0)
+      for (const city of profile.baseCities) {
+        const cityProfile = getGame('ats', state.code, 'USD', null, null, city)
+        expect(cityProfile.cityMarketKnown).toBe(true)
+        expect(cityProfile.cityCostFactor).toBeGreaterThan(0)
+        expect(cityProfile.citySalaryFactor).toBeGreaterThan(0)
+      }
     }
+  })
+
+  it('changes rent and all three salary levels by city and state market', () => {
+    const sanFrancisco = getGame('ats', 'CA', 'USD', null, null, 'San Francisco, CA')
+    const barstow = getGame('ats', 'CA', 'USD', null, null, 'Barstow, CA')
+    const arkansas = getGame('ats', 'AR', 'USD', null, null, 'Little Rock, AR')
+    const washington = getGame('ats', 'WA', 'USD', null, null, 'Seattle, WA')
+
+    expect(sanFrancisco.expenses.rent).toBeGreaterThan(barstow.expenses.rent)
+    expect(sanFrancisco.level1Gross).toBeGreaterThan(barstow.level1Gross)
+    expect(sanFrancisco.payRates.normal).toBeGreaterThan(barstow.payRates.normal)
+    expect(washington.payRates.normal).toBeGreaterThan(arkansas.payRates.normal)
+    expect(washington.payRates.hazmat_doubles).toBeGreaterThan(arkansas.payRates.hazmat_doubles)
   })
 
   it('offers only the two currencies configured by the original ATS and freezes conversion', () => {
@@ -70,6 +89,12 @@ describe('Euro Truck Simulator 2 configuration', () => {
       expect(profile.taxes.length).toBeGreaterThan(0)
       expect(profile.level1Gross).toBeGreaterThan(0)
       expect(profile.expenses.rent).toBeGreaterThan(0)
+      for (const city of profile.baseCities) {
+        const cityProfile = getGame('ets2', country.code, country.currency, null, null, city)
+        expect(cityProfile.cityMarketKnown).toBe(true)
+        expect(cityProfile.cityCostFactor).toBeGreaterThan(0)
+        expect(cityProfile.citySalaryFactor).toBeGreaterThan(0)
+      }
     }
     expect(getGame('ets2', 'RO')).toMatchObject({ countryName: 'Romênia', baseCurrency: 'RON' })
     expect(getGame('ets2', 'BA')).toMatchObject({ countryName: 'Bósnia e Herzegovina', baseCurrency: 'BAM' })
@@ -85,5 +110,29 @@ describe('Euro Truck Simulator 2 configuration', () => {
     expect(londonInEuro.level1Gross).toBeCloseTo(3032.95, 1)
     expect(londonInEuro.setupCosts.rent).toBeCloseTo(1166.52, 1)
     expect(londonInEuro.currencyOptions.map((currency) => currency.code)).toEqual(expect.arrayContaining(['EUR', 'GBP', 'PLN', 'CHF', 'RSD']))
+  })
+
+  it('adjusts rent and salaries for the selected city without changing the fiscal country', () => {
+    const london = getGame('ets2', 'GB', 'EUR', null, null, 'Londres, Reino Unido')
+    const plymouth = getGame('ets2', 'GB', 'EUR', null, null, 'Plymouth, Reino Unido')
+    const paris = getGame('ets2', 'FR', 'EUR', null, null, 'Paris, França')
+    const bourges = getGame('ets2', 'FR', 'EUR', null, null, 'Bourges, França')
+
+    expect(london.countryCode).toBe('GB')
+    expect(plymouth.countryCode).toBe('GB')
+    expect(london.expenses.rent).toBeGreaterThan(plymouth.expenses.rent)
+    expect(london.level1Gross).toBeGreaterThan(plymouth.level1Gross)
+    expect(london.payRates.doubles).toBeGreaterThan(plymouth.payRates.doubles)
+    expect(paris.expenses.rent).toBeGreaterThan(bourges.expenses.rent)
+    expect(paris.payRates.normal).toBeGreaterThan(bourges.payRates.normal)
+  })
+
+  it('honors the city market snapshot stored with a career', () => {
+    const snapshot = getGame('ets2', 'GB', 'EUR', null, null, 'Londres, Reino Unido', 1.05, 1.02, 'Snapshot importado')
+
+    expect(snapshot.cityMarketLabel).toBe('Snapshot importado')
+    expect(snapshot.cityCostFactor).toBe(1.05)
+    expect(snapshot.citySalaryFactor).toBe(1.02)
+    expect(snapshot.setupCosts.rent).toBeCloseTo(1224.85, 1)
   })
 })

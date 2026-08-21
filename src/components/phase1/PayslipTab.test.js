@@ -48,7 +48,7 @@ function renderPayslip(state, commit = vi.fn(), gameOptions = {}) {
         ToastProvider,
         null,
         React.createElement(ConfirmProvider, null,
-          React.createElement(GameProvider, { gameId: gameOptions.gameId || 'ats', countryCode: gameOptions.countryCode || null }, React.createElement(PayslipTab, { state, commit })),
+          React.createElement(GameProvider, { gameId: gameOptions.gameId || 'ats', countryCode: gameOptions.countryCode || null, stateCode: gameOptions.stateCode || null, city: gameOptions.city || '', cityCostFactor: gameOptions.cityCostFactor || null, citySalaryFactor: gameOptions.citySalaryFactor || null, cityMarketLabel: gameOptions.cityMarketLabel || null }, React.createElement(PayslipTab, { state, commit })),
         ),
       ),
     )
@@ -144,7 +144,7 @@ describe('PayslipTab reserve automation', () => {
 describe('PayslipTab ETS2 monthly payroll', () => {
   it('closes an operational week without depositing salary', async () => {
     const state = baseState({ trips: [{ id: 1, week: 1, distance: 180, type: 'Loaded', payCategory: 'normal' }] })
-    const { commit } = renderPayslip(state, vi.fn(), { gameId: 'ets2', countryCode: 'DE' })
+    const { commit } = renderPayslip(state, vi.fn(), { gameId: 'ets2', countryCode: 'DE', city: 'Berlin, Alemanha' })
 
     const closeWeek = [...container.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Encerrar Semana 1')
     await act(async () => closeWeek.click())
@@ -178,7 +178,7 @@ describe('PayslipTab ETS2 monthly payroll', () => {
         { id: 2, week: 5, amount: 100, remaining: 100, chargeMethod: 'payslip', status: 'Pendente' },
       ],
     })
-    const { commit } = renderPayslip(state, vi.fn(), { gameId: 'ets2', countryCode: 'DE' })
+    const { commit } = renderPayslip(state, vi.fn(), { gameId: 'ets2', countryCode: 'DE', city: 'Berlin, Alemanha' })
 
     expect(container.textContent).toContain('Folha de Alemanha em EUR')
     expect(container.textContent).toContain('Imposto de renda (estimado)')
@@ -204,6 +204,10 @@ describe('PayslipTab ETS2 monthly payroll', () => {
       weeks: [1, 2, 3, 4],
       countryCode: 'DE',
       currency: 'EUR',
+      city: 'Berlin, Alemanha',
+      cityMarketLabel: 'Capital ou metrópole principal',
+      cityCostFactor: 1.10,
+      citySalaryFactor: 1.05,
       incidentDeduction: 100,
     })
     expect(nextState.incidents[0].remaining).toBe(0)

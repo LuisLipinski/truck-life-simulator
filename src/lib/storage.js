@@ -29,6 +29,10 @@ function normalizeCareer(career, gameId = 'ats') {
       : Number(career.exchangeRate) > 0
         ? Number(career.exchangeRate)
         : getAtsExchangeRate('USD', currency)
+    const financialProfile = getGame(
+      'ats', stateCode, currency, exchangeRate, career.exchangeRateAsOf || ATS_EXCHANGE_RATE_DATE,
+      career.city, career.cityCostFactor, career.citySalaryFactor, career.cityMarketLabel,
+    )
     return {
       ...career,
       gameId: 'ats',
@@ -38,6 +42,10 @@ function normalizeCareer(career, gameId = 'ats') {
       currency,
       exchangeRate,
       exchangeRateAsOf: career.exchangeRateAsOf || ATS_EXCHANGE_RATE_DATE,
+      cityMarketVersion: financialProfile.cityMarketVersion,
+      cityMarketLabel: financialProfile.cityMarketLabel,
+      cityCostFactor: financialProfile.cityCostFactor,
+      citySalaryFactor: financialProfile.citySalaryFactor,
     }
   }
   const inferredCode = inferEts2CountryCode(career.city)
@@ -49,6 +57,10 @@ function normalizeCareer(career, gameId = 'ats') {
     : Number(career.exchangeRate) > 0
       ? Number(career.exchangeRate)
       : getEts2ExchangeRate(profile.currency, currency)
+  const financialProfile = getGame(
+    'ets2', countryCode, currency, exchangeRate, career.exchangeRateAsOf || ETS2_EXCHANGE_RATE_DATE,
+    career.city, career.cityCostFactor, career.citySalaryFactor, career.cityMarketLabel,
+  )
   return {
     ...career,
     gameId: 'ets2',
@@ -58,6 +70,10 @@ function normalizeCareer(career, gameId = 'ats') {
     currency,
     exchangeRate,
     exchangeRateAsOf: career.exchangeRateAsOf || ETS2_EXCHANGE_RATE_DATE,
+    cityMarketVersion: financialProfile.cityMarketVersion,
+    cityMarketLabel: financialProfile.cityMarketLabel,
+    cityCostFactor: financialProfile.cityCostFactor,
+    citySalaryFactor: financialProfile.citySalaryFactor,
   }
 }
 

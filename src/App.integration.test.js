@@ -166,7 +166,7 @@ describe('career card navigation', () => {
     })
 
     const [career] = JSON.parse(localStorage.getItem(CAREERS_KEY) || '[]')
-    expect(career).toMatchObject({ stateCode: 'TX', stateName: 'Texas', currency: 'EUR', baseCurrency: 'USD', city: 'Dallas, TX' })
+    expect(career).toMatchObject({ stateCode: 'TX', stateName: 'Texas', currency: 'EUR', baseCurrency: 'USD', city: 'Dallas, TX', cityMarketLabel: 'Metrópole principal', cityCostFactor: 1.10, citySalaryFactor: 1.05 })
     expect(career.exchangeRate).toBeCloseTo(1 / 1.1681)
   })
 
@@ -189,7 +189,7 @@ describe('career card navigation', () => {
     })
 
     expect(window.location.hash).toContain('#/ets2/phases?career=')
-    expect(JSON.parse(localStorage.getItem(ETS2_CAREERS_KEY) || '[]')).toMatchObject([{ driverName: 'Euro Driver', city: 'Berlin, Alemanha', gameId: 'ets2', countryCode: 'DE', countryName: 'Alemanha', currency: 'EUR' }])
+    expect(JSON.parse(localStorage.getItem(ETS2_CAREERS_KEY) || '[]')).toMatchObject([{ driverName: 'Euro Driver', city: 'Berlin, Alemanha', gameId: 'ets2', countryCode: 'DE', countryName: 'Alemanha', currency: 'EUR', cityMarketLabel: 'Capital ou metrópole principal', cityCostFactor: 1.10, citySalaryFactor: 1.05 }])
     expect(localStorage.getItem(CAREERS_KEY)).toBeNull()
   })
 
@@ -213,9 +213,9 @@ describe('career card navigation', () => {
     })
 
     const [career] = JSON.parse(localStorage.getItem(ETS2_CAREERS_KEY) || '[]')
-    expect(career).toMatchObject({ countryCode: 'GB', countryName: 'Reino Unido', currency: 'EUR', baseCurrency: 'GBP', exchangeRateAsOf: '2026-08-20' })
+    expect(career).toMatchObject({ countryCode: 'GB', countryName: 'Reino Unido', currency: 'EUR', baseCurrency: 'GBP', exchangeRateAsOf: '2026-08-20', cityMarketLabel: 'Capital de custo excepcional', cityCostFactor: 1.28, citySalaryFactor: 1.10 })
     expect(career.exchangeRate).toBeGreaterThan(1)
-    expect(career.setupCosts.rent).toBeCloseTo(1166.52)
+    expect(career.setupCosts.rent).toBeCloseTo(1493.15)
   })
 
   it('shows ETS2 qualifications and a European payslip without ATS fiscal copy', async () => {

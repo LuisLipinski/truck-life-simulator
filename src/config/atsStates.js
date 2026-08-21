@@ -31,9 +31,10 @@ function stateTaxes(name, incomeTax, payrollTax) {
 
 function makeState(definition) {
   const {
-    code, name, placeholder, costFactor, weeklyGross, payFactor = 1,
+    code, name, placeholder, costFactor, weeklyGross, payFactor = null,
     incomeTax = null, payrollTax = null, perDiem = 80,
   } = definition
+  const regionalPayFactor = Number(payFactor) > 0 ? Number(payFactor) : weeklyGross / 960
   return {
     code,
     name,
@@ -47,7 +48,8 @@ function makeState(definition) {
     defaultArrivalBalance: Math.round(Math.max(3500, 5000 * costFactor) / 50) * 50,
     setupCosts: scaledRecord(BASE_SETUP, costFactor),
     expenses: scaledRecord(BASE_EXPENSES, costFactor),
-    payRates: scaledRecord(BASE_PAY_RATES, payFactor, 4),
+    payRates: scaledRecord(BASE_PAY_RATES, regionalPayFactor, 4),
+    regionalPayFactor,
     level1Gross: weeklyGross,
     routeOverrunRate: Math.round(weeklyGross / 40 * 100) / 100,
     payrollBenefits: 36,

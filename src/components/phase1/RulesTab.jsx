@@ -5,6 +5,12 @@ function Tip({ text }) {
   return <button className="react-info-tip" type="button" aria-label="Mais informações" data-tip={text}>i</button>
 }
 
+function factorDelta(factor) {
+  const percentage = Math.round((Number(factor || 1) - 1) * 100)
+  if (!percentage) return 'referência da sede'
+  return `${Math.abs(percentage)}% ${percentage > 0 ? 'acima' : 'abaixo'} da referência da sede`
+}
+
 function levelsFor(game) {
   const [level2Goal, level3Goal] = game.promotionGoals
   const [level2Cost, level3Cost] = game.promotionCosts
@@ -85,7 +91,15 @@ export default function RulesTab() {
         <h2 className="line-label-with-tip">Regras operacionais da carreira <Tip text="Estas regras mantêm salário, progressão e qualificações coerentes dentro do roleplay." /></h2>
         <p>Você trabalha como empregado e não possui caminhão próprio. Diesel, manutenção, pneus, seguro comercial, licenciamento, reparos e pedágios autorizados são custos da empresa.</p>
         <div className="notice-box"><strong className="line-label-with-tip">Economia do {game.shortName} <Tip text={`Os valores pagos pelo próprio ${game.shortName} não entram na economia pessoal do aplicativo.`} /></strong><span>O valor da carga mostrado pelo jogo é ignorado. A economia pessoal usa {game.currency} e é controlada pelo Truck Life Simulator.</span></div>
-        {(game.countryCode || game.stateCode) && <div className="notice-box"><strong>{game.countryFlag || '🇺🇸'} {game.id === 'ets2' ? `País-sede: ${game.countryName}` : `Estado-sede: ${game.stateName} (${game.stateCode})`} • moeda da carreira: {game.currency}</strong><span>{game.id === 'ets2' ? 'Jornada e descanso seguem a referência operacional europeia. ' : ''}Custo de vida, salário e retenções são calculados na moeda fiscal {game.baseCurrency} de {game.countryName || game.stateName}{game.currency !== game.baseCurrency ? ` e convertidos para ${game.currency} pela cotação fixada em ${game.exchangeRateAsOf}` : ''}. Os cálculos são estimativas de roleplay, não uma folha oficial.</span><span>{game.taxAssumptions}</span>{game.financeSources?.length > 0 && <span className="country-source-links">Fontes fiscais e salariais: {game.financeSources.map(([label, url], index) => <span key={url}>{index > 0 ? ' • ' : ''}<a href={url} target="_blank" rel="noreferrer">{label}</a></span>)}</span>}{game.currency !== game.baseCurrency && game.exchangeRateSources?.length > 0 && <span className="country-source-links">Fontes cambiais: {game.exchangeRateSources.map(([label, url], index) => <span key={url}>{index > 0 ? ' • ' : ''}<a href={url} target="_blank" rel="noreferrer">{label}</a></span>)}</span>}</div>}
+        {(game.countryCode || game.stateCode) && <div className="notice-box">
+          <strong>{game.countryFlag || '🇺🇸'} {game.id === 'ets2' ? `País-sede: ${game.countryName}` : `Estado-sede: ${game.stateName} (${game.stateCode})`} • cidade-base: {game.city || 'referência da sede'} • moeda: {game.currency}</strong>
+          <span>{game.id === 'ets2' ? 'Jornada e descanso seguem a referência operacional europeia. ' : ''}Impostos e contribuições vêm da sede fiscal. A cidade-base aplica o perfil “{game.cityMarketLabel}”: aluguel e despesas urbanas, {factorDelta(game.cityCostFactor)}; salários dos três níveis, {factorDelta(game.citySalaryFactor)}. O destino das viagens não muda esses valores.</span>
+          <span>Os cálculos usam a moeda fiscal {game.baseCurrency} de {game.countryName || game.stateName}{game.currency !== game.baseCurrency ? ` e são convertidos para ${game.currency} pela cotação fixada em ${game.exchangeRateAsOf}` : ''}. São estimativas editáveis de roleplay, não uma folha ou cotação de aluguel oficial.</span>
+          <span>{game.taxAssumptions}</span>
+          {game.financeSources?.length > 0 && <span className="country-source-links">Fontes fiscais e salariais: {game.financeSources.map(([label, url], index) => <span key={url}>{index > 0 ? ' • ' : ''}<a href={url} target="_blank" rel="noreferrer">{label}</a></span>)}</span>}
+          {game.cityMarketSources?.length > 0 && <span className="country-source-links">Fontes municipais e regionais: {game.cityMarketSources.map(([label, url], index) => <span key={url}>{index > 0 ? ' • ' : ''}<a href={url} target="_blank" rel="noreferrer">{label}</a></span>)}</span>}
+          {game.currency !== game.baseCurrency && game.exchangeRateSources?.length > 0 && <span className="country-source-links">Fontes cambiais: {game.exchangeRateSources.map(([label, url], index) => <span key={url}>{index > 0 ? ' • ' : ''}<a href={url} target="_blank" rel="noreferrer">{label}</a></span>)}</span>}
+        </div>}
       </section>
 
       <section className="rules-grid">

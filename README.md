@@ -10,6 +10,7 @@ Companion de carreira para American Truck Simulator e Euro Truck Simulator 2. Ca
 | Distância | milhas (`mi`) | quilômetros (`km`) |
 | Folha | semanal | mensal |
 | Sede fiscal | estado escolhido | país escolhido |
+| Mercado local | cidade-base dentro do estado | cidade-base dentro do país |
 | Moeda | USD ou EUR | 16 moedas de exibição; país fiscal separado |
 | Carga perigosa | HazMat | ADR |
 | Combinação avançada | Doubles | Euro Combi |
@@ -19,7 +20,7 @@ As chaves de `localStorage` de ATS e ETS2 são separadas. A importação também
 
 ## Modelo financeiro do ATS
 
-O estado-sede é escolhido antes da cidade-base. Ele filtra as cidades disponíveis e define salário, custo de vida e retenções estaduais; cruzar a divisa durante uma viagem não muda a folha da carreira.
+O estado-sede é escolhido antes da cidade-base. Ele filtra as cidades disponíveis, define retenções e fornece a referência financeira estadual. A cidade-base aplica um multiplicador municipal diferente para custo de vida e para mercado salarial; cruzar a divisa durante uma viagem não muda a folha da carreira.
 
 Os 20 estados presentes no mapa atual estão configurados: Arizona, Arkansas, Califórnia, Colorado, Idaho, Illinois, Iowa, Kansas, Louisiana, Missouri, Montana, Nebraska, Nevada, Novo México, Oklahoma, Oregon, Texas, Utah, Washington e Wyoming.
 
@@ -31,19 +32,24 @@ Os 20 estados presentes no mapa atual estão configurados: Arizona, Arkansas, Ca
 - Washington: não tributa salários com imposto estadual, mas inclui WA Cares;
 - Nevada, Texas e Wyoming: sem imposto estadual sobre salários.
 
-Custos e salários estaduais são referências editáveis de roleplay baseadas em dados ocupacionais e diferenças regionais; não são uma proposta de emprego nem uma folha oficial. Impostos municipais, distritais, créditos e condições pessoais não modeladas ficam fora do cálculo.
+As tarifas por milha dos Níveis 2 e 3 agora variam primeiro pelo mercado salarial do estado e depois pela cidade-base, assim como o salário fixo e a hora extra do Nível 1. Aluguel, caução, alimentação, transporte e outras despesas urbanas recebem o fator de custo da cidade. Itens regulatórios e retenções continuam ligados ao estado.
+
+Custos e salários são referências editáveis de roleplay baseadas em dados ocupacionais e diferenças metropolitanas; não são uma proposta de emprego nem uma folha oficial. Impostos municipais, distritais, créditos e condições pessoais não modeladas ficam fora do cálculo.
 
 O ATS original oferece USD e EUR como moedas de exibição. A moeda fiscal permanece USD; quando EUR é escolhido, toda a carreira é convertida pela cotação registrada na criação.
 
 ## Modelo financeiro do ETS2
 
-O ETS2 usa um modelo em duas camadas:
+O ETS2 usa camadas complementares:
 
 - regras operacionais comuns da Europa para jornada, pausas e descanso;
 - salário, custo de vida, retenções e taxas definidos pelo país-sede da carreira, na moeda fiscal local;
+- multiplicadores da cidade-base para aluguel, despesas urbanas e salários dos três níveis;
 - moeda de exibição e lançamentos escolhida pelo usuário.
 
-O país-sede é escolhido antes da cidade-base. Ele não muda quando o motorista cruza uma fronteira: uma carreira sediada na Alemanha continua com folha alemã durante viagens pelo restante da Europa. A moeda da carreira é independente: Londres pode usar regras britânicas em GBP e exibir todos os valores em EUR.
+O país-sede é escolhido antes da cidade-base. Ele não muda quando o motorista cruza uma fronteira: uma carreira sediada na Alemanha continua com folha alemã durante viagens pelo restante da Europa. A cidade representa a diferença regional dentro do país — por exemplo, Londres e Plymouth mantêm os mesmos impostos britânicos, mas recebem referências diferentes de aluguel e salário. A moeda da carreira é independente: Londres pode usar regras britânicas em GBP e exibir todos os valores em EUR.
+
+Todas as cidades mapeadas no ATS e no ETS2 recebem um perfil entre cidade menor, centro regional, metrópole principal e mercado de custo alto, com ajustes específicos para mercados excepcionais. Cidades adicionadas manualmente por mods usam fator neutro da sede até que o usuário edite os valores.
 
 ### País fiscal e moeda da carreira
 
@@ -101,7 +107,7 @@ Os valores são parâmetros simplificados de roleplay para 2025/26, não uma fol
 | Reino Unido | £ 0,27 | £ 0,30 | £ 0,32 | £ 0,35 | £ 0,22 |
 | Polônia | zł 1,15 | zł 1,25 | zł 1,30 | zł 1,40 | zł 0,95 |
 
-Os demais países recebem tarifas proporcionais ao perfil salarial nacional. Nível 1 recebe salário mensal fixo e usa os quilômetros apenas para progressão. Níveis 2 e 3 recebem por quilômetro, com diária internacional e categorias condicionadas ao nível e à qualificação ADR.
+Os valores da tabela são referências nacionais antes do fator municipal. Os demais países recebem tarifas proporcionais ao perfil salarial nacional. A cidade-base ajusta o salário mensal fixo do Nível 1 e as tarifas por quilômetro dos Níveis 2 e 3; diária internacional e categorias continuam condicionadas ao nível e à qualificação ADR.
 
 ### Fechamento mensal
 
@@ -120,7 +126,7 @@ Semanas operacionais encerradas não podem ser alteradas ou excluídas. O histó
 - a reserva de emergência não faz parte das despesas mensais;
 - aportes podem ser manuais ou configurados no Holerite;
 - o rendimento simulado é de 3,25% ao ano, proporcional por semana no ATS e por mês no ETS2;
-- despesas padrão e custos iniciais também mudam conforme o país-sede.
+- despesas padrão e custos iniciais mudam conforme o país-sede e o mercado da cidade-base.
 
 ## Progressão do ETS2
 
@@ -137,9 +143,15 @@ Ao criar uma carreira, a opção **Ver tutorial após criar a carreira** inicia 
 
 Ações financeiras, destrutivas ou que fecham períodos usam a modal compartilhada de confirmação/cancelamento; não há confirmações por `alert` nativo.
 
-## Backup v10
+## Backup v11
 
-CSV, XLS e XLSX continuam compatíveis com versões anteriores. O formato v10 preserva tudo do v9 e acrescenta:
+CSV, XLS e XLSX continuam compatíveis com versões anteriores. O formato v11 preserva tudo do v10 e acrescenta:
+
+- versão e nome do perfil municipal da carreira;
+- multiplicadores congelados de custo e salário da cidade-base;
+- cidade e perfil municipal em cada holerite fechado.
+
+O formato v10 já preservava:
 
 - `stateCode` e `stateName` da carreira ATS;
 - estado fiscal em cada holerite fechado;
@@ -172,20 +184,23 @@ Backups ETS2 antigos têm o país inferido pela cidade-base quando possível; ca
 | `src/config/atsCurrencies.js` | dólar/euro no ATS, cotação versionada e conversão |
 | `src/config/ets2Countries.js` | perfis financeiros dos 34 países do ETS2 |
 | `src/config/ets2Currencies.js` | moedas do ETS2, cotações versionadas e conversão |
+| `src/config/cityMarkets.js` | perfis municipais e multiplicadores de custo e salário |
 | `src/components/Phase1Page.jsx` | shell da Fase 1 e registro de viagens |
 | `src/components/phase1/PayslipTab.jsx` | fechamento semanal do ATS e mensal do ETS2 |
 | `src/components/GuidedTutorial.jsx` | tour guiado contextual por jogo |
 | `src/components/ConfirmProvider.jsx` | modal compartilhada de confirmação |
 | `src/lib/phase1.js` | estado, folha, impostos, progressão e reserva |
-| `src/lib/csv.js` | backup v10, migração, validação e planilhas |
+| `src/lib/csv.js` | backup v11, migração, validação e planilhas |
 | `.github/workflows/delivery-pipeline.yml` | testes, promoção, rollback e Pages |
 
 ## Fontes oficiais usadas no modelo
 
 - [IRS — parâmetros federais de 2026](https://www.irs.gov/newsroom/irs-releases-tax-inflation-adjustments-for-tax-year-2026-including-amendments-from-the-one-big-beautiful-bill), [SSA — contribuições e teto de 2026](https://www.ssa.gov/news/en/cola/factsheets/2026.html), [Tax Foundation — impostos estaduais de 2026](https://taxfoundation.org/data/all/state/state-income-tax-rates-2026/) e [BLS — salários estaduais por ocupação](https://www.bls.gov/oes/tables.htm)
+- [HUD — Fair Market Rents por área metropolitana](https://www.huduser.gov/portal/datasets/fmr.html) e [BLS OEWS — salários por estado, área metropolitana e área não metropolitana](https://www.bls.gov/oes/)
 - [Fórum oficial da SCS — economia do ATS baseada em USD e opções USD/EUR](https://forum.scssoft.com/viewtopic.php?t=202506)
 - [União Europeia — tempos de condução e descanso](https://transport.ec.europa.eu/transport-modes/road/social-provisions/driving-time-and-rest-periods_en)
 - [OCDE — Taxing Wages 2026](https://www.oecd.org/en/publications/taxing-wages-2026_3a5169ef-en/full-report/overview_d93131c3.html), [Comissão Europeia — Taxes in Europe](https://ec.europa.eu/taxation_customs/tedb/), [Eurostat — salários e custos do trabalho](https://ec.europa.eu/eurostat/statistics-explained/index.php?title=Wages_and_labour_costs) e [EURES — remuneração de motoristas](https://eures.europa.eu/how-find-and-train-jobs-are-demand-2025-04-17_en)
+- [Eurostat — Housing in Europe 2025](https://ec.europa.eu/eurostat/web/interactive-publications/housing-2025) e [mercado de trabalho regional](https://ec.europa.eu/eurostat/statistics-explained/index.php?title=Labour_market_statistics_at_regional_level)
 - [Your Europe — contribuições sociais por país](https://europa.eu/youreurope/business/hiring-managing-staff/social-security-health/paying-contributions/index_en.htm)
 - [Alemanha — previdência](https://www.deutsche-rentenversicherung.de/DRV/EN/Versicherung/versicherung_node.html), [saúde](https://www.bundesgesundheitsministerium.de/beitraege) e [parâmetros sociais 2026](https://www.bmas.de/DE/Service/Presse/Pressemitteilungen/2025/das-aendert-sich-im-neuen-jahr.html)
 - [Reino Unido — Income Tax](https://www.gov.uk/income-tax-rates) e [National Insurance](https://www.gov.uk/national-insurance-rates-letters)
