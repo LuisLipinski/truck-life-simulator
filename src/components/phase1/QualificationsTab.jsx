@@ -18,7 +18,7 @@ export default function QualificationsTab({ state, commit }) {
   const toast = useToast()
   const confirm = useConfirm()
   const distance = totalMiles(state)
-  const promotion = getPromotionStatus(state, game.id)
+  const promotion = getPromotionStatus(state, game)
   const [level2Confirmed, setLevel2Confirmed] = useState(false)
   const [level3Confirmed, setLevel3Confirmed] = useState(false)
   const qualified = Boolean(state.dangerousGoodsQualified ?? state.hazmatQualified)

@@ -148,23 +148,49 @@ export const TUTORIAL_STEPS = [
 
 export function tutorialStepsForGame(gameId = 'ats') {
   if (gameId === 'ats') return TUTORIAL_STEPS
-  return TUTORIAL_STEPS.map((step) => ({
-    ...step,
-    title: step.title
-      .replaceAll('Milhas', 'Quilômetros')
-      .replaceAll('HazMat', 'ADR'),
-    text: step.text
-      .replaceAll('American Truck Simulator', 'Euro Truck Simulator 2')
-      .replaceAll('ATS', 'ETS2')
-      .replaceAll('10.000 e 50.000 milhas', '16.000 e 80.000 quilômetros')
-      .replaceAll('milhas', 'quilômetros')
-      .replaceAll('Loaded e Deadhead', 'Com carga e reposicionamento vazio')
-      .replaceAll('HazMat', 'ADR')
-      .replaceAll('Company Driver', 'motorista empregado')
-      .replaceAll('OTR', 'internacional')
-      .replaceAll('Route Overrun', 'hora extra de rota')
-      .replaceAll('per diem', 'diária internacional'),
-  }))
+  const overrides = {
+    'career-summary': 'No topo ficam saldo, nível atual, progresso em quilômetros, mês do holerite e semana operacional. Esses números se atualizam conforme você usa a aplicação.',
+    'overview-shortcuts': 'Estes cartões mostram as despesas mensais e a situação do mês. Você também pode clicar neles para abrir diretamente Despesas ou Holerite.',
+    'career-backup': 'Exporte um CSV para guardar país-sede, moeda, perfil, viagens, finanças, ocorrências, semanas operacionais e holerites mensais. A importação fica na lista de carreiras.',
+    'trip-summary': 'Aqui você acompanha quilômetros da semana operacional e da carreira, estimativa por categoria e diárias. No Nível 1, o salário permanece mensal.',
+    'trip-history': 'Todas as viagens ficam listadas por semana operacional. Ao encerrar uma semana no Holerite, seus trechos ficam congelados e não podem mais ser excluídos.',
+    'reserve-tools': 'Faça aportes manuais ou resgates com motivo. A reserva fica separada do saldo e recebe rendimento mensal quando o holerite é fechado.',
+    'payslip-form': 'No ETS2, encerre de quatro a cinco semanas operacionais antes de gerar o holerite mensal. Revise salário ou quilômetros, retenções do país-sede, diárias, ocorrências e eventual aporte à reserva.',
+    'closed-weeks': 'O holerite reúne as semanas encerradas e fecha o mês. O depósito e as retenções nacionais ficam registrados para conferência, e a semana atual continua aberta para o próximo período.',
+    'history-summary': 'Os indicadores e gráficos resumem movimentações, holerites mensais e ocorrências para mostrar como a carreira evolui ao longo do tempo.',
+    rules: 'Consulte como funcionam os três níveis, rotas, país-sede, economia própria, fechamento mensal e as regras operacionais europeias do roleplay.',
+  }
+  return TUTORIAL_STEPS.flatMap((step) => {
+    const transformed = {
+      ...step,
+      title: step.title
+        .replaceAll('Milhas', 'Quilômetros')
+        .replaceAll('HazMat', 'ADR')
+        .replaceAll('Semanas fechadas', 'Meses fechados'),
+      text: overrides[step.id] || step.text
+        .replaceAll('American Truck Simulator', 'Euro Truck Simulator 2')
+        .replaceAll('ATS', 'ETS2')
+        .replaceAll('10.000 e 50.000 milhas', '16.000 e 80.000 quilômetros')
+        .replaceAll('milhas', 'quilômetros')
+        .replaceAll('Loaded e Deadhead', 'Com carga e reposicionamento vazio')
+        .replaceAll('HazMat', 'ADR')
+        .replaceAll('Company Driver', 'motorista empregado')
+        .replaceAll('OTR', 'internacional')
+        .replaceAll('Route Overrun', 'hora extra de rota')
+        .replaceAll('per diem', 'diária internacional'),
+    }
+    if (step.id === 'overview-shortcuts') return [transformed, {
+      id: 'career-profile', route: '/phase1', tab: 'overview', target: 'career-profile',
+      title: 'País-sede e moeda',
+      text: 'O país-sede define a moeda, o salário, os custos e as retenções da carreira. Viajar para outro país não troca a folha; a base financeira continua a mesma.',
+    }]
+    if (step.id !== 'payslip-form') return [transformed]
+    return [transformed, {
+      id: 'payroll-period', route: '/phase1', tab: 'payslip', target: 'payroll-period',
+      title: 'Semanas operacionais do mês',
+      text: 'Encerrar uma semana congela suas viagens e abre a próxima, sem depositar salário. Após quatro semanas, o holerite mensal é liberado; a quinta semana é opcional e encerra o limite do período.',
+    }]
+  })
 }
 
 const TutorialContext = createContext(null)

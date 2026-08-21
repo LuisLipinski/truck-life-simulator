@@ -2,7 +2,8 @@
 
 import { beforeEach, describe, expect, it } from 'vitest'
 import { importCareerCSVText } from './csv.js'
-import { estimateTaxes, getPromotionStatus, loadPhase1State, mileagePaySummary, phase1StorageKey, savePhase1State, totalMiles } from './phase1.js'
+import { getGame } from '../config/games.js'
+import { currentPayrollTrips, estimateTaxes, getPromotionStatus, isTripWeekLocked, loadPhase1State, mileagePaySummary, payrollWeeks, phase1StorageKey, savePhase1State, totalMiles } from './phase1.js'
 import { CAREERS_KEY, createCareer, ETS2_CAREERS_KEY, getActiveCareerId, getCareer, loadCareers } from './storage.js'
 
 describe('ETS2 career domain', () => {
@@ -25,7 +26,8 @@ describe('ETS2 career domain', () => {
     expect(localStorage.getItem(phase1StorageKey(ets2.id, 'ats'))).toBeNull()
   })
 
-  it('calculates kilometers, ETS2 rates, European deductions and promotion goals', () => {
+  it('calculates kilometers, national rates and promotion goals from the country profile', () => {
+    const germany = getGame('ets2', 'DE')
     const trips = [
       { distance: 100, type: 'Loaded', payCategory: 'normal' },
       { distance: 100, type: 'Loaded', payCategory: 'hazmat' },
@@ -33,11 +35,37 @@ describe('ETS2 career domain', () => {
       { distance: 100, type: 'Deadhead', payCategory: 'normal' },
     ]
     expect(totalMiles({ trips })).toBe(400)
-    expect(mileagePaySummary(trips, 'ets2').gross).toBeCloseTo(145)
-    expect(getPromotionStatus({ currentLevel: 1, trips: [{ distance: 15999 }], academy: {} }, 'ets2').remaining).toBe(1)
-    expect(getPromotionStatus({ currentLevel: 1, trips: [{ distance: 16000 }], academy: {} }, 'ets2').ready).toBe(true)
-    expect(getPromotionStatus({ currentLevel: 2, trips: [{ distance: 80000 }], academy: {} }, 'ets2').ready).toBe(true)
-    expect(estimateTaxes(1000, 'ets2')).toEqual({ incomeTax: 160, socialInsurance: 90, solidarity: 15 })
+    expect(mileagePaySummary(trips, germany).gross).toBeCloseTo(123)
+    expect(getPromotionStatus({ currentLevel: 1, trips: [{ distance: 15999 }], academy: {} }, germany).remaining).toBe(1)
+    expect(getPromotionStatus({ currentLevel: 1, trips: [{ distance: 16000 }], academy: {} }, germany).ready).toBe(true)
+    expect(getPromotionStatus({ currentLevel: 2, trips: [{ distance: 80000 }], academy: {} }, germany).ready).toBe(true)
+
+    const deductions = estimateTaxes(2800, germany)
+    expect(deductions.pensionInsurance).toBeCloseTo(260.4)
+    expect(deductions.unemploymentInsurance).toBeCloseTo(36.4)
+    expect(deductions.healthInsurance).toBeCloseTo(245)
+    expect(deductions.careInsurance).toBeCloseTo(67.2)
+    expect(deductions.incomeTax).toBeGreaterThan(0)
+    expect(estimateTaxes(1000, 'ets2')).toEqual({})
+  })
+
+  it('groups closed operational weeks into the current monthly payroll', () => {
+    const germany = getGame('ets2', 'DE')
+    const state = {
+      currentWeek: 5,
+      payPeriodStartWeek: 1,
+      closedOperationalWeeks: [1, 2, 3, 4],
+      trips: [
+        { id: 1, week: 1, distance: 100 },
+        { id: 2, week: 4, distance: 250 },
+        { id: 3, week: 5, distance: 500 },
+      ],
+    }
+
+    expect(payrollWeeks(state, germany)).toEqual([1, 2, 3, 4])
+    expect(currentPayrollTrips(state, germany).map((trip) => trip.id)).toEqual([1, 2])
+    expect(isTripWeekLocked(state, 4, germany)).toBe(true)
+    expect(isTripWeekLocked(state, 5, germany)).toBe(false)
   })
 
   it('imports an ETS2 backup into ETS2 storage and normalizes European terms', () => {
@@ -58,5 +86,29 @@ describe('ETS2 career domain', () => {
     expect(getCareer(result.career.id, 'ats')).toBeNull()
     expect(result.state.trips[0]).toMatchObject({ type: 'Deadhead', payCategory: 'deadhead', distance: 280 })
     expect(result.state.dangerousGoodsQualified).toBe(true)
+    expect(result.career.countryCode).toBe('DE')
+    expect(result.career.currency).toBe('EUR')
+  })
+
+  it('imports backup v8 with country, currency and monthly payroll state', () => {
+    const text = [
+      'ETS2_CAREER_BACKUP,8',
+      'CAREER,id,driverName,city,company,arrivalBalance,initialBalance,bio,createdAt,countryCode,countryName,currency',
+      'CAREER,,Polish Driver,"Warszawa, Polônia",Baltic Logistics,15000,9720,Bio,2026-08-20T00:00:00.000Z,PL,Polônia,PLN',
+      'STATE,balance,careerLevel,currentWeek,academyLevel2,academyLevel3,adrQualified,emergencyReserve,currentPayrollMonth,payPeriodStartWeek,closedOperationalWeeks',
+      'STATE,12000,1,5,0,0,0,500,2,5,1|2|3|4,1,250',
+      'BASE_EXPENSE,name,value',
+      'BASE_EXPENSE,rent,3200',
+      'CLOSED_WEEK,week,closedAt,kilometers,level,gross,taxes,benefits,netSalary,perDiem,incidentDeduction,reserveInterest,deposit,desc,periodType,month,startWeek,endWeek,weeks,countryCode,currency,taxBreakdown',
+      'CLOSED_WEEK,4,20/08/2026,900,1,10000,2500,0,7500,0,0,1.35,7500,Mês 1,month,1,1,4,1|2|3|4,PL,PLN,"{""incomeTax"":900}"',
+    ].join('\n')
+
+    const result = importCareerCSVText(text, 'ets2')
+    expect(result.version).toBe(8)
+    expect(result.career).toMatchObject({ countryCode: 'PL', countryName: 'Polônia', currency: 'PLN' })
+    expect(result.state).toMatchObject({ currentWeek: 5, currentPayrollMonth: 2, payPeriodStartWeek: 5, closedOperationalWeeks: [1, 2, 3, 4] })
+    expect(result.state.expenses.rent).toBe(3200)
+    expect(result.state.autoReserveContribution).toEqual({ enabled: true, amount: 250 })
+    expect(result.state.closedWeeks[0]).toMatchObject({ periodType: 'month', month: 1, weeks: [1, 2, 3, 4], countryCode: 'PL', currency: 'PLN', taxBreakdown: { incomeTax: 900 } })
   })
 })

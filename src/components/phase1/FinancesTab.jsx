@@ -53,6 +53,7 @@ function TipLabel({ children, tip, className = '' }) {
 
 export default function FinancesTab({ state, commit }) {
   const game = useGame()
+  const monthlyPayroll = game.payrollPeriod === 'monthly'
   const money = (value) => formatMoney(value, game)
   const toast = useToast()
   const confirm = useConfirm()
@@ -246,9 +247,9 @@ export default function FinancesTab({ state, commit }) {
           <div className="section-heading compact-heading">
             <span className="eyebrow">Reserva de emergência</span>
             <h2>{money(reserve)}</h2>
-            <p>Dinheiro separado do saldo disponível. O rendimento é creditado semanalmente quando o holerite é fechado.</p>
+            <p>Dinheiro separado do saldo disponível. O rendimento é creditado {monthlyPayroll ? 'mensalmente' : 'semanalmente'} quando o holerite é fechado.</p>
           </div>
-          <div className="reserve-rate-note">Taxa simulada: <strong>{(EMERGENCY_RESERVE_ANNUAL_YIELD * 100).toFixed(2)}% ao ano</strong> ≈ <strong>{(EMERGENCY_RESERVE_ANNUAL_YIELD / 52 * 100).toFixed(4)}% por semana</strong>.</div>
+          <div className="reserve-rate-note">Taxa simulada: <strong>{(EMERGENCY_RESERVE_ANNUAL_YIELD * 100).toFixed(2)}% ao ano</strong> ≈ <strong>{(EMERGENCY_RESERVE_ANNUAL_YIELD / (monthlyPayroll ? 12 : 52) * 100).toFixed(4)}% por {monthlyPayroll ? 'mês' : 'semana'}</strong>.</div>
           <TipLabel tip="Transfere dinheiro da conta pessoal para a reserva. Aceita vírgula ou ponto e usa no máximo duas casas decimais.">Adicionar à reserva</TipLabel>
           <div className="reserve-inline-action"><input type="text" inputMode="decimal" value={reserveDeposit} onChange={(event) => setReserveDeposit(event.target.value)} placeholder="0.00" /><button className="button secondary" type="button" onClick={addToReserve}>Adicionar</button></div>
           <form className="reserve-use-form" onSubmit={useReserve}>

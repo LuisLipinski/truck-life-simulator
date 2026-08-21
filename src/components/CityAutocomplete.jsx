@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { normalizeCitySearch } from '../data/atsCities.js'
 import { useGame } from './GameContext.jsx'
 
-export default function CityAutocomplete({ value, onChange, placeholder = 'Digite para pesquisar uma cidade...', label = 'Cidade', required = false }) {
+export default function CityAutocomplete({ value, onChange, placeholder = 'Digite para pesquisar uma cidade...', label = 'Cidade', required = false, cities = null, disabled = false, hint = '' }) {
   const game = useGame()
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(-1)
@@ -11,10 +11,10 @@ export default function CityAutocomplete({ value, onChange, placeholder = 'Digit
   const query = normalizeCitySearch(raw)
 
   const matches = useMemo(() => {
-    const unique = [...new Set(game.cities)]
+    const unique = [...new Set(cities || game.cities)]
     if (!query) return unique.sort((a, b) => a.localeCompare(b))
     return unique.filter((city) => normalizeCitySearch(city).includes(query)).sort((a, b) => a.localeCompare(b))
-  }, [game.cities, query])
+  }, [cities, game.cities, query])
 
   const showManual = Boolean(raw && matches.length === 0)
   const options = showManual ? [...matches, raw] : matches
@@ -58,13 +58,14 @@ export default function CityAutocomplete({ value, onChange, placeholder = 'Digit
       <div className="react-city-autocomplete">
         <input
           value={value}
+          disabled={disabled}
           required={required}
           placeholder={placeholder}
           autoComplete="off"
           role="combobox"
           aria-expanded={open}
           aria-autocomplete="list"
-          onFocus={() => setOpen(true)}
+          onFocus={() => { if (!disabled) setOpen(true) }}
           onBlur={() => { blurTimer.current = setTimeout(() => setOpen(false), 120) }}
           onChange={(event) => { onChange(event.target.value); setOpen(true); setActive(-1) }}
           onKeyDown={handleKeyDown}
@@ -74,6 +75,7 @@ export default function CityAutocomplete({ value, onChange, placeholder = 'Digit
           className="city-arrow"
           aria-label={open ? 'Fechar lista de cidades' : 'Abrir lista de cidades'}
           onMouseDown={(event) => event.preventDefault()}
+          disabled={disabled}
           onClick={() => { setOpen((current) => !current); setActive(-1) }}
         >▾</button>
         {open && (
@@ -104,7 +106,7 @@ export default function CityAutocomplete({ value, onChange, placeholder = 'Digit
           </div>
         )}
       </div>
-      <small>{game.cities.length} cidades de {game.shortName}; pesquise na lista ou informe manualmente uma cidade de mod.</small>
+      <small>{hint || `${(cities || game.cities).length} cidades de ${game.shortName}; pesquise na lista ou informe manualmente uma cidade de mod.`}</small>
     </div>
   )
 }

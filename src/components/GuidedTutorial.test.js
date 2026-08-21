@@ -6,6 +6,7 @@ import {
   TUTORIAL_STEPS,
   TUTORIAL_STORAGE_KEY,
   TutorialProvider,
+  tutorialStepsForGame,
   useTutorial,
 } from './GuidedTutorial.jsx'
 
@@ -52,6 +53,15 @@ afterEach(() => {
 })
 
 describe('TutorialProvider', () => {
+  it('adds the ETS2 monthly payroll explanation without changing the ATS tour', () => {
+    const ets2Steps = tutorialStepsForGame('ets2')
+    expect(ets2Steps).toHaveLength(TUTORIAL_STEPS.length + 2)
+    expect(ets2Steps.find((step) => step.id === 'career-profile')).toMatchObject({ target: 'career-profile' })
+    expect(ets2Steps.find((step) => step.id === 'payroll-period')).toMatchObject({ target: 'payroll-period' })
+    expect(ets2Steps.find((step) => step.id === 'payslip-form').text).toContain('quatro a cinco semanas operacionais')
+    expect(TUTORIAL_STEPS.some((step) => step.id === 'payroll-period')).toBe(false)
+  })
+
   it('starts the complete tour and supports next and back navigation', async () => {
     render()
     await act(async () => container.querySelector('.start-tour').click())

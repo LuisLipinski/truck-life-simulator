@@ -31,10 +31,12 @@ export default function IncidentsTab({ state, commit }) {
   const trips = useMemo(() => [...(state.trips || [])].reverse(), [state.trips])
 
   function resolveRoute() {
-    if (routeMode === 'manual') return manualRoute.trim() || 'Rota informada manualmente'
+    if (routeMode === 'manual') return { label: manualRoute.trim() || 'Rota informada manualmente', week: Number(state.currentWeek || 1) }
     const id = Number(String(routeMode).replace('trip:', ''))
     const trip = (state.trips || []).find((item) => Number(item.id) === id)
-    return trip ? `${trip.origin} → ${trip.destination} • Semana ${trip.week || 1}` : 'Rota não encontrada'
+    return trip
+      ? { label: `${trip.origin} → ${trip.destination} • Semana ${trip.week || 1}`, week: Number(trip.week || 1) }
+      : { label: 'Rota não encontrada', week: Number(state.currentWeek || 1) }
   }
 
   function submit(event) {
@@ -47,7 +49,7 @@ export default function IncidentsTab({ state, commit }) {
 
     const route = resolveRoute()
     const incident = {
-      id: Date.now(), type, amount: value, date, time, route, description: description.trim(), chargeMethod,
+      id: Date.now(), type, amount: value, date, time, route: route.label, week: route.week, description: description.trim(), chargeMethod,
       status: chargeMethod === 'balance' ? 'Pago pelo saldo' : 'Pendente no holerite',
       remaining: chargeMethod === 'payslip' ? value : 0,
       createdAt: new Date().toLocaleString('pt-BR'),
@@ -57,7 +59,7 @@ export default function IncidentsTab({ state, commit }) {
     const nextHistory = [...(state.history || [])]
     if (chargeMethod === 'balance') {
       nextBalance -= value
-      nextHistory.push({ date: new Date().toLocaleString('pt-BR'), type, desc: `${incident.description} — ${route}`, value: -value, amount: -value, balance: nextBalance })
+      nextHistory.push({ date: new Date().toLocaleString('pt-BR'), type, desc: `${incident.description} — ${route.label}`, value: -value, amount: -value, balance: nextBalance })
     }
 
     commit({ ...state, balance: nextBalance, incidents: [...(state.incidents || []), incident], history: nextHistory })
@@ -104,7 +106,7 @@ export default function IncidentsTab({ state, commit }) {
           <select value={routeMode} onChange={(e) => setRouteMode(e.target.value)}><option value="manual">Outra / informar manualmente</option>{trips.map((trip) => <option key={trip.id} value={`trip:${trip.id}`}>Semana {trip.week || 1} — {trip.origin} → {trip.destination}</option>)}</select>
           {routeMode === 'manual' && <><Label tip="Informe rodovia, cidades ou uma referência suficiente para lembrar onde ocorreu.">Rota</Label><input value={manualRoute} onChange={(e) => setManualRoute(e.target.value)} placeholder={game.id === 'ats' ? 'Ex.: I-5, Los Angeles → Bakersfield' : 'Ex.: A2, Berlin → Hannover'} /></>}
           <Label tip="Registre resumidamente o que aconteceu para manter o histórico da carreira compreensível.">Descrição</Label><textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descreva o que aconteceu" />
-          <Label tip="Saldo agora desconta imediatamente. Próximo holerite deixa a cobrança pendente e desconta no fechamento semanal, carregando eventual restante.">Método de cobrança</Label>
+          <Label tip={`Saldo agora desconta imediatamente. Próximo holerite deixa a cobrança pendente e desconta no fechamento ${game.payrollPeriodLabel}, carregando eventual restante.`}>Método de cobrança</Label>
           <select value={chargeMethod} onChange={(e) => setChargeMethod(e.target.value)}><option value="balance">Descontar do saldo agora</option><option value="payslip">Descontar no próximo holerite</option></select>
           <button className="button danger full-button" type="submit">Registrar ocorrência</button>
         </form>
@@ -112,7 +114,7 @@ export default function IncidentsTab({ state, commit }) {
 
       <section className="panel incidents-list-card" data-tour="incident-history">
         <div className="section-heading compact-heading"><span className="eyebrow">Histórico</span><h2>Infrações e acidentes</h2></div>
-        {(state.incidents || []).length === 0 ? <div className="empty-inline">Nenhuma ocorrência registrada.</div> : <div className="responsive-table"><table><thead><tr><th>Data</th><th>Hora</th><th>Tipo</th><th>Rota</th><th>Descrição</th><th>Valor</th><th>Cobrança</th><th>Status</th><th></th></tr></thead><tbody>{[...state.incidents].reverse().map((incident) => <tr key={incident.id}><td>{incident.date || '—'}</td><td>{incident.time || '—'}</td><td>{incident.type || '—'}</td><td>{incident.route || '—'}</td><td>{incident.description || '—'}</td><td>{money(incident.amount)}</td><td>{incident.chargeMethod === 'payslip' ? 'Próximo holerite' : 'Saldo imediato'}</td><td>{Number(incident.remaining || 0) > 0 ? `Pendente ${money(incident.remaining)}` : incident.status || 'Pago'}</td><td><button className="table-delete" type="button" onClick={() => removeIncident(incident)}>Excluir</button></td></tr>)}</tbody></table></div>}
+        {(state.incidents || []).length === 0 ? <div className="empty-inline">Nenhuma ocorrência registrada.</div> : <div className="responsive-table"><table><thead><tr><th>Semana</th><th>Data</th><th>Hora</th><th>Tipo</th><th>Rota</th><th>Descrição</th><th>Valor</th><th>Cobrança</th><th>Status</th><th></th></tr></thead><tbody>{[...state.incidents].reverse().map((incident) => <tr key={incident.id}><td>{incident.week || '—'}</td><td>{incident.date || '—'}</td><td>{incident.time || '—'}</td><td>{incident.type || '—'}</td><td>{incident.route || '—'}</td><td>{incident.description || '—'}</td><td>{money(incident.amount)}</td><td>{incident.chargeMethod === 'payslip' ? 'Próximo holerite' : 'Saldo imediato'}</td><td>{Number(incident.remaining || 0) > 0 ? `Pendente ${money(incident.remaining)}` : incident.status || 'Pago'}</td><td><button className="table-delete" type="button" onClick={() => removeIncident(incident)}>Excluir</button></td></tr>)}</tbody></table></div>}
       </section>
     </>
   )

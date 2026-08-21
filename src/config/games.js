@@ -1,5 +1,6 @@
 import { ATS_CITIES } from '../data/atsCities.js'
 import { ETS2_CITIES } from '../data/ets2Cities.js'
+import { ETS2_COUNTRY_OPTIONS, getEts2CountryProfile } from './ets2Countries.js'
 
 const ATS_IMAGE = 'https://cdn.cloudflare.steamstatic.com/steam/apps/270880/header.jpg'
 const ETS2_IMAGE = 'https://cdn.cloudflare.steamstatic.com/steam/apps/227300/header.jpg'
@@ -61,6 +62,7 @@ export const GAMES = {
       { level: 'Nível 3', goal: 50000, title: 'Double Trailer Handling', version: 'Disponível no ATS desde a versão 1.58', text: 'Treinamento de condução, manobras e ré com dois trailers.', cost: 59, official: 'https://blog.scssoft.com/2026/02/american-truck-simulator-158-update.html' },
     ],
     dangerousQualification: { name: 'HazMat', stateLabel: 'HazMat', cost: 144.25, activeText: 'HazMat ativo', description: 'Libera cargas perigosas e tarifas HazMat.' },
+    payrollPeriod: 'weekly', payrollPeriodLabel: 'semanal', payrollBenefits: 36, minWeeksPerPayroll: 1, maxWeeksPerPayroll: 1,
     level1Gross: 850, routeOverrunRate: 21.25, weeklyBenefits: 36, perDiemRate: 80, perDiemLabel: 'Per diem', overtimeLabel: 'Route Overrun',
     taxModel: 'us-california', taxes: [
       ['federal', 'Federal', 'Retenção federal simplificada da simulação.'], ['ss', 'Social Security', 'Contribuição estimada de Social Security.'],
@@ -71,11 +73,12 @@ export const GAMES = {
   },
   ets2: {
     id: 'ets2', slug: 'ets2', shortName: 'ETS2', name: 'Euro Truck Simulator 2', region: 'Europa', image: ETS2_IMAGE,
-    description: 'Carreira europeia em quilômetros, euro e regras próprias do ETS2.', cities: ETS2_CITIES,
+    description: 'Carreira europeia em quilômetros, país-sede e regras financeiras nacionais.', cities: ETS2_CITIES,
     routes: { careers: '/ets2', new: '/ets2/new', phases: '/ets2/phases', phase1: '/ets2/phase1' },
     storagePrefix: 'ets2', backupMarker: 'ETS2_CAREER_BACKUP', backupStem: 'ets2', sheetName: 'Carreira ETS2',
     currency: 'EUR', locale: 'de-DE', currencyLabel: '€', distanceUnit: 'km', distanceName: 'quilômetros', distanceField: 'distance',
-    arrivalLabel: 'Dinheiro disponível ao iniciar na Europa', cityPlaceholder: 'Berlin, Alemanha', companyPlaceholder: 'Euro Horizon Logistics',
+    countryOptions: ETS2_COUNTRY_OPTIONS, payrollPeriod: 'monthly', payrollPeriodLabel: 'mensal', payrollBenefits: 0, minWeeksPerPayroll: 4, maxWeeksPerPayroll: 5,
+    arrivalLabel: 'Dinheiro disponível ao iniciar no país', cityPlaceholder: 'Selecione primeiro o país-sede', companyPlaceholder: 'Euro Horizon Logistics',
     bioPlaceholder: 'Motorista que iniciou uma nova carreira internacional na Europa.',
     setupCosts: { rent: 950, deposit: 950, license: 150, groceries: 220, home: 300, phone: 35, internet: 40, transit: 60 },
     setupLabels: { ...commonSetupLabels, license: 'Licença profissional / CPC inicial' },
@@ -92,19 +95,31 @@ export const GAMES = {
       { level: 'Nível 3', goal: 80000, title: 'Double Trailer Handling', version: 'Disponível no ETS2 desde a versão 1.58', text: 'Treinamento de condução, manobra e ré com a combinação Euro Combi.', cost: 60, official: 'https://blog.scssoft.com/2026/02/euro-truck-simulator-2-158-update.html' },
     ],
     dangerousQualification: { name: 'ADR', stateLabel: 'ADR', cost: 125, activeText: 'ADR ativo', description: 'Libera cargas perigosas e tarifas ADR.' },
-    level1Gross: 700, routeOverrunRate: 18, weeklyBenefits: 28, perDiemRate: 65, perDiemLabel: 'Diária internacional', overtimeLabel: 'Hora extra de rota',
-    taxModel: 'eu-generic', taxes: [
-      ['incomeTax', 'Imposto de renda estimado', 'Estimativa genérica para o roleplay; não representa um país específico.'],
-      ['socialInsurance', 'Contribuição social', 'Contribuição social simplificada da simulação europeia.'],
-      ['solidarity', 'Fundo social', 'Parcela adicional genérica usada somente na simulação.'],
-    ],
+    level1Gross: 0, routeOverrunRate: 0, weeklyBenefits: 0, perDiemRate: 0, perDiemLabel: 'Diária internacional', overtimeLabel: 'Hora extra de rota',
+    taxModel: 'country-required', taxes: [],
     officialUrl: 'https://eurotrucksimulator2.com/', storeUrl: 'https://store.steampowered.com/app/227300/Euro_Truck_Simulator_2/', workshopUrl: 'https://steamcommunity.com/app/227300/workshop/',
     mods: ets2Mods,
   },
 }
 
-export function getGame(gameId = 'ats') {
-  return GAMES[gameId] || GAMES.ats
+export function getGame(gameId = 'ats', countryCode = null) {
+  const game = GAMES[gameId] || GAMES.ats
+  if (game.id !== 'ets2' || !countryCode) return game
+  const country = getEts2CountryProfile(countryCode)
+  if (!country) return game
+  return {
+    ...game,
+    ...country,
+    cities: game.cities,
+    baseCities: country.cities,
+    countryCode: country.code,
+    countryName: country.name,
+    countryFlag: country.flag,
+    countryProfile: country,
+    weeklyBenefits: country.payrollBenefits,
+    academyModules: game.academyModules.map((module, index) => ({ ...module, cost: country.promotionCosts[index] })),
+    dangerousQualification: { ...game.dangerousQualification, cost: country.dangerousQualificationCost },
+  }
 }
 
 export function gameIdFromPath(path = '') {

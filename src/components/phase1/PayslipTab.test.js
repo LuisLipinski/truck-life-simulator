@@ -4,8 +4,9 @@ import { createRoot } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import PayslipTab from './PayslipTab.jsx'
 import { ConfirmProvider } from '../ConfirmProvider.jsx'
+import { GameProvider } from '../GameContext.jsx'
 import { ToastProvider } from '../ToastProvider.jsx'
-import { weeklyEmergencyReserveYield } from '../../lib/phase1.js'
+import { monthlyEmergencyReserveYield, weeklyEmergencyReserveYield } from '../../lib/phase1.js'
 
 let root
 let container
@@ -26,6 +27,9 @@ function baseState(overrides = {}) {
     currentLevel: 1,
     careerLevel: 1,
     currentWeek: 1,
+    currentPayrollMonth: 1,
+    payPeriodStartWeek: 1,
+    closedOperationalWeeks: [],
     trips: [],
     incidents: [],
     closedWeeks: [],
@@ -34,7 +38,7 @@ function baseState(overrides = {}) {
   }
 }
 
-function renderPayslip(state, commit = vi.fn()) {
+function renderPayslip(state, commit = vi.fn(), gameOptions = {}) {
   container = document.createElement('div')
   document.body.appendChild(container)
   root = createRoot(container)
@@ -43,7 +47,9 @@ function renderPayslip(state, commit = vi.fn()) {
       React.createElement(
         ToastProvider,
         null,
-        React.createElement(ConfirmProvider, null, React.createElement(PayslipTab, { state, commit })),
+        React.createElement(ConfirmProvider, null,
+          React.createElement(GameProvider, { gameId: gameOptions.gameId || 'ats', countryCode: gameOptions.countryCode || null }, React.createElement(PayslipTab, { state, commit })),
+        ),
       ),
     )
   })
@@ -132,5 +138,78 @@ describe('PayslipTab reserve automation', () => {
     const alert = document.querySelector('[role="alert"]')
     expect(alert).not.toBeNull()
     expect(alert.textContent).toContain('aporte automático não pode ser maior')
+  })
+})
+
+describe('PayslipTab ETS2 monthly payroll', () => {
+  it('closes an operational week without depositing salary', async () => {
+    const state = baseState({ trips: [{ id: 1, week: 1, distance: 180, type: 'Loaded', payCategory: 'normal' }] })
+    const { commit } = renderPayslip(state, vi.fn(), { gameId: 'ets2', countryCode: 'DE' })
+
+    const closeWeek = [...container.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Encerrar Semana 1')
+    await act(async () => closeWeek.click())
+    const dialog = document.querySelector('[role="alertdialog"]')
+    expect(dialog.textContent).toContain('Encerrar a Semana 1?')
+    expect(dialog.textContent).toContain('Nenhum salário será depositado agora')
+
+    await act(async () => {
+      dialog.querySelector('.react-confirm-confirm').click()
+      await Promise.resolve()
+    })
+
+    expect(commit).toHaveBeenCalledTimes(1)
+    expect(commit.mock.calls[0][0]).toMatchObject({
+      balance: state.balance,
+      currentWeek: 2,
+      closedOperationalWeeks: [1],
+      closedWeeks: [],
+    })
+  })
+
+  it('generates one national payslip after four closed weeks and starts the next month', async () => {
+    const state = baseState({
+      currentWeek: 5,
+      currentPayrollMonth: 1,
+      payPeriodStartWeek: 1,
+      closedOperationalWeeks: [1, 2, 3, 4],
+      trips: [{ id: 1, week: 2, distance: 250, type: 'Loaded', payCategory: 'normal' }],
+      incidents: [
+        { id: 1, week: 2, amount: 100, remaining: 100, chargeMethod: 'payslip', status: 'Pendente' },
+        { id: 2, week: 5, amount: 100, remaining: 100, chargeMethod: 'payslip', status: 'Pendente' },
+      ],
+    })
+    const { commit } = renderPayslip(state, vi.fn(), { gameId: 'ets2', countryCode: 'DE' })
+
+    expect(container.textContent).toContain('Folha de Alemanha em EUR')
+    expect(container.textContent).toContain('Imposto de renda (estimado)')
+    const generate = [...container.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Gerar holerite mensal e depositar')
+    expect(generate.disabled).toBe(false)
+    await act(async () => generate.click())
+    const dialog = document.querySelector('[role="alertdialog"]')
+    expect(dialog.textContent).toContain('Gerar o holerite do Mês 1?')
+    expect(dialog.textContent).toContain('semanas 1, 2, 3, 4')
+
+    await act(async () => {
+      dialog.querySelector('.react-confirm-confirm').click()
+      await Promise.resolve()
+    })
+
+    const nextState = commit.mock.calls[0][0]
+    expect(nextState.currentWeek).toBe(5)
+    expect(nextState.currentPayrollMonth).toBe(2)
+    expect(nextState.payPeriodStartWeek).toBe(5)
+    expect(nextState.closedWeeks[0]).toMatchObject({
+      periodType: 'month',
+      month: 1,
+      weeks: [1, 2, 3, 4],
+      countryCode: 'DE',
+      currency: 'EUR',
+      incidentDeduction: 100,
+    })
+    expect(nextState.incidents[0].remaining).toBe(0)
+    expect(nextState.incidents[1].remaining).toBe(100)
+    expect(nextState.balance).toBeCloseTo(state.balance + nextState.closedWeeks[0].deposit)
+    expect(nextState.emergencyReserve).toBeCloseTo(state.emergencyReserve + monthlyEmergencyReserveYield(state.emergencyReserve))
+    expect(nextState.history.some((entry) => entry.desc.startsWith('Mês 1 fechado'))).toBe(true)
   })
 })

@@ -11,8 +11,8 @@ function levelsFor(game) {
   const q = game.dangerousQualification
   if (game.id === 'ets2') {
     return [
-      { level: 'Nível 1', title: game.levelRoles[0], tip: 'Rotas locais e regionais, salário semanal fixo e retorno à base como padrão.', bullets: [
-        `Salário bruto fixo de ${formatMoney(game.level1Gross, game)} por semana.`,
+      { level: 'Nível 1', title: game.levelRoles[0], tip: 'Rotas locais e regionais, salário mensal fixo e retorno à base como padrão.', bullets: [
+        `Salário bruto fixo de ${formatMoney(game.level1Gross, game)} por mês.`,
         'Cavalo mecânico da empresa e operação local/regional; normalmente retorna à base no mesmo dia.',
         'Jornada de referência da simulação: segunda a sexta, com pausa e controle de horas.',
         `${game.overtimeLabel}: ${formatMoney(game.routeOverrunRate, game)}/h após a jornada diária de referência.`,
@@ -62,6 +62,22 @@ function levelsFor(game) {
 export default function RulesTab() {
   const game = useGame()
   const levels = levelsFor(game)
+  const monthlyPayroll = game.payrollPeriod === 'monthly'
+  const workflow = monthlyPayroll ? [
+    `Jogue a rota no ${game.shortName} e registre todos os trechos da semana operacional.`,
+    'Registre infrações ou acidentes e encerre a semana; as viagens ficam congeladas, mas nenhum salário é depositado ainda.',
+    `Repita o ciclo até completar de ${game.minWeeksPerPayroll} a ${game.maxWeeksPerPayroll} semanas no mês.`,
+    `Confira ${game.distanceName}, categorias, ${game.perDiemLabel.toLowerCase()} e retenções de ${game.countryName} no Holerite.`,
+    'Gere o holerite mensal para depositar o pagamento e iniciar o próximo período.',
+    'Aplique as despesas mensais no vencimento da simulação e faça promoções quando as metas forem liberadas.',
+  ] : [
+    `Jogue a rota no ${game.shortName} e registre todos os trechos.`,
+    'Registre infrações ou acidentes antes de fechar a semana.',
+    `Confira ${game.distanceName}, categorias e ${game.perDiemLabel.toLowerCase()} no Holerite.`,
+    'Gere o holerite para fechar a semana e iniciar a próxima.',
+    'Aplique despesas mensais somente no vencimento da simulação.',
+    'Faça promoções e qualificações quando as metas forem liberadas.',
+  ]
   return (
     <>
       <section className="panel rules-intro" data-tour="rules">
@@ -69,7 +85,7 @@ export default function RulesTab() {
         <h2 className="line-label-with-tip">Regras operacionais da carreira <Tip text="Estas regras mantêm salário, progressão e qualificações coerentes dentro do roleplay." /></h2>
         <p>Você trabalha como empregado e não possui caminhão próprio. Diesel, manutenção, pneus, seguro comercial, licenciamento, reparos e pedágios autorizados são custos da empresa.</p>
         <div className="notice-box"><strong className="line-label-with-tip">Economia do {game.shortName} <Tip text={`Os valores pagos pelo próprio ${game.shortName} não entram na economia pessoal do aplicativo.`} /></strong><span>O valor da carga mostrado pelo jogo é ignorado. A economia pessoal usa {game.currency} e é controlada pelo Truck Life Simulator.</span></div>
-        {game.id === 'ets2' && <div className="notice-box"><strong>Regras europeias variam por país</strong><span>Impostos, habilitação, pedágios e combinações permitidas mudam conforme o país. Os valores do app são um modelo genérico de roleplay e podem ser editados.</span></div>}
+        {game.id === 'ets2' && <div className="notice-box"><strong>{game.countryFlag} País-sede: {game.countryName}</strong><span>Jornada e descanso seguem a referência operacional europeia; moeda, custo de vida, salário e retenções seguem o perfil de {game.countryName}. Os cálculos são estimativas de roleplay, não uma folha oficial.</span>{game.financeSources?.length > 0 && <span className="country-source-links">Fontes: {game.financeSources.map(([label, url], index) => <span key={url}>{index > 0 ? ' • ' : ''}<a href={url} target="_blank" rel="noreferrer">{label}</a></span>)}</span>}</div>}
       </section>
 
       <section className="rules-grid">
@@ -77,20 +93,18 @@ export default function RulesTab() {
       </section>
 
       <section className="panel rule-card">
-        <span className="eyebrow">Fluxo semanal</span><h2 className="line-label-with-tip">Ordem recomendada <Tip text="Registre viagens e ocorrências antes de fechar o holerite; depois avance para a próxima semana." /></h2>
+        <span className="eyebrow">Fluxo {monthlyPayroll ? 'mensal' : 'semanal'}</span><h2 className="line-label-with-tip">Ordem recomendada <Tip text={monthlyPayroll ? 'As semanas encerram a operação; o pagamento só acontece no fechamento do mês.' : 'Registre viagens e ocorrências antes de fechar o holerite; depois avance para a próxima semana.'} /></h2>
         <ol className="workflow-list">
-          <li>Jogue a rota no {game.shortName} e registre todos os trechos.</li><li>Registre infrações ou acidentes antes de fechar a semana.</li>
-          <li>Confira {game.distanceName}, categorias e {game.perDiemLabel.toLowerCase()} no Holerite.</li><li>Gere o holerite para fechar a semana e iniciar a próxima.</li>
-          <li>Aplique despesas mensais somente no vencimento da simulação.</li><li>Faça promoções e qualificações quando as metas forem liberadas.</li>
+          {workflow.map((item) => <li key={item}>{item}</li>)}
         </ol>
       </section>
 
       <section className="rules-grid compact-rules">
         <article className="panel rule-card"><span className="eyebrow">Nível 1</span><h2 className="line-label-with-tip">Origem e retorno <Tip text="Sem carga de retorno, volte vazio ou faça reposicionamento até uma filial próxima." /></h2><p>Novas cargas saem de uma filial da empregadora. Se não houver retorno, volte vazio ou faça reposicionamento regional.</p></article>
         <article className="panel rule-card"><span className="eyebrow">{game.shortName} Skills</span><h2 className="line-label-with-tip">Progressão sugerida <Tip text={`É uma recomendação de pontos no ${game.shortName}; não bloqueia o aplicativo.`} /></h2><p>Nível 1 prioriza economia de combustível. Nível 2 adiciona longa distância, frágil, urgente e {game.dangerousQualification.name} após a qualificação. Nível 3 libera progressão avançada.</p></article>
-        <article className="panel rule-card"><span className="eyebrow">Reserva financeira</span><h2 className="line-label-with-tip">Reserva de emergência <Tip text="Patrimônio do motorista separado do saldo disponível." /></h2><p>Faça aportes manualmente ou pelo Holerite. A reserva rende 3,25% ao ano na simulação, proporcionalmente por semana.</p></article>
-        <article className="panel rule-card"><span className="eyebrow">Ocorrências</span><h2 className="line-label-with-tip">Multas e acidentes <Tip text="Podem sair do saldo ou ser carregados para holerites futuros." /></h2><p>Se o holerite não comportar o valor, o restante continua pendente para a semana seguinte.</p></article>
-        <article className="panel rule-card"><span className="eyebrow">Semanas fechadas</span><h2 className="line-label-with-tip">Dados congelados <Tip text="Protege o histórico financeiro contra alterações posteriores." /></h2><p>Depois do holerite, viagens dessa semana não podem ser alteradas ou excluídas.</p></article>
+        <article className="panel rule-card"><span className="eyebrow">Reserva financeira</span><h2 className="line-label-with-tip">Reserva de emergência <Tip text="Patrimônio do motorista separado do saldo disponível." /></h2><p>Faça aportes manualmente ou pelo Holerite. A reserva rende 3,25% ao ano na simulação, proporcionalmente por {monthlyPayroll ? 'mês' : 'semana'}.</p></article>
+        <article className="panel rule-card"><span className="eyebrow">Ocorrências</span><h2 className="line-label-with-tip">Multas e acidentes <Tip text="Podem sair do saldo ou ser carregados para holerites futuros." /></h2><p>Se o holerite não comportar o valor, o restante continua pendente para o {monthlyPayroll ? 'mês' : 'semana'} seguinte.</p></article>
+        <article className="panel rule-card"><span className="eyebrow">Semanas encerradas</span><h2 className="line-label-with-tip">Dados congelados <Tip text="Protege o histórico financeiro contra alterações posteriores." /></h2><p>Depois de encerrar uma semana operacional, suas viagens não podem ser alteradas ou excluídas{monthlyPayroll ? ', mesmo antes do holerite mensal' : ''}.</p></article>
       </section>
     </>
   )

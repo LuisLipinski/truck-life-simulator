@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react'
 import {
   applyPendingIncidentDeductions,
+  currentPayrollTrips,
   currentWeekTrips,
   estimateTaxes,
   mileagePaySummary,
+  monthlyEmergencyReserveYield,
+  payrollWeeks,
   perDiemDaysForTrips,
   routeOverrunSummary,
   tripDistance,
@@ -22,29 +25,21 @@ function formatHours(hours) {
 }
 
 function InfoTip({ text }) {
-  return (
-    <button className="react-info-tip" type="button" aria-label="Mais informações" data-tip={text}>
-      i
-    </button>
-  )
+  return <button className="react-info-tip" type="button" aria-label="Mais informações" data-tip={text}>i</button>
 }
 
 function TipLabel({ children, tip }) {
-  return (
-    <label className="label-with-tip">
-      <span>{children}</span>
-      <InfoTip text={tip} />
-    </label>
-  )
+  return <label className="label-with-tip"><span>{children}</span><InfoTip text={tip} /></label>
 }
 
 function LineLabel({ children, tip }) {
-  return (
-    <span className="line-label-with-tip">
-      <span>{children}</span>
-      <InfoTip text={tip} />
-    </span>
-  )
+  return <span className="line-label-with-tip"><span>{children}</span><InfoTip text={tip} /></span>
+}
+
+function closedPeriodLabel(period, game) {
+  if (period.periodType === 'month' || period.month) return `Mês ${period.month}`
+  if (game.payrollPeriod === 'monthly') return `Semana ${period.week || '—'} (legado)`
+  return `Semana ${period.week || '—'}`
 }
 
 export default function PayslipTab({ state, commit }) {
@@ -52,19 +47,28 @@ export default function PayslipTab({ state, commit }) {
   const money = (value) => formatMoney(value, game)
   const toast = useToast()
   const confirm = useConfirm()
+  const monthlyPayroll = game.payrollPeriod === 'monthly'
   const [level1Gross, setLevel1Gross] = useState(game.level1Gross)
   const [overrunRate, setOverrunRate] = useState(game.routeOverrunRate)
-  const [benefits, setBenefits] = useState(game.weeklyBenefits)
+  const [benefits, setBenefits] = useState(game.payrollBenefits ?? game.weeklyBenefits ?? 0)
   const [perDiemRate, setPerDiemRate] = useState(game.perDiemRate)
   const [autoReserveEnabled, setAutoReserveEnabled] = useState(Boolean(state.autoReserveContribution?.enabled))
   const [autoReserveAmount, setAutoReserveAmount] = useState(state.autoReserveContribution?.amount ?? '')
   const [preview, setPreview] = useState(null)
 
-  const weekTrips = useMemo(() => currentWeekTrips(state), [state])
-  const mileage = useMemo(() => mileagePaySummary(weekTrips, game.id), [game.id, weekTrips])
-  const perDiemDays = useMemo(() => perDiemDaysForTrips(weekTrips), [weekTrips])
-  const routeOverrun = useMemo(() => routeOverrunSummary(weekTrips, undefined, game.routeOverrunRate), [game.routeOverrunRate, weekTrips])
-  const weekDistance = useMemo(() => weekTrips.reduce((sum, trip) => sum + tripDistance(trip), 0), [weekTrips])
+  const completedWeeks = useMemo(() => payrollWeeks(state, game), [game, state])
+  const periodTrips = useMemo(
+    () => monthlyPayroll ? currentPayrollTrips(state, game) : currentWeekTrips(state),
+    [game, monthlyPayroll, state],
+  )
+  const mileage = useMemo(() => mileagePaySummary(periodTrips, game), [game, periodTrips])
+  const perDiemDays = useMemo(() => perDiemDaysForTrips(periodTrips), [periodTrips])
+  const routeOverrun = useMemo(() => routeOverrunSummary(periodTrips, undefined, game.routeOverrunRate), [game.routeOverrunRate, periodTrips])
+  const periodDistance = useMemo(() => periodTrips.reduce((sum, trip) => sum + tripDistance(trip), 0), [periodTrips])
+  const payrollReady = !monthlyPayroll || completedWeeks.length >= game.minWeeksPerPayroll
+  const canCloseWeek = monthlyPayroll && completedWeeks.length < game.maxWeeksPerPayroll
+  const periodName = monthlyPayroll ? `Mês ${state.currentPayrollMonth || 1}` : `Semana ${state.currentWeek}`
+  const periodAdjective = monthlyPayroll ? 'mensal' : 'semanal'
 
   function calculate() {
     const level = Number(state.currentLevel || state.careerLevel || 1)
@@ -76,7 +80,7 @@ export default function PayslipTab({ state, commit }) {
 
     if (level === 1) {
       gross = Math.max(0, Number(level1Gross) || 0) + routeOverrunPay
-      desc = `Nível 1 — salário semanal${routeOverrun.overrunMinutes ? ` + ${formatHours(routeOverrun.overrunHours)} ${game.overtimeLabel} @ ${money(effectiveOverrunRate)}/h` : ''}`
+      desc = `Nível 1 — salário ${periodAdjective}${routeOverrun.overrunMinutes ? ` + ${formatHours(routeOverrun.overrunHours)} ${game.overtimeLabel} @ ${money(effectiveOverrunRate)}/h` : ''}`
     } else {
       gross = mileage.gross
       perDiem = perDiemDays.days * Math.max(0, Number(perDiemRate) || 0)
@@ -86,27 +90,26 @@ export default function PayslipTab({ state, commit }) {
       desc = `Nível ${level} — ${parts.join(' + ') || `sem ${game.distanceName}`}`
     }
 
-    const taxes = estimateTaxes(gross, game.id)
+    const taxes = estimateTaxes(gross, game)
     const taxesTotal = Object.values(taxes).reduce((sum, value) => sum + value, 0)
     const benefitValue = Math.max(0, Number(benefits) || 0)
     const netSalary = gross - taxesTotal - benefitValue
     const beforeIncidents = Math.max(0, netSalary + perDiem)
-    const deductions = applyPendingIncidentDeductions(state.incidents, beforeIncidents)
+    const completedWeekSet = new Set(completedWeeks)
+    const periodStartWeek = Number(state.payPeriodStartWeek || 1)
+    const deductions = applyPendingIncidentDeductions(state.incidents, beforeIncidents, (incident) => {
+      if (!monthlyPayroll || !Number.isFinite(Number(incident.week))) return true
+      const incidentWeek = Number(incident.week)
+      return incidentWeek < periodStartWeek || completedWeekSet.has(incidentWeek)
+    })
     const deposit = beforeIncidents - deductions.applied
-    const reserveInterest = weeklyEmergencyReserveYield(state.emergencyReserve)
+    const reserveInterest = monthlyPayroll
+      ? monthlyEmergencyReserveYield(state.emergencyReserve)
+      : weeklyEmergencyReserveYield(state.emergencyReserve)
 
     return {
-      level,
-      gross,
-      perDiem,
-      taxes,
-      taxesTotal,
-      benefits: benefitValue,
-      netSalary,
-      incidentDeduction: deductions.applied,
-      incidents: deductions.incidents,
-      deposit,
-      reserveInterest,
+      level, gross, perDiem, taxes, taxesTotal, benefits: benefitValue, netSalary,
+      incidentDeduction: deductions.applied, incidents: deductions.incidents, deposit, reserveInterest,
       routeOverrunPay: level === 1 ? routeOverrunPay : 0,
       routeOverrunHours: level === 1 ? routeOverrun.overrunHours : 0,
       routeOverrunRate: level === 1 ? effectiveOverrunRate : 0,
@@ -114,78 +117,107 @@ export default function PayslipTab({ state, commit }) {
     }
   }
 
+  async function closeOperationalWeek() {
+    if (!canCloseWeek) {
+      toast.error(`O ${periodName} já possui ${game.maxWeeksPerPayroll} semanas. Gere o holerite antes de continuar.`)
+      return
+    }
+    const weekNumber = Number(state.currentWeek || 1)
+    const confirmed = await confirm({
+      title: `Encerrar a Semana ${weekNumber}?`,
+      message: `As viagens da Semana ${weekNumber} serão congeladas e a Semana ${weekNumber + 1} será iniciada. Nenhum salário será depositado agora; o pagamento será acumulado no holerite mensal.`,
+      confirmLabel: 'Encerrar semana',
+      tone: 'success',
+    })
+    if (!confirmed) return
+
+    const nextCompletedWeeks = [...new Set([...(state.closedOperationalWeeks || []), weekNumber])].sort((a, b) => a - b)
+    commit({ ...state, currentWeek: weekNumber + 1, closedOperationalWeeks: nextCompletedWeeks })
+    const weeksInPeriod = completedWeeks.length + 1
+    toast.success(
+      weeksInPeriod >= game.minWeeksPerPayroll
+        ? `Semana ${weekNumber} encerrada. O holerite do ${periodName} já pode ser gerado.`
+        : `Semana ${weekNumber} encerrada. Faltam ${game.minWeeksPerPayroll - weeksInPeriod} semana(s) para liberar o holerite mensal.`,
+      { title: 'Semana operacional concluída' },
+    )
+  }
+
   async function generatePayslip() {
+    if (!payrollReady) {
+      toast.error(`Encerre pelo menos ${game.minWeeksPerPayroll} semanas antes de gerar o holerite do ${periodName}.`)
+      return
+    }
+
     const result = calculate()
     setPreview(result)
-
     const reserveContribution = autoReserveEnabled ? Math.max(0, Number(autoReserveAmount) || 0) : 0
     if (autoReserveEnabled && reserveContribution <= 0) {
       toast.error('Informe um valor maior que zero para o aporte automático à reserva.')
       return
     }
     if (reserveContribution > result.deposit) {
-      toast.error(`O aporte automático não pode ser maior que o depósito desta semana (${money(result.deposit)}).`)
+      toast.error(`O aporte automático não pode ser maior que o depósito ${monthlyPayroll ? 'deste mês' : 'desta semana'} (${money(result.deposit)}).`)
       return
     }
 
     const confirmed = await confirm({
-      title: `Fechar a Semana ${state.currentWeek}?`,
-      message: `O holerite depositará ${money(result.deposit)}${reserveContribution > 0 ? ` e enviará ${money(reserveContribution)} para a reserva` : ''}. As viagens da semana ficarão congeladas no histórico e uma nova semana será iniciada.`,
+      title: monthlyPayroll ? `Gerar o holerite do ${periodName}?` : `Fechar a Semana ${state.currentWeek}?`,
+      message: monthlyPayroll
+        ? `O holerite reunirá as semanas ${completedWeeks.join(', ')}, depositará ${money(result.deposit)}${reserveContribution > 0 ? ` e enviará ${money(reserveContribution)} para a reserva` : ''}. A Semana ${state.currentWeek} continuará aberta para o próximo mês.`
+        : `O holerite depositará ${money(result.deposit)}${reserveContribution > 0 ? ` e enviará ${money(reserveContribution)} para a reserva` : ''}. As viagens da semana ficarão congeladas no histórico e uma nova semana será iniciada.`,
       confirmLabel: 'Gerar holerite',
       tone: 'success',
     })
     if (!confirmed) return
 
     const weekNumber = Number(state.currentWeek || 1)
+    const monthNumber = Number(state.currentPayrollMonth || 1)
     const balanceAfterSalary = Number(state.balance || 0) + result.deposit
     const nextBalance = balanceAfterSalary - reserveContribution
     const nextReserve = Number(state.emergencyReserve || 0) + result.reserveInterest + reserveContribution
-    const closedWeek = {
-      week: weekNumber,
+    const closedPeriod = {
+      periodType: monthlyPayroll ? 'month' : 'week',
+      week: monthlyPayroll ? completedWeeks.at(-1) : weekNumber,
+      month: monthlyPayroll ? monthNumber : undefined,
+      weeks: monthlyPayroll ? completedWeeks : [weekNumber],
+      startWeek: monthlyPayroll ? completedWeeks[0] : weekNumber,
+      endWeek: monthlyPayroll ? completedWeeks.at(-1) : weekNumber,
       closedAt: new Date().toLocaleString('pt-BR'),
-      [game.distanceField]: weekDistance,
+      [game.distanceField]: periodDistance,
       level: result.level,
       gross: result.gross,
       taxes: result.taxesTotal,
+      taxBreakdown: result.taxes,
       benefits: result.benefits,
       netSalary: result.netSalary,
       perDiem: result.perDiem,
       incidentDeduction: result.incidentDeduction,
+      reserveInterest: result.reserveInterest,
       deposit: result.deposit,
       desc: result.desc,
+      countryCode: game.countryCode,
+      currency: game.currency,
     }
 
     const historyEntries = [
       ...(state.history || []),
       {
-        date: new Date().toLocaleString('pt-BR'),
-        type: 'Salário',
-        desc: `Semana ${weekNumber} fechada — ${result.desc}${result.incidentDeduction ? ` — ocorrências: -${money(result.incidentDeduction)}` : ''}`,
-        value: result.deposit,
-        amount: result.deposit,
-        balance: balanceAfterSalary,
+        date: new Date().toLocaleString('pt-BR'), type: 'Salário',
+        desc: `${periodName} fechado — ${result.desc}${result.incidentDeduction ? ` — ocorrências: -${money(result.incidentDeduction)}` : ''}`,
+        value: result.deposit, amount: result.deposit, balance: balanceAfterSalary,
       },
     ]
     if (reserveContribution > 0) {
       historyEntries.push({
-        date: new Date().toLocaleString('pt-BR'),
-        type: 'Reserva',
-        desc: `Aporte automático à reserva — Semana ${weekNumber}`,
-        value: -reserveContribution,
-        amount: -reserveContribution,
-        balance: nextBalance,
+        date: new Date().toLocaleString('pt-BR'), type: 'Reserva', desc: `Aporte automático à reserva — ${periodName}`,
+        value: -reserveContribution, amount: -reserveContribution, balance: nextBalance,
         reserve: Number(state.emergencyReserve || 0) + reserveContribution,
       })
     }
     if (result.reserveInterest > 0) {
       historyEntries.push({
-        date: new Date().toLocaleString('pt-BR'),
-        type: 'Reserva',
-        desc: `Rendimento da reserva — Semana ${weekNumber}`,
-        value: result.reserveInterest,
-        amount: result.reserveInterest,
-        balance: nextBalance,
-        reserve: nextReserve,
+        date: new Date().toLocaleString('pt-BR'), type: 'Reserva', desc: `Rendimento da reserva — ${periodName}`,
+        value: result.reserveInterest, amount: result.reserveInterest, balance: nextBalance, reserve: nextReserve,
       })
     }
 
@@ -194,13 +226,18 @@ export default function PayslipTab({ state, commit }) {
       balance: nextBalance,
       emergencyReserve: nextReserve,
       autoReserveContribution: { enabled: autoReserveEnabled, amount: reserveContribution },
-      currentWeek: weekNumber + 1,
+      currentWeek: monthlyPayroll ? weekNumber : weekNumber + 1,
+      currentPayrollMonth: monthlyPayroll ? monthNumber + 1 : Number(state.currentPayrollMonth || 1),
+      payPeriodStartWeek: monthlyPayroll ? weekNumber : Number(state.payPeriodStartWeek || 1),
       incidents: result.incidents,
-      closedWeeks: [...(state.closedWeeks || []), closedWeek],
+      closedWeeks: [...(state.closedWeeks || []), closedPeriod],
       history: historyEntries,
     })
     setPreview(result)
-    toast.success(`Semana ${weekNumber} fechada. ${money(result.deposit)} creditados${reserveContribution > 0 ? ` e ${money(reserveContribution)} enviados para a reserva` : ''}.`, { title: 'Holerite gerado' })
+    toast.success(
+      `${periodName} fechado. ${money(result.deposit)} creditados${reserveContribution > 0 ? ` e ${money(reserveContribution)} enviados para a reserva` : ''}.`,
+      { title: 'Holerite gerado' },
+    )
   }
 
   const shown = preview || calculate()
@@ -211,20 +248,41 @@ export default function PayslipTab({ state, commit }) {
     <div className="payslip-layout">
       <section className="panel payslip-form-card" data-tour="payslip-form">
         <div className="section-heading compact-heading">
-          <span className="eyebrow">Semana {state.currentWeek}</span>
-          <h2>Gerar holerite</h2>
-          <p>O fechamento credita o depósito, atualiza a reserva em segundo plano, congela a semana no histórico e inicia a próxima.</p>
+          <span className="eyebrow">{periodName}{monthlyPayroll ? ` • Semana ${state.currentWeek}` : ''}</span>
+          <h2>{monthlyPayroll ? 'Gerar holerite mensal' : 'Gerar holerite'}</h2>
+          <p>{monthlyPayroll ? 'Encerre de quatro a cinco semanas operacionais. O salário, os quilômetros e as retenções serão calculados juntos no fechamento mensal.' : 'O fechamento credita o depósito, atualiza a reserva em segundo plano, congela a semana no histórico e inicia a próxima.'}</p>
         </div>
 
-        <TipLabel tip={`O nível determina o cálculo. No Nível 1 há salário semanal; nos Níveis 2 e 3 o bruto vem dos ${game.distanceName} por categoria.`}>Nível atual</TipLabel>
+        {monthlyPayroll && (
+          <div className="payroll-period-card" data-tour="payroll-period">
+            <div>
+              <span>Semanas encerradas no {periodName}</span>
+              <strong>{completedWeeks.length} / {game.minWeeksPerPayroll} mínimas</strong>
+              <small>{completedWeeks.length ? `Semanas incluídas: ${completedWeeks.join(', ')}` : 'Nenhuma semana encerrada ainda.'} O limite do mês é {game.maxWeeksPerPayroll}.</small>
+            </div>
+            <button className="button secondary compact" type="button" disabled={!canCloseWeek} onClick={closeOperationalWeek}>
+              {canCloseWeek ? `Encerrar Semana ${state.currentWeek}` : 'Gere o holerite para continuar'}
+            </button>
+          </div>
+        )}
+
+        {monthlyPayroll && game.countryCode && (
+          <div className="country-payroll-note">
+            <strong>{game.countryFlag} Folha de {game.countryName} em {game.currency}</strong>
+            <span>{game.taxAssumptions}</span>
+            <div>{(game.financeSources || []).map(([label, url]) => <a href={url} target="_blank" rel="noreferrer" key={url}>{label}</a>)}</div>
+          </div>
+        )}
+
+        <TipLabel tip={`O nível determina o cálculo. No Nível 1 há salário ${periodAdjective}; nos Níveis 2 e 3 o bruto vem dos ${game.distanceName} por categoria.`}>Nível atual</TipLabel>
         <input value={`Nível ${state.currentLevel}`} readOnly />
 
         {state.currentLevel <= 1 ? (
           <>
-            <TipLabel tip={`Salário bruto base do motorista local. O padrão de ${game.shortName} é ${money(game.level1Gross)} por semana antes dos descontos.`}>Salário semanal bruto</TipLabel>
+            <TipLabel tip={`Salário bruto base do motorista local. O padrão desta carreira é ${money(game.level1Gross)} por período antes dos descontos.`}>Salário {periodAdjective} bruto</TipLabel>
             <input type="number" min="0" step="0.01" value={level1Gross} onChange={(event) => setLevel1Gross(event.target.value)} />
 
-            <TipLabel tip={`As horas extras são calculadas pelas viagens. O padrão da carreira é ${money(game.routeOverrunRate)}/h.`}>Valor por hora de {game.overtimeLabel}</TipLabel>
+            <TipLabel tip={`As horas extras são calculadas pelas viagens do período. O padrão da carreira é ${money(game.routeOverrunRate)}/h.`}>Valor por hora de {game.overtimeLabel}</TipLabel>
             <input type="number" min="0" step="0.01" value={overrunRate} onChange={(event) => setOverrunRate(event.target.value)} />
 
             <div className="readout-box">
@@ -236,88 +294,67 @@ export default function PayslipTab({ state, commit }) {
             {routeOverrun.days.length > 0 && (
               <div className="breakdown-list compact-breakdown">
                 {routeOverrun.days.map((day) => (
-                  <div key={day.date}>
-                    <span>{day.date}</span>
-                    <strong>{formatHours(day.hours)} trabalhadas{day.overrunMinutes > 0 ? ` • +${formatHours(day.overrunHours)} extra` : ' • sem extra'}</strong>
-                  </div>
+                  <div key={day.date}><span>{day.date}</span><strong>{formatHours(day.hours)} trabalhadas{day.overrunMinutes > 0 ? ` • +${formatHours(day.overrunHours)} extra` : ' • sem extra'}</strong></div>
                 ))}
               </div>
             )}
           </>
         ) : (
           <>
-            <div className="readout-box"><span>{game.distanceName[0].toUpperCase() + game.distanceName.slice(1)} pagos da semana</span><strong>{formatDistance(weekDistance, game)}</strong></div>
+            <div className="readout-box"><span>{game.distanceName[0].toUpperCase() + game.distanceName.slice(1)} pagos no período</span><strong>{formatDistance(periodDistance, game)}</strong></div>
             <div className="breakdown-list compact-breakdown">
               {Object.entries(mileage.totals).filter(([, distance]) => distance > 0).map(([category, distance]) => (
                 <div key={category}><span>{game.payLabels[category]}</span><strong>{formatDistance(distance, game)} × {money(game.payRates[category])}</strong></div>
               ))}
             </div>
             <div className="two-columns">
-              <div>
-                <TipLabel tip={`Valor diário separado do salário para viagens com pernoite. O padrão de ${game.shortName} é ${money(game.perDiemRate)} por dia.`}>{game.perDiemLabel}</TipLabel>
-                <input type="number" min="0" step="0.01" value={perDiemRate} onChange={(event) => setPerDiemRate(event.target.value)} />
-              </div>
-              <div>
-                <TipLabel tip={`Dias únicos que qualificaram para ${game.perDiemLabel.toLowerCase()} pelas datas das viagens. O mesmo dia não é contado duas vezes.`}>Dias qualificáveis</TipLabel>
-                <input value={perDiemDays.days} readOnly />
-              </div>
+              <div><TipLabel tip={`Valor diário separado do salário para viagens com pernoite. O padrão desta carreira é ${money(game.perDiemRate)} por dia.`}>{game.perDiemLabel}</TipLabel><input type="number" min="0" step="0.01" value={perDiemRate} onChange={(event) => setPerDiemRate(event.target.value)} /></div>
+              <div><TipLabel tip={`Dias únicos que qualificaram para ${game.perDiemLabel.toLowerCase()} pelas datas das viagens. O mesmo dia não é contado duas vezes.`}>Dias qualificáveis</TipLabel><input value={perDiemDays.days} readOnly /></div>
             </div>
           </>
         )}
 
-        <TipLabel tip={`Desconto semanal pessoal da simulação. O padrão desta carreira é ${money(game.weeklyBenefits)}.`}>Benefícios / contribuições semanais</TipLabel>
+        <TipLabel tip="Desconto pessoal adicional da simulação. Impostos e contribuições nacionais já aparecem separadamente na prévia.">{monthlyPayroll ? 'Outros descontos mensais' : 'Benefícios / contribuições semanais'}</TipLabel>
         <input type="number" min="0" step="0.01" value={benefits} onChange={(event) => setBenefits(event.target.value)} />
 
         <div className="payslip-reserve-auto">
           <label className="check-field">
             <input type="checkbox" checked={autoReserveEnabled} onChange={(event) => setAutoReserveEnabled(event.target.checked)} />
-            Adicionar automaticamente à reserva ao fechar a semana
+            Adicionar automaticamente à reserva ao fechar {monthlyPayroll ? 'o mês' : 'a semana'}
             <InfoTip text="Depois que o holerite for depositado, o valor informado é transferido do saldo disponível para a Reserva de Emergência. Essa transferência não aparece nas linhas do holerite; fica registrada no Histórico." />
           </label>
           {autoReserveEnabled && (
-            <div className="payslip-reserve-amount">
-              <TipLabel tip="Valor fixo transferido automaticamente para a Reserva de Emergência em cada fechamento semanal enquanto esta opção permanecer ativa.">Valor do aporte automático</TipLabel>
-              <input type="number" min="0.01" step="0.01" value={autoReserveAmount} onChange={(event) => setAutoReserveAmount(event.target.value)} placeholder="0.00" />
-            </div>
+            <div className="payslip-reserve-amount"><TipLabel tip={`Valor fixo transferido automaticamente para a Reserva de Emergência em cada fechamento ${periodAdjective}.`}>Valor do aporte automático</TipLabel><input type="number" min="0.01" step="0.01" value={autoReserveAmount} onChange={(event) => setAutoReserveAmount(event.target.value)} placeholder="0.00" /></div>
           )}
         </div>
 
-        <button className="button success full-button" type="button" onClick={generatePayslip}>Gerar holerite e depositar</button>
+        <button className="button success full-button" type="button" disabled={!payrollReady} onClick={generatePayslip}>{monthlyPayroll ? 'Gerar holerite mensal e depositar' : 'Gerar holerite e depositar'}</button>
+        {monthlyPayroll && !payrollReady && <small className="payroll-blocked-note">Encerre mais {game.minWeeksPerPayroll - completedWeeks.length} semana(s) para liberar o holerite.</small>}
       </section>
 
       <section className="panel payslip-preview-card" data-tour="payslip-preview">
-        <div className="section-heading compact-heading">
-          <span className="eyebrow">Prévia</span>
-          <h2>Holerite</h2>
-          <p>Estimativa de simulação; retenções reais podem variar.</p>
-        </div>
+        <div className="section-heading compact-heading"><span className="eyebrow">Prévia • {periodName}</span><h2>Holerite</h2><p>Estimativa de roleplay para {game.countryName || game.region}; não substitui uma folha real.</p></div>
         <div className="payslip-lines">
           {shown.level === 1 && <div><LineLabel tip="As horas são calculadas automaticamente pelas datas e horários das viagens.">{game.overtimeLabel}</LineLabel><strong>+{money(shown.routeOverrunPay)} ({formatHours(shown.routeOverrunHours)} × {money(shown.routeOverrunRate)}/h)</strong></div>}
-          <div><LineLabel tip={`Total antes de impostos e benefícios. Nos Níveis 2/3 vem dos ${game.distanceName} pagos.`}>Salário bruto</LineLabel><strong>{money(shown.gross)}</strong></div>
+          <div><LineLabel tip={`Total antes de impostos e outros descontos. Nos Níveis 2/3 vem dos ${game.distanceName} pagos.`}>Salário bruto</LineLabel><strong>{money(shown.gross)}</strong></div>
           {game.taxes.map(([key, label, tip]) => <div key={key}><LineLabel tip={tip}>{label}</LineLabel><strong>-{money(shown.taxes[key])}</strong></div>)}
-          <div><LineLabel tip="Valor semanal informado no campo Benefícios semanais e descontado do salário.">Benefícios</LineLabel><strong>-{money(shown.benefits)}</strong></div>
-          <div className="emphasis-line"><LineLabel tip={`Salário após impostos estimados e benefícios, antes de somar ${game.perDiemLabel.toLowerCase()} e ocorrências.`}>Salário líquido</LineLabel><strong>{money(shown.netSalary)}</strong></div>
+          <div><LineLabel tip={`Valor adicional informado no campo de descontos ${periodAdjective}s.`}>Outros descontos</LineLabel><strong>-{money(shown.benefits)}</strong></div>
+          <div className="emphasis-line"><LineLabel tip={`Salário após impostos estimados e outros descontos, antes de somar ${game.perDiemLabel.toLowerCase()} e ocorrências.`}>Salário líquido</LineLabel><strong>{money(shown.netSalary)}</strong></div>
           <div><LineLabel tip="Valor não salarial calculado por dias qualificáveis com pernoite. No Nível 1 ele é zero.">{game.perDiemLabel}</LineLabel><strong>+{money(shown.perDiem)}</strong></div>
-          <div><LineLabel tip="Total de multas ou acidentes que você marcou para descontar do próximo holerite e que puderam ser aplicados nesta semana.">Infrações/acidentes</LineLabel><strong>-{money(shown.incidentDeduction)}</strong></div>
-          <div className="deposit-line"><LineLabel tip="Valor final do pagamento semanal. Se o aporte automático à reserva estiver ativo, a transferência acontece depois do depósito e fica somente no Histórico.">Depósito total</LineLabel><strong>{money(shown.deposit)}</strong></div>
+          <div><LineLabel tip="Total de multas ou acidentes marcados para o próximo holerite e aplicados neste período.">Infrações/acidentes</LineLabel><strong>-{money(shown.incidentDeduction)}</strong></div>
+          <div className="deposit-line"><LineLabel tip={`Valor final do pagamento ${periodAdjective}. Se o aporte automático estiver ativo, a transferência para a reserva acontece depois do depósito.`}>Depósito total</LineLabel><strong>{money(shown.deposit)}</strong></div>
         </div>
       </section>
 
       <section className="panel closed-weeks-card" data-tour="closed-weeks">
-        <div className="section-heading compact-heading"><span className="eyebrow">Histórico de holerites</span><h2>Semanas fechadas</h2></div>
+        <div className="section-heading compact-heading"><span className="eyebrow">Histórico de holerites</span><h2>{monthlyPayroll ? 'Meses fechados' : 'Semanas fechadas'}</h2></div>
         {(state.closedWeeks || []).length === 0 ? <div className="empty-inline">Nenhum holerite fechado ainda.</div> : (
-          <div className="responsive-table compact-table">
-            <table>
-              <thead><tr><th>Semana</th><th>Nível</th><th>{game.distanceName}</th><th>Bruto</th><th>{game.perDiemLabel}</th><th>Ocorrências</th><th>Depósito</th><th>Fechada em</th></tr></thead>
-              <tbody>
-                {[...state.closedWeeks].reverse().map((week, index) => (
-                  <tr key={`${week.week}-${week.closedAt}-${index}`}>
-                    <td>{week.week}</td><td>{week.level}</td><td>{formatDistance(week.distance ?? week.miles, game)}</td><td>{money(week.gross)}</td><td>{money(week.perDiem)}</td><td>{money(week.incidentDeduction)}</td><td><strong>{money(week.deposit)}</strong></td><td>{week.closedAt || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <div className="responsive-table compact-table"><table>
+            <thead><tr><th>Período</th><th>Semanas</th><th>Nível</th><th>{game.distanceName}</th><th>Bruto</th><th>{game.perDiemLabel}</th><th>Ocorrências</th><th>Depósito</th><th>Fechado em</th></tr></thead>
+            <tbody>{[...state.closedWeeks].reverse().map((period, index) => (
+              <tr key={`${period.month || period.week}-${period.closedAt}-${index}`}><td>{closedPeriodLabel(period, game)}</td><td>{Array.isArray(period.weeks) ? period.weeks.join(', ') : period.week || '—'}</td><td>{period.level}</td><td>{formatDistance(period.distance ?? period.miles, game)}</td><td>{money(period.gross)}</td><td>{money(period.perDiem)}</td><td>{money(period.incidentDeduction)}</td><td><strong>{money(period.deposit)}</strong></td><td>{period.closedAt || '—'}</td></tr>
+            ))}</tbody>
+          </table></div>
         )}
       </section>
     </div>

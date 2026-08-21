@@ -6,9 +6,11 @@ import {
   currentWeekMiles,
   currentWeekTrips,
   getPromotionStatus,
+  isTripWeekLocked,
   loadPhase1State,
   mileagePaySummary,
   monthlyExpenseTotal,
+  payrollWeeks,
   perDiemDaysForTrips,
   savePhase1State,
   tripDistance,
@@ -94,6 +96,10 @@ function gameText(text, game) {
     .replaceAll('Loaded e Deadhead', 'Com carga e reposicionamento vazio')
     .replaceAll('per diem', 'diária internacional')
     .replaceAll('OTR', 'internacional')
+    .replaceAll('pagamento semanal', 'pagamento mensal')
+    .replaceAll('semanas fechadas', 'meses fechados')
+    .replaceAll('semana é fechada, o depósito entra no saldo e uma nova semana começa', 'mês é fechado, o depósito entra no saldo e um novo período começa')
+    .replaceAll('semanas já fechadas', 'semanas operacionais já encerradas')
 }
 
 function promotionMilestones(game) {
@@ -166,7 +172,7 @@ function HeaderSummary({ state }) {
   const game = useGame()
   const distance = totalMiles(state)
   const weekDistance = currentWeekMiles(state)
-  const promotion = getPromotionStatus(state, game.id)
+  const promotion = getPromotionStatus(state, game)
   const progressText = state.currentLevel >= 3
     ? formatDistance(distance, game)
     : `${formatNumber(distance, game)} / ${formatDistance(promotion.goal, game)}`
@@ -176,7 +182,7 @@ function HeaderSummary({ state }) {
       <div><span>Saldo</span><strong>{formatMoney(state.balance, game)}</strong></div>
       <div><span>Nível atual</span><strong>Nível {state.currentLevel}</strong></div>
       <div><span>Progressão</span><strong>{progressText}</strong></div>
-      <div><span>Semana atual</span><strong>Semana {state.currentWeek} • {formatDistance(weekDistance, game)}</strong></div>
+      <div><span>{game.payrollPeriod === 'monthly' ? 'Período atual' : 'Semana atual'}</span><strong>{game.payrollPeriod === 'monthly' ? `Mês ${state.currentPayrollMonth || 1} • ` : ''}Semana {state.currentWeek} • {formatDistance(weekDistance, game)}</strong></div>
     </div>
   )
 }
@@ -197,8 +203,9 @@ function MetricCard({ label, value, detail, onClick, children }) {
 function OverviewTab({ career, state, setActiveTab }) {
   const game = useGame()
   const weekTrips = currentWeekTrips(state)
-  const promotion = getPromotionStatus(state, game.id)
+  const promotion = getPromotionStatus(state, game)
   const monthly = monthlyExpenseTotal(state)
+  const completedPayrollWeeks = game.payrollPeriod === 'monthly' ? payrollWeeks(state, game).length : 0
 
   return (
     <>
@@ -217,23 +224,24 @@ function OverviewTab({ career, state, setActiveTab }) {
           <span>Padrão + personalizadas mensais.</span>
         </button>
         <button className="panel status-card" onClick={() => setActiveTab('payslip')}>
-          <span className="metric-label">Resumo semanal</span>
-          <strong>{weekTrips.length ? 'Pronto para conferir' : 'Semana em andamento'}</strong>
-          <span>Abra o holerite para visualizar bruto, impostos, {game.perDiemLabel.toLowerCase()} e ocorrências.</span>
+          <span className="metric-label">Resumo {game.payrollPeriod === 'monthly' ? 'mensal' : 'semanal'}</span>
+          <strong>{game.payrollPeriod === 'monthly' ? `${completedPayrollWeeks} / ${game.minWeeksPerPayroll} semanas encerradas` : weekTrips.length ? 'Pronto para conferir' : 'Semana em andamento'}</strong>
+          <span>{game.payrollPeriod === 'monthly' ? 'Encerre as semanas operacionais e gere um único holerite ao fim do mês.' : `Abra o holerite para visualizar bruto, impostos, ${game.perDiemLabel.toLowerCase()} e ocorrências.`}</span>
         </button>
       </section>
 
-      <section className="panel profile-panel">
+      <section className="panel profile-panel" data-tour="career-profile">
         <div><span className="metric-label">Motorista</span><strong>{career.driverName}</strong></div>
         <div><span className="metric-label">Base</span><strong>{career.city || '—'}</strong></div>
         <div><span className="metric-label">Empresa</span><strong>{career.company || '—'}</strong></div>
+        {game.id === 'ets2' && <div><span className="metric-label">País-sede</span><strong>{game.countryFlag} {game.countryName}</strong></div>}
       </section>
 
       <section className="panel legacy-bridge" data-tour="career-backup">
         <div>
           <span className="eyebrow">Backup da carreira</span>
           <h2>Exportação CSV já está em React</h2>
-          <p>O backup inclui perfil, estado, viagens, histórico, gastos personalizados, ocorrências e semanas fechadas. A importação fica na tela de Carreiras.</p>
+          <p>O backup inclui perfil, país-sede, estado, viagens, histórico, gastos personalizados, ocorrências e holerites fechados. A importação fica na tela de Carreiras.</p>
         </div>
         <button className="button success compact" type="button" onClick={() => exportCareerCSV(career, state, game.id)}>Exportar carreira CSV</button>
       </section>
@@ -333,7 +341,7 @@ function TripsTab({ state, onAddTrip, onDeleteTrip }) {
   const weekTrips = currentWeekTrips(state)
   const allMiles = totalMiles(state)
   const weekMiles = currentWeekMiles(state)
-  const pay = mileagePaySummary(weekTrips, game.id)
+  const pay = mileagePaySummary(weekTrips, game)
   const perDiem = perDiemDaysForTrips(weekTrips)
 
   return (
@@ -341,7 +349,7 @@ function TripsTab({ state, onAddTrip, onDeleteTrip }) {
       <section className="phase1-status-grid progress-summary-grid" data-tour="trip-summary">
         <MetricCard label={`${game.distanceName[0].toUpperCase() + game.distanceName.slice(1)} da semana`} value={formatDistance(weekMiles, game)} detail={`Semana ${state.currentWeek}`} />
         <MetricCard label={`${game.distanceName[0].toUpperCase() + game.distanceName.slice(1)} na carreira`} value={formatDistance(allMiles, game)} detail={`Nível ${state.currentLevel}`} />
-        <MetricCard label={`Bruto por ${game.distanceUnit}`} value={state.currentLevel <= 1 ? 'Salário semanal' : formatMoney(pay.gross, game)} detail={state.currentLevel <= 1 ? `Nível 1 não é pago por ${game.distanceUnit}` : `Antes de impostos e ${game.perDiemLabel.toLowerCase()}`} />
+        <MetricCard label={`Bruto por ${game.distanceUnit}`} value={state.currentLevel <= 1 ? `Salário ${game.payrollPeriodLabel}` : formatMoney(pay.gross, game)} detail={state.currentLevel <= 1 ? `Nível 1 não é pago por ${game.distanceUnit}` : `Antes de impostos e ${game.perDiemLabel.toLowerCase()}`} />
         <MetricCard label={`${game.perDiemLabel} potencial`} value={state.currentLevel <= 1 ? 'Não se aplica' : `${perDiem.days} dia(s)`} detail={state.currentLevel <= 1 ? 'Disponível a partir do Nível 2' : `${formatMoney(perDiem.days * game.perDiemRate, game)} a ${formatMoney(game.perDiemRate, game)}/dia`} />
       </section>
 
@@ -352,7 +360,7 @@ function TripsTab({ state, onAddTrip, onDeleteTrip }) {
         <section className="panel pay-breakdown-panel">
           <span className="eyebrow">Resumo semanal</span>
           <h2>Pagamento por categoria</h2>
-          {state.currentLevel <= 1 ? <p className="muted-copy">No Nível 1, os {game.distanceName} contam para progressão, mas o salário base continua em {formatMoney(game.level1Gross, game)} por semana.</p> : (
+          {state.currentLevel <= 1 ? <p className="muted-copy">No Nível 1, os {game.distanceName} contam para progressão, mas o salário base continua em {formatMoney(game.level1Gross, game)} por {game.payrollPeriodLabel === 'mensal' ? 'mês' : 'semana'}.</p> : (
             <div className="breakdown-list">
               {Object.entries(pay.totals).filter(([, value]) => value > 0).map(([category, value]) => <div key={category}><span>{game.payLabels[category]}</span><strong>{formatDistance(value, game)} × {formatMoney(game.payRates[category], game)} = {formatMoney(value * game.payRates[category], game)}</strong></div>)}
               <div className="breakdown-total"><span>Total bruto por {game.distanceUnit}</span><strong>{formatMoney(pay.gross, game)}</strong></div>
@@ -461,7 +469,7 @@ export default function Phase1Page({ careerId, onBack }) {
   }
 
   async function deleteTrip(trip) {
-    const weekClosed = (state.closedWeeks || []).some((week) => Number(week.week) === Number(trip.week || 1))
+    const weekClosed = isTripWeekLocked(state, trip.week, game)
     if (weekClosed) {
       toast.error('Esta viagem pertence a uma semana já fechada e não pode ser excluída.')
       return

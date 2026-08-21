@@ -19,7 +19,7 @@ export function phase1StorageKey(careerId, gameId = 'ats') {
 }
 
 function makeDefaultState(career, gameId = 'ats') {
-  const game = getGame(gameId)
+  const game = getGame(gameId, career?.countryCode)
   const level = Number(career?.currentLevel || 1)
   return {
     balance: Number(career?.currentBalance ?? career?.initialBalance ?? 793),
@@ -36,11 +36,14 @@ function makeDefaultState(career, gameId = 'ats') {
     dangerousGoodsQualified: false,
     academy: { level2: false, level3: false },
     currentWeek: 1,
+    currentPayrollMonth: 1,
+    payPeriodStartWeek: 1,
+    closedOperationalWeeks: [],
   }
 }
 
-function normalizeExpenses(expenses, gameId = 'ats') {
-  const defaults = getGame(gameId).expenses
+function normalizeExpenses(expenses, gameId = 'ats', countryCode = null) {
+  const defaults = getGame(gameId, countryCode).expenses
   return Object.fromEntries(
     Object.entries({ ...defaults, ...(expenses || {}) })
       .filter(([key]) => key !== 'emergency'),
@@ -52,7 +55,7 @@ function normalizeState(raw, career, gameId = 'ats') {
   const state = { ...base, ...(raw || {}) }
   state.balance = Number(raw?.balance ?? base.balance)
   state.emergencyReserve = Math.max(0, Number(raw?.emergencyReserve || 0))
-  state.expenses = normalizeExpenses(raw?.expenses, gameId)
+  state.expenses = normalizeExpenses(raw?.expenses, gameId, career?.countryCode)
   state.history = Array.isArray(raw?.history) ? raw.history : []
   state.trips = Array.isArray(raw?.trips) ? raw.trips : []
   state.closedWeeks = Array.isArray(raw?.closedWeeks) ? raw.closedWeeks : []
@@ -62,6 +65,12 @@ function normalizeState(raw, career, gameId = 'ats') {
   state.currentLevel = level
   state.careerLevel = level
   state.currentWeek = Number(raw?.currentWeek || 1)
+  const previouslyLocked = state.closedWeeks.flatMap((period) => Array.isArray(period.weeks) ? period.weeks : [period.week]).map(Number).filter(Number.isFinite)
+  state.closedOperationalWeeks = Array.isArray(raw?.closedOperationalWeeks)
+    ? [...new Set(raw.closedOperationalWeeks.map(Number).filter(Number.isFinite))]
+    : [...new Set(previouslyLocked)]
+  state.currentPayrollMonth = Math.max(1, Number(raw?.currentPayrollMonth || state.closedWeeks.filter((period) => period.periodType === 'month').length + 1))
+  state.payPeriodStartWeek = Math.max(1, Number(raw?.payPeriodStartWeek || (gameId === 'ets2' && state.closedWeeks.length ? state.currentWeek : 1)))
   state.dangerousGoodsQualified = Boolean(raw?.dangerousGoodsQualified ?? raw?.hazmatQualified)
   state.hazmatQualified = state.dangerousGoodsQualified
   state.academy = {
@@ -84,14 +93,18 @@ export function loadPhase1State(careerId, gameId = 'ats') {
 }
 
 export function savePhase1State(careerId, state, gameId = 'ats') {
+  const career = getCareer(careerId, gameId)
   const normalized = {
     ...state,
     emergencyReserve: Math.max(0, Number(state.emergencyReserve || 0)),
-    expenses: normalizeExpenses(state.expenses, gameId),
+    expenses: normalizeExpenses(state.expenses, gameId, career?.countryCode),
     dangerousGoodsQualified: Boolean(state.dangerousGoodsQualified ?? state.hazmatQualified),
     hazmatQualified: Boolean(state.dangerousGoodsQualified ?? state.hazmatQualified),
     currentLevel: Number(state.currentLevel || state.careerLevel || 1),
     careerLevel: Number(state.currentLevel || state.careerLevel || 1),
+    currentPayrollMonth: Math.max(1, Number(state.currentPayrollMonth || 1)),
+    payPeriodStartWeek: Math.max(1, Number(state.payPeriodStartWeek || 1)),
+    closedOperationalWeeks: [...new Set((state.closedOperationalWeeks || []).map(Number).filter(Number.isFinite))],
   }
   localStorage.setItem(phase1StorageKey(careerId, gameId), JSON.stringify(normalized))
   const careers = loadCareers(gameId)
@@ -127,6 +140,30 @@ export function currentWeekMiles(state) {
 
 export const currentWeekDistance = currentWeekMiles
 
+export function payrollWeeks(state, gameOrId = 'ats') {
+  const game = typeof gameOrId === 'string' ? getGame(gameOrId) : gameOrId
+  if (game.payrollPeriod !== 'monthly') return [Number(state.currentWeek || 1)]
+  const start = Math.max(1, Number(state.payPeriodStartWeek || 1))
+  const current = Math.max(start, Number(state.currentWeek || start))
+  return [...new Set((state.closedOperationalWeeks || []).map(Number))]
+    .filter((week) => Number.isFinite(week) && week >= start && week < current)
+    .sort((a, b) => a - b)
+}
+
+export function currentPayrollTrips(state, gameOrId = 'ats') {
+  const game = typeof gameOrId === 'string' ? getGame(gameOrId) : gameOrId
+  if (game.payrollPeriod !== 'monthly') return currentWeekTrips(state)
+  const weeks = new Set(payrollWeeks(state, game))
+  return (state.trips || []).filter((trip) => weeks.has(Number(trip.week || 1)))
+}
+
+export function isTripWeekLocked(state, week, gameOrId = 'ats') {
+  const game = typeof gameOrId === 'string' ? getGame(gameOrId) : gameOrId
+  const weekNumber = Number(week || 1)
+  if (game.payrollPeriod === 'monthly') return (state.closedOperationalWeeks || []).map(Number).includes(weekNumber)
+  return (state.closedWeeks || []).some((period) => Number(period.week) === weekNumber)
+}
+
 export function tripPayCategory(trip) {
   return trip.type === 'Deadhead' ? 'deadhead' : (trip.payCategory || 'normal')
 }
@@ -143,8 +180,8 @@ export function validPayCategories(state, gameId = 'ats') {
   return categories
 }
 
-export function mileagePaySummary(trips, gameId = 'ats') {
-  const rates = getGame(gameId).payRates
+export function mileagePaySummary(trips, gameOrId = 'ats') {
+  const rates = (typeof gameOrId === 'string' ? getGame(gameOrId) : gameOrId).payRates
   const totals = { normal: 0, hazmat: 0, doubles: 0, hazmat_doubles: 0, deadhead: 0 }
   for (const trip of trips) {
     const category = tripPayCategory(trip)
@@ -232,15 +269,67 @@ export function weeklyEmergencyReserveYield(reserveBalance) {
   return principal * EMERGENCY_RESERVE_ANNUAL_YIELD / 52
 }
 
-export function estimateTaxes(gross, gameId = 'ats') {
-  const value = Math.max(0, Number(gross || 0))
-  if (getGame(gameId).taxModel === 'eu-generic') {
-    return {
-      incomeTax: value * 0.16,
-      socialInsurance: value * 0.09,
-      solidarity: value * 0.015,
-    }
+export function monthlyEmergencyReserveYield(reserveBalance) {
+  const principal = Math.max(0, Number(reserveBalance || 0))
+  return principal * EMERGENCY_RESERVE_ANNUAL_YIELD / 12
+}
+
+function progressiveTax(value, brackets) {
+  let remaining = Math.max(0, Number(value || 0))
+  let previous = 0
+  let total = 0
+  for (const [limit, rate] of brackets) {
+    const slice = Math.max(0, Math.min(remaining, limit - previous))
+    total += slice * rate
+    remaining -= slice
+    previous = limit
+    if (remaining <= 0) return total
   }
+  return total
+}
+
+function estimateGermanTaxes(monthlyGross) {
+  const pensionBase = Math.min(monthlyGross, 8450)
+  const healthBase = Math.min(monthlyGross, 5812.5)
+  const pensionInsurance = pensionBase * 0.093
+  const unemploymentInsurance = pensionBase * 0.013
+  const healthInsurance = healthBase * 0.0875
+  const careInsurance = healthBase * 0.024
+  const annualSocial = (pensionInsurance + unemploymentInsurance + healthInsurance + careInsurance) * 12
+  const annualTaxable = Math.max(0, monthlyGross * 12 - annualSocial)
+  const incomeTax = progressiveTax(annualTaxable, [
+    [12348, 0], [17799, 0.14], [69878, 0.24], [277825, 0.42], [Infinity, 0.45],
+  ]) / 12
+  return { incomeTax, pensionInsurance, healthInsurance, unemploymentInsurance, careInsurance }
+}
+
+function estimateBritishTaxes(monthlyGross) {
+  const annualGross = monthlyGross * 12
+  const personalAllowance = annualGross > 100000 ? Math.max(0, 12570 - (annualGross - 100000) / 2) : 12570
+  const taxable = Math.max(0, annualGross - personalAllowance)
+  const incomeTax = progressiveTax(taxable, [[37700, 0.20], [125140 - personalAllowance, 0.40], [Infinity, 0.45]]) / 12
+  const nationalInsurance = (Math.min(Math.max(0, annualGross - 12570), 50270 - 12570) * 0.08 + Math.max(0, annualGross - 50270) * 0.02) / 12
+  return { incomeTax, nationalInsurance }
+}
+
+function estimatePolishTaxes(monthlyGross) {
+  const pensionInsurance = monthlyGross * 0.0976
+  const disabilityInsurance = monthlyGross * 0.015
+  const sicknessInsurance = monthlyGross * 0.0245
+  const socialTotal = pensionInsurance + disabilityInsurance + sicknessInsurance
+  const healthInsurance = Math.max(0, monthlyGross - socialTotal) * 0.09
+  const annualTaxable = Math.max(0, (monthlyGross - socialTotal) * 12)
+  const annualPit = Math.max(0, Math.min(annualTaxable, 120000) * 0.12 + Math.max(0, annualTaxable - 120000) * 0.32 - 3600)
+  return { incomeTax: annualPit / 12, pensionInsurance, disabilityInsurance, sicknessInsurance, healthInsurance }
+}
+
+export function estimateTaxes(gross, gameOrId = 'ats') {
+  const value = Math.max(0, Number(gross || 0))
+  const game = typeof gameOrId === 'string' ? getGame(gameOrId) : gameOrId
+  if (game.taxModel === 'de-2026-simplified') return estimateGermanTaxes(value)
+  if (game.taxModel === 'gb-2026-simplified') return estimateBritishTaxes(value)
+  if (game.taxModel === 'pl-2026-simplified') return estimatePolishTaxes(value)
+  if (game.taxModel === 'country-required') return {}
   const ss = value * 0.062
   const medicare = value * 0.0145
   const sdi = value * 0.013
@@ -256,11 +345,12 @@ export function pendingIncidentTotal(state) {
   return (state.incidents || []).reduce((sum, incident) => sum + Math.max(0, Number(incident.remaining || 0)), 0)
 }
 
-export function applyPendingIncidentDeductions(incidents, maxAmount) {
+export function applyPendingIncidentDeductions(incidents, maxAmount, isEligible = () => true) {
   let available = Math.max(0, Number(maxAmount || 0))
   let applied = 0
   const nextIncidents = (incidents || []).map((incident) => {
     const copy = { ...incident }
+    if (!isEligible(copy)) return copy
     const remaining = Math.max(0, Number(copy.remaining || 0))
     if (remaining <= 0 || available <= 0) return copy
     const take = Math.min(remaining, available)
@@ -273,8 +363,8 @@ export function applyPendingIncidentDeductions(incidents, maxAmount) {
   return { incidents: nextIncidents, applied }
 }
 
-export function getPromotionStatus(state, gameId = 'ats') {
-  const game = getGame(gameId)
+export function getPromotionStatus(state, gameOrId = 'ats') {
+  const game = typeof gameOrId === 'string' ? getGame(gameOrId) : gameOrId
   const distance = totalMiles(state)
   const [level2Goal, level3Goal] = game.promotionGoals
   if (state.currentLevel === 1) {

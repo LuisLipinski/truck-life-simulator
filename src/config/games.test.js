@@ -19,4 +19,20 @@ describe('Euro Truck Simulator 2 configuration', () => {
     expect(formatDistance(16000, 'ets2')).toContain('km')
     expect(formatDistance(16000, 'ets2')).not.toContain('mi')
   })
+
+  it('loads country-specific base cities, currencies and monthly payroll profiles', () => {
+    const germany = getGame('ets2', 'DE')
+    const unitedKingdom = getGame('ets2', 'GB')
+    const poland = getGame('ets2', 'PL')
+
+    expect(germany.baseCities).toContain('Berlin, Alemanha')
+    expect(germany.baseCities.every((city) => city.endsWith(', Alemanha'))).toBe(true)
+    expect(germany.currency).toBe('EUR')
+    expect(unitedKingdom.currency).toBe('GBP')
+    expect(unitedKingdom.baseCities).toContain('Londres, Reino Unido')
+    expect(poland.currency).toBe('PLN')
+    expect(poland.baseCities).toContain('Warszawa, Polônia')
+    expect([germany, unitedKingdom, poland].every((game) => game.payrollPeriod === 'monthly')).toBe(true)
+    expect([germany, unitedKingdom, poland].every((game) => game.taxes.length > 0)).toBe(true)
+  })
 })

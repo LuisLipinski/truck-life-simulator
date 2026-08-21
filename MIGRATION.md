@@ -2,13 +2,15 @@
 
 Atualizado em: **20/08/2026**
 
-Branch ativa: **`development`**
+Branch documentada originalmente: **`development`**
+
+> Este arquivo preserva o histórico detalhado da migração inicial do ATS para React. O estado funcional atual de ATS + ETS2, incluindo países-sede, folha mensal e backup v8, está consolidado no [README.md](README.md).
 
 Aplicação publicada: **https://luislipinski.github.io/truck-life-simulator/**
 
 ## 1. Visão geral
 
-O **Truck Life Simulator** é um companion de carreira realista para o American Truck Simulator. A aplicação mantém uma economia pessoal própria, separada da economia do ATS, e permite acompanhar a vida profissional e financeira de um motorista nos Estados Unidos.
+O **Truck Life Simulator** começou como um companion de carreira para American Truck Simulator e agora também possui uma área independente para Euro Truck Simulator 2. A aplicação mantém economias próprias, separadas do dinheiro exibido pelos jogos.
 
 O fluxo atual começa com um brasileiro chegando legalmente aos Estados Unidos, sem caminhão próprio, iniciando como motorista empregado. O usuário cria um ou mais personagens, registra viagens, fecha holerites, paga despesas, mantém uma reserva de emergência, registra ocorrências e evolui pelos três níveis da Fase 1.
 

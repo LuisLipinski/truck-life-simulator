@@ -42,6 +42,14 @@ function setInputValue(input, value) {
   })
 }
 
+function setSelectValue(select, value) {
+  const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set
+  act(() => {
+    setter.call(select, String(value))
+    select.dispatchEvent(new Event('change', { bubbles: true }))
+  })
+}
+
 describe('career card navigation', () => {
   beforeEach(() => {
     globalThis.IS_REACT_ACT_ENVIRONMENT = true
@@ -144,6 +152,7 @@ describe('career card navigation', () => {
 
     expect(document.querySelector('.form-panel')?.textContent).toContain('quilômetros')
     expect(document.querySelector('.form-panel')?.textContent).toContain('€')
+    setSelectValue(document.querySelector('#career-country'), 'DE')
     setInputValue(document.querySelector('input[placeholder="Ex.: Rafael Silva"]'), 'Euro Driver')
     setInputValue(document.querySelector('.react-city-autocomplete input'), 'Berlin, Alemanha')
     setInputValue(document.querySelector('input[placeholder="Ex.: Euro Horizon Logistics"]'), 'Euro Logistics')
@@ -154,7 +163,7 @@ describe('career card navigation', () => {
     })
 
     expect(window.location.hash).toContain('#/ets2/phases?career=')
-    expect(JSON.parse(localStorage.getItem(ETS2_CAREERS_KEY) || '[]')).toMatchObject([{ driverName: 'Euro Driver', city: 'Berlin, Alemanha', gameId: 'ets2', currency: 'EUR' }])
+    expect(JSON.parse(localStorage.getItem(ETS2_CAREERS_KEY) || '[]')).toMatchObject([{ driverName: 'Euro Driver', city: 'Berlin, Alemanha', gameId: 'ets2', countryCode: 'DE', countryName: 'Alemanha', currency: 'EUR' }])
     expect(localStorage.getItem(CAREERS_KEY)).toBeNull()
   })
 
@@ -181,7 +190,8 @@ describe('career card navigation', () => {
     await act(async () => financial.click())
     const payslip = [...document.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Holerite')
     await act(async () => payslip.click())
-    expect(document.body.textContent).toContain('Imposto de renda estimado')
+    expect(document.body.textContent).toContain('Imposto de renda (estimado)')
+    expect(document.body.textContent).toContain('Gerar holerite mensal')
     expect(document.body.textContent).not.toContain('California Income Tax')
     expect(document.body.textContent).not.toContain('Social Security')
   })

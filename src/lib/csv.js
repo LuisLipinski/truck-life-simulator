@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx'
 import { activeCareerStorageKey, loadCareers, saveCareers } from './storage.js'
 import { phase1StorageKey, tripDistance } from './phase1.js'
 import { gameIdFromBackupMarker, getGame } from '../config/games.js'
+import { getEts2CountryProfile, inferEts2CountryCode } from '../config/ets2Countries.js'
 
 const SUPPORTED_FORMATS = ['csv', 'xls', 'xlsx']
 
@@ -39,23 +40,28 @@ function importedPayCategory(category, type) {
 }
 
 function templateRows(gameId = 'ats') {
-  const game = getGame(gameId)
-  const city = game.cities[0]
+  const game = getGame(gameId, gameId === 'ets2' ? 'DE' : null)
+  const city = game.baseCities?.[0] || game.cities[0]
+  const destination = game.baseCities?.[1] || game.cities[1] || city
+  const arrivalBalance = game.defaultArrivalBalance ?? 5000
+  const initialBalance = arrivalBalance - Object.values(game.setupCosts).reduce((sum, value) => sum + Number(value || 0), 0)
   return [
-    [game.backupMarker, '7'],
+    [game.backupMarker, '8'],
     instructionsRow(),
-    ['CAREER','id','driverName','city','company','arrivalBalance','initialBalance','bio','createdAt'],
-    ['CAREER','','Seu Nome',city,'Nome da Empresa',gameId === 'ats' ? 5000 : 3500,gameId === 'ats' ? 793 : 795,'Biografia do personagem',''],
+    ['CAREER','id','driverName','city','company','arrivalBalance','initialBalance','bio','createdAt','countryCode','countryName','currency'],
+    ['CAREER','','Seu Nome',city,'Nome da Empresa',arrivalBalance,initialBalance,'Biografia do personagem','',game.countryCode || '',game.countryName || '',game.currency],
     ['SETUP_COST','name','value'],
     ...Object.entries(game.setupCosts).map(([name, value]) => ['SETUP_COST', name, value]),
-    ['STATE','balance','careerLevel','currentWeek','academyLevel2','academyLevel3',game.id === 'ats' ? 'hazmatQualified' : 'adrQualified','emergencyReserve'],
-    ['STATE',gameId === 'ats' ? 793 : 795,1,1,0,0,0,0],
+    ['STATE','balance','careerLevel','currentWeek','academyLevel2','academyLevel3',game.id === 'ats' ? 'hazmatQualified' : 'adrQualified','emergencyReserve','currentPayrollMonth','payPeriodStartWeek','closedOperationalWeeks','autoReserveEnabled','autoReserveAmount'],
+    ['STATE',initialBalance,1,1,0,0,0,0,1,1,'',0,0],
+    ['BASE_EXPENSE','name','value'],
+    ...Object.entries(game.expenses).map(([name, value]) => ['BASE_EXPENSE', name, value]),
     ['TRIP','id','week','departureAt','arrivalAt','origin','originCompany','destination','destinationCompany','cargo','type','payCategory',game.distanceField === 'miles' ? 'miles' : 'kilometers'],
-    ['TRIP','',1,'2026-08-19T07:00','2026-08-19T10:00',city,'Filial de origem',game.cities[1] || city,'Filial de destino','Alimentos',backupTripType('Loaded', game),backupPayCategory('normal', game),115],
+    ['TRIP','',1,'2026-08-19T07:00','2026-08-19T10:00',city,'Filial de origem',destination,'Filial de destino','Alimentos',backupTripType('Loaded', game),backupPayCategory('normal', game),115],
     ['HISTORY','date','type','desc','value','balance'],
     ['EXPENSE','id','name','value','monthly'],
-    ['INCIDENT','id','type','date','time','route','description','amount','chargeMethod','status','remaining','createdAt'],
-    ['CLOSED_WEEK','week','closedAt',game.distanceField === 'miles' ? 'miles' : 'kilometers','level','gross','taxes','benefits','netSalary','perDiem','incidentDeduction','reserveInterest','deposit','desc'],
+    ['INCIDENT','id','type','date','time','route','description','amount','chargeMethod','status','remaining','createdAt','week'],
+    ['CLOSED_WEEK','week','closedAt',game.distanceField === 'miles' ? 'miles' : 'kilometers','level','gross','taxes','benefits','netSalary','perDiem','incidentDeduction','reserveInterest','deposit','desc','periodType','month','startWeek','endWeek','weeks','countryCode','currency','taxBreakdown'],
   ]
 }
 
@@ -93,7 +99,7 @@ function downloadCsv(name, rows) {
 function writeWorkbook(rows, filename, gameId = 'ats') {
   const workbook = XLSX.utils.book_new()
   const worksheet = XLSX.utils.aoa_to_sheet(rows)
-  worksheet['!cols'] = Array.from({ length: 14 }, (_, index) => ({ wch: index === 7 ? 42 : index < 2 ? 18 : 22 }))
+  worksheet['!cols'] = Array.from({ length: 22 }, (_, index) => ({ wch: index === 7 || index === 21 ? 42 : index < 2 ? 18 : 22 }))
   XLSX.utils.book_append_sheet(workbook, worksheet, getGame(gameId).sheetName)
   // SheetJS infere BIFF8 para .xls e XLSX para .xlsx pelo nome do arquivo.
   XLSX.writeFile(workbook, filename)
@@ -112,27 +118,29 @@ export function downloadExcelTemplate(format = 'xlsx', gameId = 'ats') {
 
 function careerRows(career, state, gameId = career?.gameId || 'ats') {
   if (!career) throw new Error('Carreira não encontrada para exportação.')
-  const game = getGame(gameId)
+  const game = getGame(gameId, career.countryCode)
   const safeState = state || {}
   return [
-    [game.backupMarker, '7'],
+    [game.backupMarker, '8'],
     instructionsRow(),
-    ['CAREER','id','driverName','city','company','arrivalBalance','initialBalance','bio','createdAt'],
-    ['CAREER',career.id,career.driverName,career.city,career.company,career.arrivalBalance,career.initialBalance,career.bio || career.biography || '',career.createdAt || ''],
+    ['CAREER','id','driverName','city','company','arrivalBalance','initialBalance','bio','createdAt','countryCode','countryName','currency'],
+    ['CAREER',career.id,career.driverName,career.city,career.company,career.arrivalBalance,career.initialBalance,career.bio || career.biography || '',career.createdAt || '',career.countryCode || game.countryCode || '',career.countryName || game.countryName || '',career.currency || game.currency],
     ['SETUP_COST','name','value'],
     ...Object.entries({ ...game.setupCosts, ...(career.setupCosts || {}) }).map(([name, value]) => ['SETUP_COST', name, value]),
-    ['STATE','balance','careerLevel','currentWeek','academyLevel2','academyLevel3',game.id === 'ats' ? 'hazmatQualified' : 'adrQualified','emergencyReserve'],
-    ['STATE',safeState.balance ?? career.currentBalance ?? career.initialBalance ?? 0,safeState.currentLevel || safeState.careerLevel || career.currentLevel || 1,safeState.currentWeek || 1,safeState.academy?.level2 ? 1 : 0,safeState.academy?.level3 ? 1 : 0,(safeState.dangerousGoodsQualified ?? safeState.hazmatQualified) ? 1 : 0,safeState.emergencyReserve || 0],
+    ['STATE','balance','careerLevel','currentWeek','academyLevel2','academyLevel3',game.id === 'ats' ? 'hazmatQualified' : 'adrQualified','emergencyReserve','currentPayrollMonth','payPeriodStartWeek','closedOperationalWeeks','autoReserveEnabled','autoReserveAmount'],
+    ['STATE',safeState.balance ?? career.currentBalance ?? career.initialBalance ?? 0,safeState.currentLevel || safeState.careerLevel || career.currentLevel || 1,safeState.currentWeek || 1,safeState.academy?.level2 ? 1 : 0,safeState.academy?.level3 ? 1 : 0,(safeState.dangerousGoodsQualified ?? safeState.hazmatQualified) ? 1 : 0,safeState.emergencyReserve || 0,safeState.currentPayrollMonth || 1,safeState.payPeriodStartWeek || 1,(safeState.closedOperationalWeeks || []).join('|'),safeState.autoReserveContribution?.enabled ? 1 : 0,safeState.autoReserveContribution?.amount || 0],
+    ['BASE_EXPENSE','name','value'],
+    ...Object.entries(safeState.expenses || game.expenses).filter(([name]) => name !== 'emergency').map(([name, value]) => ['BASE_EXPENSE', name, value]),
     ['TRIP','id','week','departureAt','arrivalAt','origin','originCompany','destination','destinationCompany','cargo','type','payCategory',game.distanceField === 'miles' ? 'miles' : 'kilometers'],
     ...(safeState.trips || []).map((trip) => ['TRIP',trip.id,trip.week,trip.departureAt,trip.arrivalAt,trip.origin,trip.originCompany,trip.destination,trip.destinationCompany,trip.cargo,backupTripType(trip.type, game),backupPayCategory(trip.payCategory, game),tripDistance(trip)]),
     ['HISTORY','date','type','desc','value','balance'],
     ...(safeState.history || []).map((item) => ['HISTORY',item.date,item.type,item.desc,item.value ?? item.amount ?? 0,item.balance]),
     ['EXPENSE','id','name','value','monthly'],
     ...(safeState.customExpenses || []).map((item) => ['EXPENSE',item.id,item.name,item.value,item.monthly ? 1 : 0]),
-    ['INCIDENT','id','type','date','time','route','description','amount','chargeMethod','status','remaining','createdAt'],
-    ...(safeState.incidents || []).map((item) => ['INCIDENT',item.id,item.type,item.date,item.time,item.route,item.description,item.amount,item.chargeMethod,item.status,item.remaining,item.createdAt]),
-    ['CLOSED_WEEK','week','closedAt',game.distanceField === 'miles' ? 'miles' : 'kilometers','level','gross','taxes','benefits','netSalary','perDiem','incidentDeduction','reserveInterest','deposit','desc'],
-    ...(safeState.closedWeeks || []).map((week) => ['CLOSED_WEEK',week.week,week.closedAt,week.distance ?? week.miles,week.level,week.gross,week.taxes,week.benefits,week.netSalary,week.perDiem,week.incidentDeduction,week.reserveInterest || 0,week.deposit,week.desc]),
+    ['INCIDENT','id','type','date','time','route','description','amount','chargeMethod','status','remaining','createdAt','week'],
+    ...(safeState.incidents || []).map((item) => ['INCIDENT',item.id,item.type,item.date,item.time,item.route,item.description,item.amount,item.chargeMethod,item.status,item.remaining,item.createdAt,item.week || '']),
+    ['CLOSED_WEEK','week','closedAt',game.distanceField === 'miles' ? 'miles' : 'kilometers','level','gross','taxes','benefits','netSalary','perDiem','incidentDeduction','reserveInterest','deposit','desc','periodType','month','startWeek','endWeek','weeks','countryCode','currency','taxBreakdown'],
+    ...(safeState.closedWeeks || []).map((period) => ['CLOSED_WEEK',period.week,period.closedAt,period.distance ?? period.miles,period.level,period.gross,period.taxes,period.benefits,period.netSalary,period.perDiem,period.incidentDeduction,period.reserveInterest || 0,period.deposit,period.desc,period.periodType || 'week',period.month || '',period.startWeek || period.week || '',period.endWeek || period.week || '',(period.weeks || [period.week]).filter(Boolean).join('|'),period.countryCode || career.countryCode || '',period.currency || career.currency || game.currency,JSON.stringify(period.taxBreakdown || {})]),
   ]
 }
 
@@ -158,6 +166,11 @@ function hasValue(value) {
 function boolValue(value) {
   const normalized = String(value ?? '').trim().toLowerCase()
   return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'sim'
+}
+
+function parseWeekList(value) {
+  if (!hasValue(value)) return []
+  return [...new Set(String(value).split('|').map((week) => Number(week)).filter((week) => Number.isInteger(week) && week > 0))]
 }
 
 function parseStrictNumber(value) {
@@ -198,6 +211,10 @@ function validateImportRows(rows, version, game = getGame('ats')) {
     })
     validateNumeric(row[5], labelAt('CAREER','arrivalBalance',careerIndex), invalid)
     validateNumeric(row[6], labelAt('CAREER','initialBalance',careerIndex), invalid)
+    if (version >= 8 && game.id === 'ets2') {
+      if (!hasValue(row[9])) missing.push(labelAt('CAREER', 'countryCode', careerIndex))
+      else if (!getEts2CountryProfile(row[9])) invalid.push(`${labelAt('CAREER', 'countryCode', careerIndex)} (país não suportado)`)
+    }
   }
 
   if (stateIndex < 0) missing.push('linha STATE')
@@ -205,11 +222,18 @@ function validateImportRows(rows, version, game = getGame('ats')) {
     const row = rows[stateIndex]
     const required = [[1,'balance'],[2,'careerLevel'],[3,'currentWeek']]
     if (version >= 7) required.push([7,'emergencyReserve'])
+    if (version >= 8) required.push([8,'currentPayrollMonth'], [9,'payPeriodStartWeek'])
     required.forEach(([column, field]) => { if (!hasValue(row[column])) missing.push(labelAt('STATE', field, stateIndex)) })
     validateNumeric(row[1], labelAt('STATE','balance',stateIndex), invalid)
     validateNumeric(row[2], labelAt('STATE','careerLevel',stateIndex), invalid, { integer: true, min: 1, max: 3 })
     validateNumeric(row[3], labelAt('STATE','currentWeek',stateIndex), invalid, { integer: true, min: 1 })
     if (version >= 7) validateNumeric(row[7], labelAt('STATE','emergencyReserve',stateIndex), invalid, { min: 0 })
+    if (version >= 8) {
+      validateNumeric(row[8], labelAt('STATE','currentPayrollMonth',stateIndex), invalid, { integer: true, min: 1 })
+      validateNumeric(row[9], labelAt('STATE','payPeriodStartWeek',stateIndex), invalid, { integer: true, min: 1 })
+      if (hasValue(row[10]) && parseWeekList(row[10]).length !== String(row[10]).split('|').length) invalid.push(`${labelAt('STATE','closedOperationalWeeks',stateIndex)} (use semanas inteiras separadas por |)`)
+      validateNumeric(row[12], labelAt('STATE','autoReserveAmount',stateIndex), invalid, { min: 0 })
+    }
   }
 
   rows.forEach((row, index) => {
@@ -217,6 +241,13 @@ function validateImportRows(rows, version, game = getGame('ats')) {
     if (!type || ['ATS_CAREER_BACKUP','ETS2_CAREER_BACKUP','INSTRUCTIONS','CAREER','STATE'].includes(type)) return
 
     if (type === 'SETUP_COST' && row[1] !== 'name') {
+      if (!hasValue(row[1])) missing.push(labelAt(type,'name',index))
+      if (!hasValue(row[2])) missing.push(labelAt(type,'value',index))
+      validateNumeric(row[2], labelAt(type,'value',index), invalid, { min: 0 })
+      return
+    }
+
+    if (type === 'BASE_EXPENSE' && row[1] !== 'name') {
       if (!hasValue(row[1])) missing.push(labelAt(type,'name',index))
       if (!hasValue(row[2])) missing.push(labelAt(type,'value',index))
       validateNumeric(row[2], labelAt(type,'value',index), invalid, { min: 0 })
@@ -240,7 +271,7 @@ function validateImportRows(rows, version, game = getGame('ats')) {
     }
 
     if (type === 'EXPENSE' && row[1] !== 'id') {
-      validateNumeric(row[1], labelAt(type,'id',index), invalid, { integer: true, min: 1 })
+      if (!hasValue(row[1])) missing.push(labelAt(type,'id',index))
       if (!hasValue(row[3])) missing.push(labelAt(type,'value',index))
       validateNumeric(row[3], labelAt(type,'value',index), invalid, { min: 0 })
       return
@@ -251,6 +282,7 @@ function validateImportRows(rows, version, game = getGame('ats')) {
       if (!hasValue(row[7])) missing.push(labelAt(type,'amount',index))
       validateNumeric(row[7], labelAt(type,'amount',index), invalid, { min: 0 })
       validateNumeric(row[10], labelAt(type,'remaining',index), invalid, { min: 0 })
+      if (version >= 8) validateNumeric(row[12], labelAt(type,'week',index), invalid, { integer: true, min: 1 })
       return
     }
 
@@ -262,6 +294,22 @@ function validateImportRows(rows, version, game = getGame('ats')) {
         ? [[5,'gross'],[6,'taxes'],[7,'benefits'],[8,'netSalary'],[9,'perDiem'],[10,'incidentDeduction'],[11,'reserveInterest'],[12,'deposit']]
         : [[5,'gross'],[6,'taxes'],[7,'benefits'],[8,'netSalary'],[9,'perDiem'],[10,'incidentDeduction'],[11,'deposit']]
       fields.forEach(([column, field]) => validateNumeric(row[column], labelAt(type,field,index), invalid))
+      if (version >= 8 && row[14] === 'month') {
+        if (!hasValue(row[15])) missing.push(labelAt(type, 'month', index))
+        if (!hasValue(row[18])) missing.push(labelAt(type, 'weeks', index))
+        validateNumeric(row[15], labelAt(type, 'month', index), invalid, { integer: true, min: 1 })
+        validateNumeric(row[16], labelAt(type, 'startWeek', index), invalid, { integer: true, min: 1 })
+        validateNumeric(row[17], labelAt(type, 'endWeek', index), invalid, { integer: true, min: 1 })
+        if (hasValue(row[18]) && parseWeekList(row[18]).length !== String(row[18]).split('|').length) invalid.push(`${labelAt(type, 'weeks', index)} (use semanas inteiras separadas por |)`)
+      }
+      if (version >= 8 && hasValue(row[21])) {
+        try {
+          const breakdown = JSON.parse(row[21])
+          if (!breakdown || Array.isArray(breakdown) || typeof breakdown !== 'object') throw new Error('invalid')
+        } catch {
+          invalid.push(`${labelAt(type, 'taxBreakdown', index)} (use um objeto JSON válido)`)
+        }
+      }
     }
   })
 
@@ -274,21 +322,25 @@ function importCareerRows(rows, expectedGameId) {
   const gameId = gameIdFromBackupMarker(marker)
   if (!gameId) throw new Error('O arquivo não possui uma identificação de carreira compatível (ATS_CAREER_BACKUP ou ETS2_CAREER_BACKUP).')
   if (expectedGameId && expectedGameId !== gameId) throw new Error(`Este é um backup de ${getGame(gameId).shortName}. Importe-o na área de carreiras desse jogo.`)
-  const game = getGame(gameId)
   const version = parseStrictNumber(rows[0][1] ?? 1)
   if (!Number.isInteger(version) || version < 1) throw new Error('A versão do backup é inválida.')
+  const careerDataRow = rows.find((row) => String(row[0] || '').trim() === 'CAREER' && row[1] !== 'id')
+  const countryCode = gameId === 'ets2'
+    ? (version >= 8 ? String(careerDataRow?.[9] || '').trim().toUpperCase() : inferEts2CountryCode(careerDataRow?.[3]) || 'DE')
+    : null
+  const game = getGame(gameId, countryCode)
   validateImportRows(rows, version, game)
 
   const imported = {
     career: null,
     setupCosts: {},
-    state: { balance: 0, emergencyReserve: 0, history: [], careerMiles: 0, careerLevel: 1, currentLevel: 1, trips: [], customExpenses: [], currentWeek: 1, closedWeeks: [], incidents: [], academy: { level2: false, level3: false }, hazmatQualified: false },
+    state: { balance: 0, emergencyReserve: 0, expenses: { ...game.expenses }, history: [], careerMiles: 0, careerLevel: 1, currentLevel: 1, trips: [], customExpenses: [], currentWeek: 1, currentPayrollMonth: 1, payPeriodStartWeek: 1, closedOperationalWeeks: [], closedWeeks: [], incidents: [], academy: { level2: false, level3: false }, hazmatQualified: false, autoReserveContribution: { enabled: false, amount: 0 } },
   }
 
   for (const row of rows.slice(1)) {
     const type = String(row[0] || '').trim()
     if (type === 'CAREER' && row[1] !== 'id') {
-      imported.career = { driverName: row[2] || '', city: row[3] || '', company: row[4] || '', arrivalBalance: parseStrictNumber(row[5]), initialBalance: parseStrictNumber(row[6]), bio: row[7] || '', createdAt: version <= 1 ? new Date().toISOString() : (row[8] || new Date().toISOString()) }
+      imported.career = { driverName: row[2] || '', city: row[3] || '', company: row[4] || '', arrivalBalance: parseStrictNumber(row[5]), initialBalance: parseStrictNumber(row[6]), bio: row[7] || '', createdAt: version <= 1 ? new Date().toISOString() : (row[8] || new Date().toISOString()), countryCode: game.countryCode || '', countryName: game.countryName || '', currency: game.currency }
     } else if (type === 'SETUP_COST' && row[1] && row[1] !== 'name') {
       imported.setupCosts[row[1]] = parseStrictNumber(row[2])
     } else if (type === 'STATE' && row[1] !== 'balance') {
@@ -301,6 +353,12 @@ function importCareerRows(rows, expectedGameId) {
       imported.state.hazmatQualified = boolValue(row[6])
       imported.state.dangerousGoodsQualified = imported.state.hazmatQualified
       imported.state.emergencyReserve = version >= 7 ? parseStrictNumber(row[7]) : 0
+      imported.state.currentPayrollMonth = version >= 8 ? parseStrictNumber(row[8]) : 1
+      imported.state.payPeriodStartWeek = version >= 8 ? parseStrictNumber(row[9]) : 1
+      imported.state.closedOperationalWeeks = version >= 8 ? parseWeekList(row[10]) : []
+      imported.state.autoReserveContribution = version >= 8 ? { enabled: boolValue(row[11]), amount: hasValue(row[12]) ? parseStrictNumber(row[12]) : 0 } : { enabled: false, amount: 0 }
+    } else if (type === 'BASE_EXPENSE' && row[1] && row[1] !== 'name') {
+      imported.state.expenses[row[1]] = parseStrictNumber(row[2])
     } else if (type === 'TRIP' && row[1] !== 'id') {
       const modern = row.length >= 13
       const generatedId = Date.now() + Math.floor(Math.random() * 10000)
@@ -321,12 +379,14 @@ function importCareerRows(rows, expectedGameId) {
       const value = hasValue(row[4]) ? parseStrictNumber(row[4]) : 0
       imported.state.history.push({ date: row[1] || '', type: row[2] || '', desc: row[3] || '', value, amount: value, balance: hasValue(row[5]) ? parseStrictNumber(row[5]) : 0 })
     } else if (type === 'EXPENSE' && row[1] !== 'id') {
-      imported.state.customExpenses.push({ id: hasValue(row[1]) ? parseStrictNumber(row[1]) : Date.now() + Math.floor(Math.random() * 10000), name: row[2] || '', value: parseStrictNumber(row[3]), monthly: boolValue(row[4]) })
+      imported.state.customExpenses.push({ id: hasValue(row[1]) ? row[1] : `exp_${Date.now()}_${Math.floor(Math.random() * 10000)}`, name: row[2] || '', value: parseStrictNumber(row[3]), monthly: boolValue(row[4]) })
     } else if (type === 'INCIDENT' && row[1] !== 'id') {
-      imported.state.incidents.push({ id: hasValue(row[1]) ? parseStrictNumber(row[1]) : Date.now() + Math.floor(Math.random() * 10000), type: row[2] || 'Infração', date: row[3] || '', time: row[4] || '', route: row[5] || '', description: row[6] || '', amount: parseStrictNumber(row[7]), chargeMethod: row[8] || 'balance', status: row[9] || '', remaining: hasValue(row[10]) ? parseStrictNumber(row[10]) : 0, createdAt: row[11] || '' })
+      imported.state.incidents.push({ id: hasValue(row[1]) ? parseStrictNumber(row[1]) : Date.now() + Math.floor(Math.random() * 10000), type: row[2] || 'Infração', date: row[3] || '', time: row[4] || '', route: row[5] || '', description: row[6] || '', amount: parseStrictNumber(row[7]), chargeMethod: row[8] || 'balance', status: row[9] || '', remaining: hasValue(row[10]) ? parseStrictNumber(row[10]) : 0, createdAt: row[11] || '', week: version >= 8 && hasValue(row[12]) ? parseStrictNumber(row[12]) : undefined })
     } else if (type === 'CLOSED_WEEK' && row[1] !== 'week') {
       const n = (column, fallback = 0) => hasValue(row[column]) ? parseStrictNumber(row[column]) : fallback
-      const closed = version >= 7
+      const closed = version >= 8
+        ? { week: n(1,1), closedAt: row[2] || '', level: n(4,1), gross: n(5), taxes: n(6), benefits: n(7), netSalary: n(8), perDiem: n(9), incidentDeduction: n(10), reserveInterest: n(11), deposit: n(12), desc: row[13] || '', periodType: row[14] || 'week', month: hasValue(row[15]) ? n(15) : undefined, startWeek: n(16,n(1,1)), endWeek: n(17,n(1,1)), weeks: parseWeekList(row[18]).length ? parseWeekList(row[18]) : [n(1,1)], countryCode: row[19] || game.countryCode || '', currency: row[20] || game.currency, taxBreakdown: (() => { try { return JSON.parse(row[21] || '{}') } catch { return {} } })() }
+        : version >= 7
         ? { week: n(1,1), closedAt: row[2] || '', level: n(4,1), gross: n(5), taxes: n(6), benefits: n(7), netSalary: n(8), perDiem: n(9), incidentDeduction: n(10), reserveInterest: n(11), deposit: n(12), desc: row[13] || '' }
         : { week: n(1,1), closedAt: row[2] || '', level: n(4,1), gross: n(5), taxes: n(6), benefits: n(7), netSalary: n(8), perDiem: n(9), incidentDeduction: row.length >= 13 ? n(10) : 0, reserveInterest: 0, deposit: n(row.length >= 13 ? 11 : 10), desc: row[row.length >= 13 ? 12 : 11] || '' }
       closed[game.distanceField] = n(3)
@@ -343,7 +403,15 @@ function importCareerRows(rows, expectedGameId) {
     driverName: String(imported.career.driverName).trim(), city: String(imported.career.city).trim(), company: String(imported.career.company).trim(),
     arrivalBalance: imported.career.arrivalBalance, setupCosts: setup, setupCostsTotal: setupTotal, initialBalance: imported.career.initialBalance,
     currentBalance: imported.state.balance, currentLevel: imported.state.currentLevel || 1, bio: imported.career.bio || '',
+    countryCode: game.countryCode || '', countryName: game.countryName || '', currency: game.currency,
     createdAt: imported.career.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString(),
+  }
+  if (game.payrollPeriod === 'monthly' && imported.state.closedOperationalWeeks.length === 0) {
+    imported.state.closedOperationalWeeks = [...new Set(imported.state.closedWeeks.flatMap((period) => period.weeks || [period.week]).map(Number).filter(Number.isFinite))]
+  }
+  if (game.payrollPeriod === 'monthly' && version < 8 && imported.state.closedWeeks.length > 0) {
+    imported.state.currentPayrollMonth = imported.state.closedWeeks.length + 1
+    imported.state.payPeriodStartWeek = imported.state.currentWeek
   }
   imported.state.careerMiles = imported.state.trips.reduce((sum, trip) => sum + tripDistance(trip), 0)
   const careers = loadCareers(gameId)
