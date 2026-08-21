@@ -235,14 +235,15 @@ function OverviewTab({ career, state, setActiveTab }) {
         <div><span className="metric-label">Base</span><strong>{career.city || '—'}</strong></div>
         <div><span className="metric-label">Empresa</span><strong>{career.company || '—'}</strong></div>
         {game.id === 'ets2' && <div><span className="metric-label">País-sede</span><strong>{game.countryFlag} {game.countryName}</strong></div>}
-        {game.id === 'ets2' && <div><span className="metric-label">Moeda da carreira</span><strong>{game.currency} {game.currency !== game.baseCurrency ? `• base fiscal ${game.baseCurrency}` : '• moeda fiscal local'}</strong></div>}
+        {game.id === 'ats' && <div><span className="metric-label">Estado-sede</span><strong>{game.stateName} ({game.stateCode})</strong></div>}
+        <div><span className="metric-label">Moeda da carreira</span><strong>{game.currency} {game.currency !== game.baseCurrency ? `• base fiscal ${game.baseCurrency}` : '• moeda fiscal local'}</strong></div>
       </section>
 
       <section className="panel legacy-bridge" data-tour="career-backup">
         <div>
           <span className="eyebrow">Backup da carreira</span>
           <h2>Exportação CSV já está em React</h2>
-          <p>O backup inclui perfil, país-sede, moeda e cotação registrada, estado, viagens, histórico, gastos personalizados, ocorrências e holerites fechados. A importação fica na tela de Carreiras.</p>
+          <p>O backup inclui perfil, sede fiscal, moeda e cotação registrada, estado da aplicação, viagens, histórico, gastos personalizados, ocorrências e holerites fechados. A importação fica na tela de Carreiras.</p>
         </div>
         <button className="button success compact" type="button" onClick={() => exportCareerCSV(career, state, game.id)}>Exportar carreira CSV</button>
       </section>

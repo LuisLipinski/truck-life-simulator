@@ -128,6 +128,7 @@ describe('career card navigation', () => {
       root.render(createElement(ToastProvider, null, createElement(ConfirmProvider, null, createElement(TutorialProvider, null, createElement(App)))))
     })
 
+    setSelectValue(document.querySelector('#career-state'), 'CA')
     setInputValue(document.querySelector('input[placeholder="Ex.: Rafael Silva"]'), 'Tutorial Driver')
     setInputValue(document.querySelector('.react-city-autocomplete input'), 'Los Angeles, CA')
     setInputValue(document.querySelector('input[placeholder="Ex.: Pacific Horizon Logistics"]'), 'Tour Logistics')
@@ -142,6 +143,31 @@ describe('career card navigation', () => {
     expect(document.querySelector('.guided-tutorial-popover')?.textContent).toContain('As fases da sua carreira')
     expect(JSON.parse(sessionStorage.getItem(TUTORIAL_STORAGE_KEY))).toMatchObject({ index: 0 })
     expect(JSON.parse(localStorage.getItem(CAREERS_KEY))).toHaveLength(1)
+  })
+
+  it('creates an ATS career with state-filtered city and euro display currency', async () => {
+    window.location.hash = '#/new'
+    await act(async () => {
+      root.render(createElement(ToastProvider, null, createElement(ConfirmProvider, null, createElement(TutorialProvider, null, createElement(App)))))
+    })
+
+    expect(document.querySelectorAll('#career-state option')).toHaveLength(21)
+    setSelectValue(document.querySelector('#career-state'), 'TX')
+    expect(document.querySelector('#career-currency').value).toBe('USD')
+    expect(document.querySelector('.city-field')?.textContent).toContain('Texas (TX)')
+    setSelectValue(document.querySelector('#career-currency'), 'EUR')
+    setInputValue(document.querySelector('input[placeholder="Ex.: Rafael Silva"]'), 'Euro Texas Driver')
+    setInputValue(document.querySelector('.react-city-autocomplete input'), 'Dallas, TX')
+    setInputValue(document.querySelector('input[placeholder="Ex.: Pacific Horizon Logistics"]'), 'Lone Star Logistics')
+
+    await act(async () => {
+      document.querySelector('.form-panel').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+      await Promise.resolve()
+    })
+
+    const [career] = JSON.parse(localStorage.getItem(CAREERS_KEY) || '[]')
+    expect(career).toMatchObject({ stateCode: 'TX', stateName: 'Texas', currency: 'EUR', baseCurrency: 'USD', city: 'Dallas, TX' })
+    expect(career.exchangeRate).toBeCloseTo(1 / 1.1681)
   })
 
   it('creates an independent ETS2 career with European city, euro and kilometer copy', async () => {

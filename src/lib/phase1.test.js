@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { getGame } from '../config/games.js'
 import {
   EMERGENCY_RESERVE_ANNUAL_YIELD,
   applyPendingIncidentDeductions,
@@ -149,13 +150,20 @@ describe('Phase 1 expenses, reserve, taxes and incidents', () => {
     expect(weeklyEmergencyReserveYield(-10)).toBe(0)
   })
 
-  it('preserves the legacy weekly tax formula', () => {
-    const taxes = estimateTaxes(850)
-    expect(taxes.federal).toBeCloseTo(59)
-    expect(taxes.ss).toBeCloseTo(52.7)
-    expect(taxes.medicare).toBeCloseTo(12.325)
-    expect(taxes.sdi).toBeCloseTo(11.05)
-    expect(taxes.ca).toBeCloseTo(18.445)
+  it('uses the 2026 federal and state profile selected for the ATS career', () => {
+    const california = estimateTaxes(1080, getGame('ats', 'CA'))
+    const texas = estimateTaxes(1080, getGame('ats', 'TX'))
+    const washington = estimateTaxes(1080, getGame('ats', 'WA'))
+
+    expect(california.federal).toBeCloseTo(87.6769)
+    expect(california.ss).toBeCloseTo(66.96)
+    expect(california.medicare).toBeCloseTo(15.66)
+    expect(california.stateIncomeTax).toBeGreaterThan(0)
+    expect(california.statePayroll).toBeCloseTo(14.04)
+    expect(texas.stateIncomeTax).toBeUndefined()
+    expect(texas.statePayroll).toBeUndefined()
+    expect(washington.stateIncomeTax).toBeUndefined()
+    expect(washington.statePayroll).toBeCloseTo(6.264)
   })
 
   it('applies incident deductions in order and carries the remainder', () => {

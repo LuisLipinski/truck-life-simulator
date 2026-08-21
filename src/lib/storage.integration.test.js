@@ -47,6 +47,16 @@ describe('career and Phase 1 storage integration', () => {
     expect(state.trips).toEqual([])
   })
 
+  it('migrates an older ATS career to the state inferred from its city', () => {
+    localStorage.setItem(CAREERS_KEY, JSON.stringify([{
+      id: 'legacy_texas', driverName: 'Texas Driver', city: 'Dallas, TX', company: 'Lone Star Logistics', initialBalance: 900,
+    }]))
+
+    const [career] = loadCareers('ats')
+    expect(career).toMatchObject({ gameId: 'ats', stateCode: 'TX', stateName: 'Texas', currency: 'USD', baseCurrency: 'USD', exchangeRate: 1 })
+    expect(career.exchangeRateAsOf).toBe('2026-08-20')
+  })
+
   it('persists Phase 1 state and synchronizes balance and level back to the career record', () => {
     const career = createCareer({
       driverName: 'Teste Driver',

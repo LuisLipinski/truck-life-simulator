@@ -863,3 +863,30 @@ O build apresenta apenas um aviso não bloqueante por existir um chunk JavaScrip
 A migração funcional para React está concluída para o fluxo atualmente existente da Fase 1. A versão React já cria e gerencia carreiras, registra viagens, calcula pagamentos, controla finanças, processa ocorrências, aplica progressões, mantém backups e está publicada no GitHub Pages.
 
 O trabalho restante é principalmente de validação funcional e visual, otimização e planejamento das futuras Fases 2 e 3. O desenvolvimento passa a ser integrado em `development` e promovido para `master` pela pipeline.
+
+## 29. Sede fiscal completa no ETS2 e no ATS
+
+Atualização de 20/08/2026:
+
+- os 34 países existentes em `ets2Cities.js` agora possuem perfil financeiro, moeda fiscal, cidades filtradas, salário, custos e retenções;
+- Alemanha, Reino Unido e Polônia preservam os cálculos nacionais detalhados;
+- os outros países usam um modelo efetivo simplificado, com imposto de renda e contribuição social separados e fontes apresentadas na interface;
+- os 20 estados existentes em `atsCities.js` agora possuem perfil financeiro próprio;
+- a criação de carreira ATS exige estado-sede antes da cidade e filtra as cidades pela sigla estadual;
+- imposto federal, Social Security e Medicare usam referências de 2026;
+- cada estado aplica sua própria alíquota/faixa; Califórnia acrescenta SDI e Washington acrescenta WA Cares;
+- Nevada, Texas, Washington e Wyoming não aplicam imposto estadual sobre salários;
+- ATS passa a oferecer USD e EUR, as duas moedas de exibição verificadas no jogo original;
+- o câmbio do ATS também é congelado na criação da carreira;
+- carreiras ATS antigas têm o estado inferido pela cidade, com Califórnia apenas como fallback;
+- o backup foi elevado para v10 e inclui `stateCode`, `stateName`, moeda e cotação do ATS;
+- o tutorial passou a ter 29 etapas no ATS e acrescenta a explicação do ciclo mensal no ETS2.
+
+Validação automatizada desta entrega:
+
+- 16 arquivos de teste aprovados;
+- 93 testes aprovados;
+- 49 módulos transformados no build de produção;
+- build concluído, com o aviso não bloqueante já conhecido para o chunk principal maior que 500 kB.
+
+Os valores de salário e custo de vida continuam editáveis e são aproximações de roleplay. As retenções não substituem folha oficial e não incluem todos os créditos pessoais nem impostos municipais ou distritais.

@@ -58,4 +58,22 @@ describe('CSV backup integration', () => {
     expect(storedState.balance).toBe(900)
     expect(storedState.emergencyReserve).toBe(0)
   })
+
+  it('imports backup v10 with ATS state, display currency and tax snapshot', () => {
+    const csv = [
+      'ATS_CAREER_BACKUP,10',
+      'CAREER,id,driverName,city,company,arrivalBalance,initialBalance,bio,createdAt,countryCode,countryName,currency,baseCurrency,exchangeRate,exchangeRateAsOf,stateCode,stateName',
+      'CAREER,,Euro Texas Driver,"Dallas, TX",Lone Star Logistics,3500,1425,Bio,2026-08-20T10:00:00.000Z,,,EUR,USD,0.856090,2026-08-20,TX,Texas',
+      'STATE,balance,careerLevel,currentWeek,academyLevel2,academyLevel3,hazmatQualified,emergencyReserve,currentPayrollMonth,payPeriodStartWeek,closedOperationalWeeks,autoReserveEnabled,autoReserveAmount',
+      'STATE,1500,1,2,0,0,0,100,1,1,,0,0',
+      'CLOSED_WEEK,week,closedAt,miles,level,gross,taxes,benefits,netSalary,perDiem,incidentDeduction,reserveInterest,deposit,desc,periodType,month,startWeek,endWeek,weeks,countryCode,currency,taxBreakdown,baseCurrency,exchangeRate,exchangeRateAsOf,stateCode,stateName',
+      'CLOSED_WEEK,1,20/08/2026,400,1,924,160,30,734,0,0,0.06,734,Semana 1,week,,1,1,1,,EUR,"{""federal"":75}",USD,0.856090,2026-08-20,TX,Texas',
+    ].join('\n')
+
+    const result = importCareerCSVText(csv, 'ats')
+    expect(result.version).toBe(10)
+    expect(result.career).toMatchObject({ stateCode: 'TX', stateName: 'Texas', currency: 'EUR', baseCurrency: 'USD' })
+    expect(result.career.exchangeRate).toBeCloseTo(0.85609)
+    expect(result.state.closedWeeks[0]).toMatchObject({ stateCode: 'TX', stateName: 'Texas', currency: 'EUR', baseCurrency: 'USD' })
+  })
 })

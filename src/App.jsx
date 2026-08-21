@@ -9,6 +9,7 @@ import {
 } from './lib/storage.js'
 import { downloadCSVTemplate, downloadExcelTemplate, importCareerFile } from './lib/csv.js'
 import { formatMoney, gameIdFromPath, getGame, getGameForCareer, GAMES } from './config/games.js'
+import { convertAtsCurrency } from './config/atsCurrencies.js'
 import { convertEts2Currency, roundCurrency } from './config/ets2Currencies.js'
 import Phase1Page from './components/Phase1Page.jsx'
 import CityAutocomplete from './components/CityAutocomplete.jsx'
@@ -126,7 +127,7 @@ function CareersPage() {
           <p>Backups CSV, XLS e XLSX desta área usam a identificação <code>{game.backupMarker}</code>. Assim, uma carreira de ATS nunca é importada por engano como ETS2 — ou o contrário.</p>
           <p><strong>CSV:</strong> use ponto para casas decimais e não use separador de milhar nem símbolo de moeda. Exemplos: <code>850</code>, <code>1602.63</code> e <code>0.50</code>.</p>
           <p><strong>XLS/XLSX:</strong> use células numéricas normais. A exibição regional do Excel não altera o valor lido pelo aplicativo.</p>
-          <p>A importação cria uma nova carreira com outro ID e preserva perfil, país-sede, moeda, cotação registrada, custos iniciais, viagens, histórico, despesas, ocorrências, períodos fechados e reserva.</p>
+          <p>A importação cria uma nova carreira com outro ID e preserva perfil, sede fiscal (estado ou país), moeda, cotação registrada, custos iniciais, viagens, histórico, despesas, ocorrências, períodos fechados e reserva.</p>
           <p>Não altere os nomes da primeira coluna, como <code>CAREER</code>, <code>STATE</code>, <code>TRIP</code> e <code>CLOSED_WEEK</code>.</p>
           <div className="action-row">
             <button className="button secondary" type="button" onClick={() => downloadCSVTemplate(game.id)}>Baixar modelo CSV</button>
@@ -167,7 +168,8 @@ function CareersPage() {
               </div>
               <div className="career-meta">
                 {game.id === 'ets2' && <><span>País-sede</span><strong>{careerGame.countryFlag} {careerGame.countryName}</strong></>}
-                {game.id === 'ets2' && <><span>Moeda</span><strong>{careerGame.currency}{careerGame.currency !== careerGame.baseCurrency ? ` • base ${careerGame.baseCurrency}` : ''}</strong></>}
+                {game.id === 'ats' && <><span>Estado-sede</span><strong>{careerGame.stateName} ({careerGame.stateCode})</strong></>}
+                <span>Moeda</span><strong>{careerGame.currency}{careerGame.currency !== careerGame.baseCurrency ? ` • base ${careerGame.baseCurrency}` : ''}</strong>
                 <span>Empresa</span><strong>{career.company || '—'}</strong>
                 <span>Saldo inicial</span><strong>{formatMoney(career.initialBalance ?? career.currentBalance, careerGame)}</strong>
               </div>
@@ -194,18 +196,20 @@ function NewCareerPage() {
   const { startTutorial } = useTutorial()
   const [driverName, setDriverName] = useState('')
   const [countryCode, setCountryCode] = useState('')
+  const [stateCode, setStateCode] = useState('')
   const [currencyCode, setCurrencyCode] = useState('')
   const [city, setCity] = useState('')
   const [company, setCompany] = useState('')
-  const [arrivalBalance, setArrivalBalance] = useState(game.id === 'ats' ? 5000 : 0)
+  const [arrivalBalance, setArrivalBalance] = useState(0)
   const [bio, setBio] = useState('')
-  const [costs, setCosts] = useState(() => game.id === 'ats' ? { ...game.setupCosts } : {})
+  const [costs, setCosts] = useState({})
   const [showTutorial, setShowTutorial] = useState(false)
+  const locationCode = isEts2 ? countryCode : stateCode
   const selectedGame = useMemo(
-    () => isEts2 && countryCode ? getGame('ets2', countryCode, currencyCode) : game,
-    [countryCode, currencyCode, game, isEts2],
+    () => locationCode ? getGame(game.id, locationCode, currencyCode) : game,
+    [currencyCode, game, locationCode],
   )
-  const financialProfileReady = !isEts2 || Boolean(countryCode && currencyCode)
+  const financialProfileReady = Boolean(locationCode && currencyCode)
 
   const totalCosts = useMemo(() => Object.values(costs).reduce((sum, value) => sum + Number(value || 0), 0), [costs])
   const remaining = Number(arrivalBalance || 0) - totalCosts
@@ -214,36 +218,38 @@ function NewCareerPage() {
     setCosts((current) => ({ ...current, [key]: Number(value) || 0 }))
   }
 
-  function changeCountry(nextCountryCode) {
-    setCountryCode(nextCountryCode)
+  function changeLocation(nextLocationCode) {
+    if (isEts2) setCountryCode(nextLocationCode)
+    else setStateCode(nextLocationCode)
     setCity('')
-    if (!nextCountryCode) {
+    if (!nextLocationCode) {
       setCurrencyCode('')
       setArrivalBalance(0)
       setCosts({})
       return
     }
-    const countryGame = getGame('ets2', nextCountryCode)
-    setCurrencyCode(countryGame.baseCurrency)
-    setArrivalBalance(countryGame.defaultArrivalBalance)
-    setCosts({ ...countryGame.setupCosts })
+    const locationGame = getGame(game.id, nextLocationCode)
+    setCurrencyCode(locationGame.baseCurrency)
+    setArrivalBalance(locationGame.defaultArrivalBalance)
+    setCosts({ ...locationGame.setupCosts })
   }
 
   function changeCurrency(nextCurrencyCode) {
-    if (!countryCode || !nextCurrencyCode) return
+    if (!locationCode || !nextCurrencyCode) return
     const fromCurrency = selectedGame.currency
-    setArrivalBalance(roundCurrency(convertEts2Currency(arrivalBalance, fromCurrency, nextCurrencyCode)))
+    const convert = isEts2 ? convertEts2Currency : convertAtsCurrency
+    setArrivalBalance(roundCurrency(convert(arrivalBalance, fromCurrency, nextCurrencyCode)))
     setCosts((current) => Object.fromEntries(Object.entries(current).map(([key, value]) => [
       key,
-      roundCurrency(convertEts2Currency(value, fromCurrency, nextCurrencyCode)),
+      roundCurrency(convert(value, fromCurrency, nextCurrencyCode)),
     ])))
     setCurrencyCode(nextCurrencyCode)
   }
 
   async function submit(event) {
     event.preventDefault()
-    if (isEts2 && !countryCode) {
-      toast.error('Escolha o país-sede financeiro antes de criar a carreira.')
+    if (!locationCode) {
+      toast.error(`Escolha o ${isEts2 ? 'país' : 'estado'}-sede financeiro antes de criar a carreira.`)
       return
     }
     if (!driverName.trim() || !city.trim() || !company.trim()) {
@@ -252,6 +258,10 @@ function NewCareerPage() {
     }
     if (isEts2 && !city.trim().endsWith(`, ${selectedGame.countryName}`)) {
       toast.error(`A cidade-base precisa pertencer ao país-sede ${selectedGame.countryName}. Para cidades de mod, use o formato “Cidade, ${selectedGame.countryName}”.`)
+      return
+    }
+    if (!isEts2 && !city.trim().endsWith(`, ${selectedGame.stateCode}`)) {
+      toast.error(`A cidade-base precisa pertencer ao estado-sede ${selectedGame.stateName}. Para cidades de mod, use o formato “Cidade, ${selectedGame.stateCode}”.`)
       return
     }
     if (remaining < 0) {
@@ -266,9 +276,10 @@ function NewCareerPage() {
     const career = createCareer({
       driverName: driverName.trim(), city: city.trim(), company: company.trim(), currency: selectedGame.currency,
       countryCode: isEts2 ? countryCode : undefined, countryName: isEts2 ? selectedGame.countryName : undefined,
-      baseCurrency: isEts2 ? selectedGame.baseCurrency : undefined,
-      exchangeRate: isEts2 ? selectedGame.exchangeRate : undefined,
-      exchangeRateAsOf: isEts2 ? selectedGame.exchangeRateAsOf : undefined,
+      stateCode: !isEts2 ? stateCode : undefined, stateName: !isEts2 ? selectedGame.stateName : undefined,
+      baseCurrency: selectedGame.baseCurrency,
+      exchangeRate: selectedGame.exchangeRate,
+      exchangeRateAsOf: selectedGame.exchangeRateAsOf,
       arrivalBalance: Number(arrivalBalance) || 0, setupCosts: costs, setupCostsTotal: totalCosts,
       initialBalance: remaining, currentBalance: remaining, bio: bio.trim(),
     }, game.id)
@@ -284,40 +295,36 @@ function NewCareerPage() {
         <div className="section-heading">
           <span className="eyebrow">Novo personagem • {game.shortName}</span>
           <h1>Criar nova carreira</h1>
-          <p>{isEts2 ? 'Escolha o país-sede das regras financeiras e, separadamente, a moeda em que deseja controlar a carreira; as viagens continuam em quilômetros por toda a Europa.' : `${game.region}, ${game.distanceName} e valores em ${game.currencyLabel}.`} Cada jogo mantém progresso separado.</p>
+          <p>{isEts2 ? 'Escolha o país-sede das regras financeiras e, separadamente, a moeda em que deseja controlar a carreira; as viagens continuam em quilômetros por toda a Europa.' : 'Escolha o estado-sede para usar custos e impostos locais e selecione dólar ou euro como moeda de exibição; as viagens continuam em milhas por todos os Estados Unidos.'} Cada jogo mantém progresso separado.</p>
         </div>
 
-        {isEts2 && (
-          <div className="country-selector" data-tour="career-country">
-            <label htmlFor="career-country">País-sede financeiro</label>
-            <select id="career-country" value={countryCode} onChange={(event) => changeCountry(event.target.value)} required>
-              <option value="">Selecione o país-sede</option>
-              {game.countryOptions.map((country) => <option value={country.code} key={country.code}>{country.flag} {country.name} — {country.currency}</option>)}
+        <div className="country-selector" data-tour={isEts2 ? 'career-country' : 'career-state'}>
+            <label htmlFor={isEts2 ? 'career-country' : 'career-state'}>{isEts2 ? 'País-sede financeiro' : 'Estado-sede financeiro'}</label>
+            <select id={isEts2 ? 'career-country' : 'career-state'} value={locationCode} onChange={(event) => changeLocation(event.target.value)} required>
+              <option value="">Selecione o {isEts2 ? 'país' : 'estado'}-sede</option>
+              {(isEts2 ? game.countryOptions : game.stateOptions).map((location) => <option value={location.code} key={location.code}>{isEts2 ? `${location.flag} ` : ''}{location.name} — {location.currency}</option>)}
             </select>
-            <small>O país-sede define impostos, contribuições, salário e custos-base. O destino das viagens não altera sua folha.</small>
+            <small>O {isEts2 ? 'país' : 'estado'}-sede define impostos, contribuições, salário e custos-base. O destino das viagens não altera sua folha.</small>
           </div>
-        )}
 
-        {isEts2 && (
-          <div className="country-selector" data-tour="career-currency">
+        <div className="country-selector" data-tour="career-currency">
             <label htmlFor="career-currency">Moeda da carreira</label>
-            <select id="career-currency" value={currencyCode} onChange={(event) => changeCurrency(event.target.value)} disabled={!countryCode} required>
-              <option value="">Selecione primeiro o país-sede</option>
+            <select id="career-currency" value={currencyCode} onChange={(event) => changeCurrency(event.target.value)} disabled={!locationCode} required>
+              <option value="">Selecione primeiro o {isEts2 ? 'país' : 'estado'}-sede</option>
               {game.currencyOptions.map((currency) => <option value={currency.code} key={currency.code}>{currency.code} — {currency.name} ({currency.symbol})</option>)}
             </select>
-            <small>{countryCode && currencyCode
+            <small>{locationCode && currencyCode
               ? selectedGame.currency === selectedGame.baseCurrency
-                ? `Valores já estão na moeda-base de ${selectedGame.countryName}.`
-                : `Regras de ${selectedGame.countryName} são calculadas em ${selectedGame.baseCurrency} e convertidas para ${selectedGame.currency}. Cotação fixada em ${selectedGame.exchangeRateAsOf}: 1 ${selectedGame.baseCurrency} = ${formatMoney(selectedGame.exchangeRate, selectedGame)}.`
+                ? `Valores já estão na moeda-base de ${isEts2 ? selectedGame.countryName : selectedGame.stateName}.`
+                : `Regras de ${isEts2 ? selectedGame.countryName : selectedGame.stateName} são calculadas em ${selectedGame.baseCurrency} e convertidas para ${selectedGame.currency}. Cotação fixada em ${selectedGame.exchangeRateAsOf}: 1 ${selectedGame.baseCurrency} = ${formatMoney(selectedGame.exchangeRate, selectedGame)}.`
               : 'A moeda escolhida será usada em todas as telas, lançamentos e holerites da carreira.'}</small>
           </div>
-        )}
 
         <label>Nome do motorista</label>
         <input value={driverName} onChange={(e) => setDriverName(e.target.value)} placeholder="Ex.: Rafael Silva" required />
 
         <div className="two-columns">
-          <CityAutocomplete value={city} onChange={setCity} label="Cidade-base" required cities={isEts2 ? selectedGame.baseCities || [] : null} disabled={!financialProfileReady} placeholder={isEts2 ? selectedGame.cityPlaceholder : undefined} hint={isEts2 ? (financialProfileReady ? `${selectedGame.baseCities.length} cidades disponíveis em ${selectedGame.countryName}. Cidades de viagem continuam abrangendo todo o mapa europeu.` : 'Selecione o país-sede para liberar as cidades-base.') : ''} />
+          <CityAutocomplete value={city} onChange={setCity} label="Cidade-base" required cities={selectedGame.baseCities || []} disabled={!financialProfileReady} placeholder={selectedGame.cityPlaceholder} hint={financialProfileReady ? `${selectedGame.baseCities.length} cidades disponíveis em ${isEts2 ? selectedGame.countryName : `${selectedGame.stateName} (${selectedGame.stateCode})`}. Cidades de viagem continuam abrangendo todo o mapa.` : `Selecione o ${isEts2 ? 'país' : 'estado'}-sede para liberar as cidades-base.`} />
           <div><label>Nome da empresa</label><input value={company} onChange={(e) => setCompany(e.target.value)} placeholder={`Ex.: ${selectedGame.companyPlaceholder}`} required /></div>
         </div>
 
@@ -373,7 +380,7 @@ function PhasesPage({ careerId }) {
     <main className="page-shell phase-shell">
       <AppLink className="back-link" to={game.routes.careers}>← Voltar para carreiras</AppLink>
       <section className="page-heading centered"><span className="eyebrow">{game.name}</span><h1>Fases da carreira</h1><p>Escolha a etapa da vida profissional do motorista.</p></section>
-      <div className="profile-strip"><strong>{career.driverName}</strong><span>{career.city}</span><span>{career.company}</span><span>{game.countryFlag ? `${game.countryFlag} ${game.countryName} • ` : ''}{game.currency} • {game.distanceUnit}</span></div>
+      <div className="profile-strip"><strong>{career.driverName}</strong><span>{career.city}</span><span>{career.company}</span><span>{game.countryFlag ? `${game.countryFlag} ${game.countryName}` : `${game.stateName} (${game.stateCode})`} • {game.currency} • {game.distanceUnit}</span></div>
       <section className="phase-list" data-tour="career-phases">
         <AppLink className="phase-card interactive" data-tour="phase-one" to={`${game.routes.phase1}?career=${encodeURIComponent(career.id)}`}>
           <div><span className="eyebrow">Fase ativa</span><h2>Fase 1 — Motorista Empregado</h2><p>{game.levelRoles[0]} • Níveis 1, 2 e 3 • Sem caminhão próprio.</p></div><span className="tag active">Abrir</span>
@@ -408,9 +415,10 @@ export default function App() {
 
   return page ? (
     <GameProvider
-      key={`${game.id}:${path}:${career?.countryCode || ''}:${career?.currency || ''}:${career?.exchangeRate || ''}`}
+      key={`${game.id}:${path}:${career?.countryCode || career?.stateCode || ''}:${career?.currency || ''}:${career?.exchangeRate || ''}`}
       gameId={game.id}
       countryCode={career?.countryCode || null}
+      stateCode={career?.stateCode || null}
       currencyCode={career?.currency || null}
       exchangeRate={career?.exchangeRate || null}
       exchangeRateAsOf={career?.exchangeRateAsOf || null}

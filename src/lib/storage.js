@@ -1,4 +1,6 @@
 import { getGame } from '../config/games.js'
+import { getAtsStateProfile, inferAtsStateCode } from '../config/atsStates.js'
+import { ATS_EXCHANGE_RATE_DATE, getAtsCurrency, getAtsExchangeRate } from '../config/atsCurrencies.js'
 import { getEts2CountryProfile, inferEts2CountryCode } from '../config/ets2Countries.js'
 import { ETS2_EXCHANGE_RATE_DATE, getEts2Currency, getEts2ExchangeRate } from '../config/ets2Currencies.js'
 
@@ -16,7 +18,28 @@ export const ETS2_CAREERS_KEY = careersStorageKey('ets2')
 export const ETS2_ACTIVE_CAREER_KEY = activeCareerStorageKey('ets2')
 
 function normalizeCareer(career, gameId = 'ats') {
-  if (!career || gameId !== 'ets2') return career
+  if (!career) return career
+  if (gameId === 'ats') {
+    const inferredCode = inferAtsStateCode(career.city)
+    const stateCode = getAtsStateProfile(career.stateCode)?.code || inferredCode || 'CA'
+    const profile = getAtsStateProfile(stateCode)
+    const currency = getAtsCurrency(career.currency)?.code || 'USD'
+    const exchangeRate = currency === 'USD'
+      ? 1
+      : Number(career.exchangeRate) > 0
+        ? Number(career.exchangeRate)
+        : getAtsExchangeRate('USD', currency)
+    return {
+      ...career,
+      gameId: 'ats',
+      stateCode,
+      stateName: profile.name,
+      baseCurrency: 'USD',
+      currency,
+      exchangeRate,
+      exchangeRateAsOf: career.exchangeRateAsOf || ATS_EXCHANGE_RATE_DATE,
+    }
+  }
   const inferredCode = inferEts2CountryCode(career.city)
   const countryCode = getEts2CountryProfile(career.countryCode)?.code || inferredCode || 'DE'
   const profile = getEts2CountryProfile(countryCode)
@@ -43,7 +66,7 @@ export function loadCareers(gameId = 'ats') {
     const value = JSON.parse(localStorage.getItem(careersStorageKey(gameId)) || '[]')
     if (!Array.isArray(value)) return []
     const normalized = value.map((career) => normalizeCareer(career, gameId))
-    if (gameId === 'ets2' && JSON.stringify(normalized) !== JSON.stringify(value)) {
+    if (JSON.stringify(normalized) !== JSON.stringify(value)) {
       localStorage.setItem(careersStorageKey(gameId), JSON.stringify(normalized))
     }
     return normalized

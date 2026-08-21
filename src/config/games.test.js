@@ -1,5 +1,30 @@
 import { describe, expect, it } from 'vitest'
+import { ATS_STATE_OPTIONS } from './atsStates.js'
+import { ETS2_COUNTRY_OPTIONS } from './ets2Countries.js'
 import { formatDistance, formatMoney, getGame } from './games.js'
+
+describe('American Truck Simulator financial configuration', () => {
+  it('covers every mapped state and filters its base cities', () => {
+    expect(ATS_STATE_OPTIONS).toHaveLength(20)
+    for (const state of ATS_STATE_OPTIONS) {
+      const profile = getGame('ats', state.code)
+      expect(profile.baseCities.length).toBeGreaterThan(0)
+      expect(profile.baseCities.every((city) => city.endsWith(`, ${state.code}`))).toBe(true)
+      expect(profile.taxes.length).toBeGreaterThanOrEqual(3)
+      expect(profile.level1Gross).toBeGreaterThan(0)
+      expect(profile.expenses.rent).toBeGreaterThan(0)
+    }
+  })
+
+  it('offers only the two currencies configured by the original ATS and freezes conversion', () => {
+    const texasInEuro = getGame('ats', 'TX', 'EUR')
+    expect(texasInEuro.currencyOptions.map((currency) => currency.code)).toEqual(['USD', 'EUR'])
+    expect(texasInEuro.baseCurrency).toBe('USD')
+    expect(texasInEuro.currency).toBe('EUR')
+    expect(texasInEuro.exchangeRate).toBeCloseTo(1 / 1.1681)
+    expect(texasInEuro.baseCities).toContain('Dallas, TX')
+  })
+})
 
 describe('Euro Truck Simulator 2 configuration', () => {
   it('uses European routes, cities, currency, distance and official app links', () => {
@@ -34,6 +59,21 @@ describe('Euro Truck Simulator 2 configuration', () => {
     expect(poland.baseCities).toContain('Warszawa, Polônia')
     expect([germany, unitedKingdom, poland].every((game) => game.payrollPeriod === 'monthly')).toBe(true)
     expect([germany, unitedKingdom, poland].every((game) => game.taxes.length > 0)).toBe(true)
+  })
+
+  it('covers every country represented by the ETS2 city list', () => {
+    expect(ETS2_COUNTRY_OPTIONS).toHaveLength(34)
+    for (const country of ETS2_COUNTRY_OPTIONS) {
+      const profile = getGame('ets2', country.code)
+      expect(profile.baseCities.length).toBeGreaterThan(0)
+      expect(profile.baseCities.every((city) => city.endsWith(`, ${country.name}`))).toBe(true)
+      expect(profile.taxes.length).toBeGreaterThan(0)
+      expect(profile.level1Gross).toBeGreaterThan(0)
+      expect(profile.expenses.rent).toBeGreaterThan(0)
+    }
+    expect(getGame('ets2', 'RO')).toMatchObject({ countryName: 'Romênia', baseCurrency: 'RON' })
+    expect(getGame('ets2', 'BA')).toMatchObject({ countryName: 'Bósnia e Herzegovina', baseCurrency: 'BAM' })
+    expect(getGame('ets2', 'BG')).toMatchObject({ countryName: 'Bulgária', baseCurrency: 'EUR' })
   })
 
   it('keeps the fiscal country currency separate from the career display currency', () => {

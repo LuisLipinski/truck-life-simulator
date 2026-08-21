@@ -323,26 +323,51 @@ function estimatePolishTaxes(monthlyGross) {
   return { incomeTax: annualPit / 12, pensionInsurance, disabilityInsurance, sicknessInsurance, healthInsurance }
 }
 
+function estimateEffectiveCountryTaxes(monthlyGross, rates = {}) {
+  return {
+    incomeTax: monthlyGross * Math.max(0, Number(rates.incomeTax || 0)),
+    socialContributions: monthlyGross * Math.max(0, Number(rates.socialContributions || 0)),
+  }
+}
+
+function estimateUsStateTaxes(weeklyGross, game) {
+  const annualGross = weeklyGross * 52
+  const federalTaxable = Math.max(0, annualGross - 16100)
+  const federal = progressiveTax(federalTaxable, [
+    [12400, 0.10], [50400, 0.12], [105700, 0.22],
+    [201775, 0.24], [256225, 0.32], [640600, 0.35], [Infinity, 0.37],
+  ]) / 52
+  const ss = Math.min(annualGross, 184500) * 0.062 / 52
+  const medicare = (annualGross * 0.0145 + Math.max(0, annualGross - 200000) * 0.009) / 52
+  const result = { federal, ss, medicare }
+
+  if (game.stateIncomeTax) {
+    const stateTaxable = Math.max(0, annualGross
+      - Number(game.stateIncomeTax.standardDeduction || 0)
+      - Number(game.stateIncomeTax.personalExemption || 0))
+    const annualStateTax = Math.max(0,
+      progressiveTax(stateTaxable, game.stateIncomeTax.brackets || [])
+      - Number(game.stateIncomeTax.credit || 0),
+    )
+    result.stateIncomeTax = annualStateTax / 52
+  }
+  if (game.statePayrollTax) result.statePayroll = weeklyGross * Number(game.statePayrollTax.rate || 0)
+  return result
+}
+
 export function estimateTaxes(gross, gameOrId = 'ats') {
   const value = Math.max(0, Number(gross || 0))
   const game = typeof gameOrId === 'string' ? getGame(gameOrId) : gameOrId
-  const exchangeRate = game.id === 'ets2' && Number(game.exchangeRate) > 0 ? Number(game.exchangeRate) : 1
+  const exchangeRate = Number(game.exchangeRate) > 0 ? Number(game.exchangeRate) : 1
   const baseValue = value / exchangeRate
   let result = null
   if (game.taxModel === 'de-2026-simplified') result = estimateGermanTaxes(baseValue)
   if (game.taxModel === 'gb-2026-simplified') result = estimateBritishTaxes(baseValue)
   if (game.taxModel === 'pl-2026-simplified') result = estimatePolishTaxes(baseValue)
+  if (game.taxModel === 'effective-country-2025') result = estimateEffectiveCountryTaxes(baseValue, game.taxRates)
+  if (game.taxModel === 'us-state-2026') result = estimateUsStateTaxes(baseValue, game)
   if (result) return Object.fromEntries(Object.entries(result).map(([key, amount]) => [key, amount * exchangeRate]))
-  if (game.taxModel === 'country-required') return {}
-  const ss = value * 0.062
-  const medicare = value * 0.0145
-  const sdi = value * 0.013
-  let federal = 0
-  if (value > 260) federal = (value - 260) * 0.10
-  if (value > 1000) federal = 74 + (value - 1000) * 0.12
-  let ca = 0
-  if (value > 500) ca = (value - 500) * 0.0527
-  return { federal, ss, medicare, sdi, ca }
+  return {}
 }
 
 export function pendingIncidentTotal(state) {

@@ -196,6 +196,9 @@ export default function PayslipTab({ state, commit }) {
       deposit: result.deposit,
       desc: result.desc,
       countryCode: game.countryCode,
+      countryName: game.countryName,
+      stateCode: game.stateCode,
+      stateName: game.stateName,
       currency: game.currency,
       baseCurrency: game.baseCurrency || game.currency,
       exchangeRate: game.exchangeRate || 1,
@@ -269,9 +272,9 @@ export default function PayslipTab({ state, commit }) {
           </div>
         )}
 
-        {monthlyPayroll && game.countryCode && (
+        {(game.countryCode || game.stateCode) && (
           <div className="country-payroll-note">
-            <strong>{game.countryFlag} Folha de {game.countryName} em {game.currency}</strong>
+            <strong>{game.countryFlag || '🇺🇸'} Folha de {game.countryName || `${game.stateName} (${game.stateCode})`} em {game.currency}</strong>
             <span>{game.taxAssumptions} Os cálculos usam {game.baseCurrency} como moeda fiscal{game.currency !== game.baseCurrency ? ` e são convertidos pela cotação registrada em ${game.exchangeRateAsOf}` : ''}.</span>
             <div>{[...(game.financeSources || []), ...(game.currency !== game.baseCurrency ? game.exchangeRateSources || [] : [])].map(([label, url]) => <a href={url} target="_blank" rel="noreferrer" key={url}>{label}</a>)}</div>
           </div>
@@ -336,7 +339,7 @@ export default function PayslipTab({ state, commit }) {
       </section>
 
       <section className="panel payslip-preview-card" data-tour="payslip-preview">
-        <div className="section-heading compact-heading"><span className="eyebrow">Prévia • {periodName}</span><h2>Holerite</h2><p>Estimativa de roleplay para {game.countryName || game.region}; não substitui uma folha real.</p></div>
+        <div className="section-heading compact-heading"><span className="eyebrow">Prévia • {periodName}</span><h2>Holerite</h2><p>Estimativa de roleplay para {game.countryName || game.stateName || game.region}; não substitui uma folha real.</p></div>
         <div className="payslip-lines">
           {shown.level === 1 && <div><LineLabel tip="As horas são calculadas automaticamente pelas datas e horários das viagens.">{game.overtimeLabel}</LineLabel><strong>+{money(shown.routeOverrunPay)} ({formatHours(shown.routeOverrunHours)} × {money(shown.routeOverrunRate)}/h)</strong></div>}
           <div><LineLabel tip={`Total antes de impostos e outros descontos. Nos Níveis 2/3 vem dos ${game.distanceName} pagos.`}>Salário bruto</LineLabel><strong>{money(shown.gross)}</strong></div>

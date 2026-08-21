@@ -9,12 +9,31 @@ Companion de carreira para American Truck Simulator e Euro Truck Simulator 2. Ca
 | Entrada | `#/ats` | `#/ets2` |
 | Distância | milhas (`mi`) | quilômetros (`km`) |
 | Folha | semanal | mensal |
-| Moeda | USD | escolhida pelo usuário; país fiscal separado |
+| Sede fiscal | estado escolhido | país escolhido |
+| Moeda | USD ou EUR | 16 moedas de exibição; país fiscal separado |
 | Carga perigosa | HazMat | ADR |
 | Combinação avançada | Doubles | Euro Combi |
 | Backup | `ATS_CAREER_BACKUP` | `ETS2_CAREER_BACKUP` |
 
 As chaves de `localStorage` de ATS e ETS2 são separadas. A importação também recusa arquivos do jogo errado.
+
+## Modelo financeiro do ATS
+
+O estado-sede é escolhido antes da cidade-base. Ele filtra as cidades disponíveis e define salário, custo de vida e retenções estaduais; cruzar a divisa durante uma viagem não muda a folha da carreira.
+
+Os 20 estados presentes no mapa atual estão configurados: Arizona, Arkansas, Califórnia, Colorado, Idaho, Illinois, Iowa, Kansas, Louisiana, Missouri, Montana, Nebraska, Nevada, Novo México, Oklahoma, Oregon, Texas, Utah, Washington e Wyoming.
+
+- imposto federal: faixas e dedução-padrão de solteiro de 2026;
+- Social Security: 6,2% até o teto anual de 2026;
+- Medicare: 1,45%, com adicional quando aplicável;
+- imposto estadual: alíquota única ou faixas do estado selecionado;
+- Califórnia: também inclui California SDI;
+- Washington: não tributa salários com imposto estadual, mas inclui WA Cares;
+- Nevada, Texas e Wyoming: sem imposto estadual sobre salários.
+
+Custos e salários estaduais são referências editáveis de roleplay baseadas em dados ocupacionais e diferenças regionais; não são uma proposta de emprego nem uma folha oficial. Impostos municipais, distritais, créditos e condições pessoais não modeladas ficam fora do cálculo.
+
+O ATS original oferece USD e EUR como moedas de exibição. A moeda fiscal permanece USD; quando EUR é escolhido, toda a carreira é convertida pela cotação registrada na criação.
 
 ## Modelo financeiro do ETS2
 
@@ -52,15 +71,29 @@ Moedas disponíveis no seletor, acompanhando as moedas de exibição do ETS2 atu
 
 ### Países disponíveis
 
-| País-sede | Moeda fiscal | Salário mensal Nível 1 na origem | Cidade-base | Retenções estimadas |
-| --- | --- | ---: | --- | --- |
-| 🇩🇪 Alemanha (`DE`) | EUR | € 2.800 | somente cidades alemãs | renda, previdência, saúde, desemprego e cuidados |
-| 🇬🇧 Reino Unido (`GB`) | GBP | £ 2.600 | somente cidades britânicas | Income Tax e National Insurance |
-| 🇵🇱 Polônia (`PL`) | PLN | zł 10.000 | somente cidades polonesas | PIT, aposentadoria, invalidez, doença e saúde |
+Todos os 34 países representados na lista de cidades possuem perfil financeiro. Alemanha, Reino Unido e Polônia mantêm modelos detalhados; os demais usam alíquotas pessoais efetivas de referência separadas entre renda e contribuições sociais.
 
-Os valores são parâmetros simplificados de roleplay para 2026/27, não uma folha oficial nem orientação fiscal. Condições pessoais reais — classe fiscal, região, família, benefícios, contrato e deduções — podem alterar o resultado.
+| Países-sede | Moeda fiscal |
+| --- | --- |
+| Alemanha, Áustria, Bélgica, Bulgária, Croácia, Eslováquia, Eslovênia, Espanha, Estônia, Finlândia, França, Grécia, Itália, Kosovo, Letônia, Lituânia, Luxemburgo, Montenegro, Países Baixos e Portugal | EUR |
+| Reino Unido | GBP |
+| Suíça | CHF |
+| Polônia | PLN |
+| Tchéquia | CZK |
+| Hungria | HUF |
+| Dinamarca | DKK |
+| Noruega | NOK |
+| Suécia | SEK |
+| Romênia | RON |
+| Turquia | TRY |
+| Albânia | ALL |
+| Bósnia e Herzegovina | BAM |
+| Macedônia do Norte | MKD |
+| Sérvia | RSD |
 
-### Tarifas por quilômetro
+Os valores são parâmetros simplificados de roleplay para 2025/26, não uma folha oficial nem orientação fiscal. Condições pessoais reais — classe fiscal, região, família, benefícios, contrato e deduções — podem alterar o resultado.
+
+### Exemplos de tarifas por quilômetro
 
 | País | Padrão | ADR | Euro Combi | ADR + Euro Combi | Vazio |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -68,7 +101,7 @@ Os valores são parâmetros simplificados de roleplay para 2026/27, não uma fol
 | Reino Unido | £ 0,27 | £ 0,30 | £ 0,32 | £ 0,35 | £ 0,22 |
 | Polônia | zł 1,15 | zł 1,25 | zł 1,30 | zł 1,40 | zł 0,95 |
 
-Nível 1 recebe salário mensal fixo e usa os quilômetros apenas para progressão. Níveis 2 e 3 recebem por quilômetro, com diária internacional e categorias condicionadas ao nível e à qualificação ADR.
+Os demais países recebem tarifas proporcionais ao perfil salarial nacional. Nível 1 recebe salário mensal fixo e usa os quilômetros apenas para progressão. Níveis 2 e 3 recebem por quilômetro, com diária internacional e categorias condicionadas ao nível e à qualificação ADR.
 
 ### Fechamento mensal
 
@@ -104,9 +137,15 @@ Ao criar uma carreira, a opção **Ver tutorial após criar a carreira** inicia 
 
 Ações financeiras, destrutivas ou que fecham períodos usam a modal compartilhada de confirmação/cancelamento; não há confirmações por `alert` nativo.
 
-## Backup v9
+## Backup v10
 
-CSV, XLS e XLSX continuam compatíveis com versões anteriores. O formato v9 preserva tudo do v8 e acrescenta:
+CSV, XLS e XLSX continuam compatíveis com versões anteriores. O formato v10 preserva tudo do v9 e acrescenta:
+
+- `stateCode` e `stateName` da carreira ATS;
+- estado fiscal em cada holerite fechado;
+- moeda USD/EUR e cotação congelada também para o ATS.
+
+O formato v9 já preservava:
 
 - moeda fiscal, moeda selecionada, cotação e data de referência da carreira;
 - a mesma referência de conversão em cada holerite fechado.
@@ -121,27 +160,32 @@ O formato v8 já preservava:
 - tipo do período, mês, intervalo de semanas e moeda do holerite;
 - detalhamento das retenções nacionais.
 
-Backups ETS2 antigos têm o país inferido pela cidade-base quando possível; caso contrário, migram para Alemanha. Toda importação cria um novo ID e nunca sobrescreve outra carreira.
+Backups ETS2 antigos têm o país inferido pela cidade-base quando possível; caso contrário, migram para Alemanha. Backups ATS antigos inferem o estado pela sigla da cidade e usam Califórnia apenas quando não há informação suficiente. Toda importação cria um novo ID e nunca sobrescreve outra carreira.
 
 ## Estrutura principal
 
 | Caminho | Responsabilidade |
 | --- | --- |
-| `src/App.jsx` | rotas, carreiras, criação e seleção de país-sede e moeda |
+| `src/App.jsx` | rotas, carreiras, criação e seleção de sede fiscal e moeda |
 | `src/config/games.js` | configuração compartilhada de ATS e ETS2 |
-| `src/config/ets2Countries.js` | perfis financeiros de Alemanha, Reino Unido e Polônia |
+| `src/config/atsStates.js` | perfis financeiros e fiscais dos 20 estados do ATS |
+| `src/config/atsCurrencies.js` | dólar/euro no ATS, cotação versionada e conversão |
+| `src/config/ets2Countries.js` | perfis financeiros dos 34 países do ETS2 |
 | `src/config/ets2Currencies.js` | moedas do ETS2, cotações versionadas e conversão |
 | `src/components/Phase1Page.jsx` | shell da Fase 1 e registro de viagens |
 | `src/components/phase1/PayslipTab.jsx` | fechamento semanal do ATS e mensal do ETS2 |
 | `src/components/GuidedTutorial.jsx` | tour guiado contextual por jogo |
 | `src/components/ConfirmProvider.jsx` | modal compartilhada de confirmação |
 | `src/lib/phase1.js` | estado, folha, impostos, progressão e reserva |
-| `src/lib/csv.js` | backup v9, migração, validação e planilhas |
+| `src/lib/csv.js` | backup v10, migração, validação e planilhas |
 | `.github/workflows/delivery-pipeline.yml` | testes, promoção, rollback e Pages |
 
 ## Fontes oficiais usadas no modelo
 
+- [IRS — parâmetros federais de 2026](https://www.irs.gov/newsroom/irs-releases-tax-inflation-adjustments-for-tax-year-2026-including-amendments-from-the-one-big-beautiful-bill), [SSA — contribuições e teto de 2026](https://www.ssa.gov/news/en/cola/factsheets/2026.html), [Tax Foundation — impostos estaduais de 2026](https://taxfoundation.org/data/all/state/state-income-tax-rates-2026/) e [BLS — salários estaduais por ocupação](https://www.bls.gov/oes/tables.htm)
+- [Fórum oficial da SCS — economia do ATS baseada em USD e opções USD/EUR](https://forum.scssoft.com/viewtopic.php?t=202506)
 - [União Europeia — tempos de condução e descanso](https://transport.ec.europa.eu/transport-modes/road/social-provisions/driving-time-and-rest-periods_en)
+- [OCDE — Taxing Wages 2026](https://www.oecd.org/en/publications/taxing-wages-2026_3a5169ef-en/full-report/overview_d93131c3.html), [Comissão Europeia — Taxes in Europe](https://ec.europa.eu/taxation_customs/tedb/), [Eurostat — salários e custos do trabalho](https://ec.europa.eu/eurostat/statistics-explained/index.php?title=Wages_and_labour_costs) e [EURES — remuneração de motoristas](https://eures.europa.eu/how-find-and-train-jobs-are-demand-2025-04-17_en)
 - [Your Europe — contribuições sociais por país](https://europa.eu/youreurope/business/hiring-managing-staff/social-security-health/paying-contributions/index_en.htm)
 - [Alemanha — previdência](https://www.deutsche-rentenversicherung.de/DRV/EN/Versicherung/versicherung_node.html), [saúde](https://www.bundesgesundheitsministerium.de/beitraege) e [parâmetros sociais 2026](https://www.bmas.de/DE/Service/Presse/Pressemitteilungen/2025/das-aendert-sich-im-neuen-jahr.html)
 - [Reino Unido — Income Tax](https://www.gov.uk/income-tax-rates) e [National Insurance](https://www.gov.uk/national-insurance-rates-letters)

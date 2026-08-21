@@ -53,9 +53,9 @@ afterEach(() => {
 })
 
 describe('TutorialProvider', () => {
-  it('adds the ETS2 monthly payroll explanation without changing the ATS tour', () => {
+  it('adds the ETS2 monthly payroll explanation to the shared fiscal-profile tour', () => {
     const ets2Steps = tutorialStepsForGame('ets2')
-    expect(ets2Steps).toHaveLength(TUTORIAL_STEPS.length + 2)
+    expect(ets2Steps).toHaveLength(TUTORIAL_STEPS.length + 1)
     expect(ets2Steps.find((step) => step.id === 'career-profile')).toMatchObject({ target: 'career-profile' })
     expect(ets2Steps.find((step) => step.id === 'payroll-period')).toMatchObject({ target: 'payroll-period' })
     expect(ets2Steps.find((step) => step.id === 'payslip-form').text).toContain('quatro a cinco semanas operacionais')

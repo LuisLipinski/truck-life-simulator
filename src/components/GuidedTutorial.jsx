@@ -30,6 +30,11 @@ export const TUTORIAL_STEPS = [
     text: 'Estes cartões mostram o total mensal e a situação da semana. Você também pode clicar neles para abrir diretamente Despesas ou Holerite.',
   },
   {
+    id: 'career-profile', route: '/phase1', tab: 'overview', target: 'career-profile',
+    title: 'Estado-sede e moeda da carreira',
+    text: 'O estado-sede define salário, custos e retenções estaduais. A moeda escolhida define como os valores aparecem; em euro, a aplicação converte as regras em dólar pela cotação registrada na criação da carreira.',
+  },
+  {
     id: 'career-backup', route: '/phase1', tab: 'overview', target: 'career-backup',
     title: 'Backup da carreira',
     text: 'Exporte um CSV para guardar perfil, viagens, finanças, ocorrências e semanas fechadas. A importação do arquivo fica na lista de carreiras.',
@@ -151,6 +156,7 @@ export function tutorialStepsForGame(gameId = 'ats') {
   const overrides = {
     'career-summary': 'No topo ficam saldo, nível atual, progresso em quilômetros, mês do holerite e semana operacional. Esses números se atualizam conforme você usa a aplicação.',
     'overview-shortcuts': 'Estes cartões mostram as despesas mensais e a situação do mês. Você também pode clicar neles para abrir diretamente Despesas ou Holerite.',
+    'career-profile': 'O país-sede define salário, custos, impostos e contribuições na moeda fiscal local. A moeda escolhida define como todos os valores aparecem; quando elas diferem, a aplicação converte pela cotação registrada na criação da carreira.',
     'career-backup': 'Exporte um CSV para guardar país-sede, moeda, cotação registrada, perfil, viagens, finanças, ocorrências, semanas operacionais e holerites mensais. A importação fica na lista de carreiras.',
     'trip-summary': 'Aqui você acompanha quilômetros da semana operacional e da carreira, estimativa por categoria e diárias. No Nível 1, o salário permanece mensal.',
     'trip-history': 'Todas as viagens ficam listadas por semana operacional. Ao encerrar uma semana no Holerite, seus trechos ficam congelados e não podem mais ser excluídos.',
@@ -163,7 +169,7 @@ export function tutorialStepsForGame(gameId = 'ats') {
   return TUTORIAL_STEPS.flatMap((step) => {
     const transformed = {
       ...step,
-      title: step.title
+      title: (step.id === 'career-profile' ? 'País-sede e moeda da carreira' : step.title)
         .replaceAll('Milhas', 'Quilômetros')
         .replaceAll('HazMat', 'ADR')
         .replaceAll('Semanas fechadas', 'Meses fechados'),
@@ -179,11 +185,6 @@ export function tutorialStepsForGame(gameId = 'ats') {
         .replaceAll('Route Overrun', 'hora extra de rota')
         .replaceAll('per diem', 'diária internacional'),
     }
-    if (step.id === 'overview-shortcuts') return [transformed, {
-      id: 'career-profile', route: '/phase1', tab: 'overview', target: 'career-profile',
-      title: 'País-sede e moeda da carreira',
-      text: 'O país-sede define salário, custos, impostos e contribuições na moeda fiscal local. A moeda escolhida define como todos os valores aparecem; quando elas diferem, a aplicação converte pela cotação registrada na criação da carreira.',
-    }]
     if (step.id !== 'payslip-form') return [transformed]
     return [transformed, {
       id: 'payroll-period', route: '/phase1', tab: 'payslip', target: 'payroll-period',
