@@ -1,49 +1,62 @@
-export const CAREERS_KEY = 'ats_careers_v1'
-export const ACTIVE_CAREER_KEY = 'ats_active_career'
+import { getGame } from '../config/games.js'
 
-export function loadCareers() {
+export function careersStorageKey(gameId = 'ats') {
+  return `${getGame(gameId).storagePrefix}_careers_v1`
+}
+
+export function activeCareerStorageKey(gameId = 'ats') {
+  return `${getGame(gameId).storagePrefix}_active_career`
+}
+
+export const CAREERS_KEY = careersStorageKey('ats')
+export const ACTIVE_CAREER_KEY = activeCareerStorageKey('ats')
+export const ETS2_CAREERS_KEY = careersStorageKey('ets2')
+export const ETS2_ACTIVE_CAREER_KEY = activeCareerStorageKey('ets2')
+
+export function loadCareers(gameId = 'ats') {
   try {
-    const value = JSON.parse(localStorage.getItem(CAREERS_KEY) || '[]')
+    const value = JSON.parse(localStorage.getItem(careersStorageKey(gameId)) || '[]')
     return Array.isArray(value) ? value : []
   } catch {
     return []
   }
 }
 
-export function saveCareers(careers) {
-  localStorage.setItem(CAREERS_KEY, JSON.stringify(careers))
+export function saveCareers(careers, gameId = 'ats') {
+  localStorage.setItem(careersStorageKey(gameId), JSON.stringify(careers))
 }
 
-export function getCareer(id) {
-  return loadCareers().find((career) => career.id === id) || null
+export function getCareer(id, gameId = 'ats') {
+  return loadCareers(gameId).find((career) => career.id === id) || null
 }
 
-export function createCareer(input) {
-  const careers = loadCareers()
+export function createCareer(input, gameId = 'ats') {
+  const careers = loadCareers(gameId)
   const career = {
     id: `career_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    gameId,
     currentLevel: 1,
     ...input,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   }
   careers.push(career)
-  saveCareers(careers)
-  localStorage.setItem(ACTIVE_CAREER_KEY, career.id)
+  saveCareers(careers, gameId)
+  localStorage.setItem(activeCareerStorageKey(gameId), career.id)
   return career
 }
 
-export function deleteCareer(id) {
-  saveCareers(loadCareers().filter((career) => career.id !== id))
-  if (localStorage.getItem(ACTIVE_CAREER_KEY) === id) {
-    localStorage.removeItem(ACTIVE_CAREER_KEY)
+export function deleteCareer(id, gameId = 'ats') {
+  saveCareers(loadCareers(gameId).filter((career) => career.id !== id), gameId)
+  if (localStorage.getItem(activeCareerStorageKey(gameId)) === id) {
+    localStorage.removeItem(activeCareerStorageKey(gameId))
   }
 }
 
-export function setActiveCareer(id) {
-  localStorage.setItem(ACTIVE_CAREER_KEY, id)
+export function setActiveCareer(id, gameId = 'ats') {
+  localStorage.setItem(activeCareerStorageKey(gameId), id)
 }
 
-export function getActiveCareerId() {
-  return localStorage.getItem(ACTIVE_CAREER_KEY)
+export function getActiveCareerId(gameId = 'ats') {
+  return localStorage.getItem(activeCareerStorageKey(gameId))
 }

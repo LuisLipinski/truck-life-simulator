@@ -1,7 +1,9 @@
 import { useMemo, useRef, useState } from 'react'
-import { ATS_CITIES, normalizeCitySearch } from '../data/atsCities.js'
+import { normalizeCitySearch } from '../data/atsCities.js'
+import { useGame } from './GameContext.jsx'
 
 export default function CityAutocomplete({ value, onChange, placeholder = 'Digite para pesquisar uma cidade...', label = 'Cidade', required = false }) {
+  const game = useGame()
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(-1)
   const blurTimer = useRef(null)
@@ -9,10 +11,10 @@ export default function CityAutocomplete({ value, onChange, placeholder = 'Digit
   const query = normalizeCitySearch(raw)
 
   const matches = useMemo(() => {
-    const unique = [...new Set(ATS_CITIES)]
+    const unique = [...new Set(game.cities)]
     if (!query) return unique.sort((a, b) => a.localeCompare(b))
     return unique.filter((city) => normalizeCitySearch(city).includes(query)).sort((a, b) => a.localeCompare(b))
-  }, [query])
+  }, [game.cities, query])
 
   const showManual = Boolean(raw && matches.length === 0)
   const options = showManual ? [...matches, raw] : matches
@@ -102,7 +104,7 @@ export default function CityAutocomplete({ value, onChange, placeholder = 'Digit
           </div>
         )}
       </div>
-      <small>Digite para pesquisar, use a seta para ver todas ou informe manualmente uma cidade de mod.</small>
+      <small>{game.cities.length} cidades de {game.shortName}; pesquise na lista ou informe manualmente uma cidade de mod.</small>
     </div>
   )
 }

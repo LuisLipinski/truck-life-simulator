@@ -7,7 +7,7 @@ import App from './App.jsx'
 import { ConfirmProvider } from './components/ConfirmProvider.jsx'
 import { TUTORIAL_STEPS, TUTORIAL_STORAGE_KEY, TutorialProvider } from './components/GuidedTutorial.jsx'
 import { ToastProvider } from './components/ToastProvider.jsx'
-import { ACTIVE_CAREER_KEY, CAREERS_KEY } from './lib/storage.js'
+import { ACTIVE_CAREER_KEY, CAREERS_KEY, createCareer, ETS2_CAREERS_KEY } from './lib/storage.js'
 
 let root
 
@@ -134,6 +134,56 @@ describe('career card navigation', () => {
     expect(document.querySelector('.guided-tutorial-popover')?.textContent).toContain('As fases da sua carreira')
     expect(JSON.parse(sessionStorage.getItem(TUTORIAL_STORAGE_KEY))).toMatchObject({ index: 0 })
     expect(JSON.parse(localStorage.getItem(CAREERS_KEY))).toHaveLength(1)
+  })
+
+  it('creates an independent ETS2 career with European city, euro and kilometer copy', async () => {
+    window.location.hash = '#/ets2/new'
+    await act(async () => {
+      root.render(createElement(ToastProvider, null, createElement(ConfirmProvider, null, createElement(TutorialProvider, null, createElement(App)))))
+    })
+
+    expect(document.querySelector('.form-panel')?.textContent).toContain('quilômetros')
+    expect(document.querySelector('.form-panel')?.textContent).toContain('€')
+    setInputValue(document.querySelector('input[placeholder="Ex.: Rafael Silva"]'), 'Euro Driver')
+    setInputValue(document.querySelector('.react-city-autocomplete input'), 'Berlin, Alemanha')
+    setInputValue(document.querySelector('input[placeholder="Ex.: Euro Horizon Logistics"]'), 'Euro Logistics')
+
+    await act(async () => {
+      document.querySelector('.form-panel').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+      await Promise.resolve()
+    })
+
+    expect(window.location.hash).toContain('#/ets2/phases?career=')
+    expect(JSON.parse(localStorage.getItem(ETS2_CAREERS_KEY) || '[]')).toMatchObject([{ driverName: 'Euro Driver', city: 'Berlin, Alemanha', gameId: 'ets2', currency: 'EUR' }])
+    expect(localStorage.getItem(CAREERS_KEY)).toBeNull()
+  })
+
+  it('shows ETS2 qualifications and a European payslip without ATS fiscal copy', async () => {
+    const career = createCareer({
+      driverName: 'European Driver', city: 'Berlin, Alemanha', company: 'Euro Logistics', initialBalance: 1200, currentBalance: 1200,
+    }, 'ets2')
+    window.location.hash = `#/ets2/phase1?career=${career.id}`
+    await act(async () => {
+      root.render(createElement(ToastProvider, null, createElement(ConfirmProvider, null, createElement(TutorialProvider, null, createElement(App)))))
+    })
+
+    expect(document.querySelector('.phase1-header')?.textContent).toContain('ETS2')
+    expect(document.querySelector('.phase1-header')?.textContent).toContain('km')
+    const journal = [...document.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Diário de Bordo')
+    await act(async () => journal.click())
+    const qualifications = [...document.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Qualificações')
+    await act(async () => qualifications.click())
+    expect(document.body.textContent).toContain('ADR')
+    expect(document.body.textContent).toContain('Euro Combi')
+    expect(document.body.textContent).toContain('16.000 km')
+
+    const financial = [...document.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Financeiro')
+    await act(async () => financial.click())
+    const payslip = [...document.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Holerite')
+    await act(async () => payslip.click())
+    expect(document.body.textContent).toContain('Imposto de renda estimado')
+    expect(document.body.textContent).not.toContain('California Income Tax')
+    expect(document.body.textContent).not.toContain('Social Security')
   })
 
   it('walks through every tutorial step and reaches each screen target', async () => {

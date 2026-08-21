@@ -1,14 +1,14 @@
 import { BarChart, LineChart } from './Charts.jsx'
-
-function money(value) {
-  return Number(value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
-}
+import { formatMoney } from '../../config/games.js'
+import { useGame } from '../GameContext.jsx'
 
 function Tip({ text }) {
   return <button className="react-info-tip" type="button" aria-label="Mais informações" data-tip={text}>i</button>
 }
 
 export default function HistoryTab({ state }) {
+  const game = useGame()
+  const money = (value) => formatMoney(value, game)
   const history = Array.isArray(state.history) ? state.history : []
   const closedWeeks = Array.isArray(state.closedWeeks) ? state.closedWeeks : []
   const incidents = Array.isArray(state.incidents) ? state.incidents : []
@@ -65,7 +65,7 @@ export default function HistoryTab({ state }) {
       <section className="panel history-panel">
         <div className="section-heading compact-heading"><span className="eyebrow">Holerites</span><h2 className="line-label-with-tip">Semanas fechadas <Tip text="Mostra o resumo financeiro de cada semana já encerrada. Esses registros não devem ser alterados depois do fechamento." /></h2><p>Resumo das semanas já concluídas.</p></div>
         {closedWeeks.length === 0 ? <div className="empty-inline">Nenhuma semana fechada ainda.</div> : (
-          <div className="responsive-table"><table><thead><tr><th>Semana</th><th>Bruto</th><th>Per diem</th><th>Ocorrências</th><th>Depósito</th></tr></thead><tbody>
+          <div className="responsive-table"><table><thead><tr><th>Semana</th><th>Bruto</th><th>{game.perDiemLabel}</th><th>Ocorrências</th><th>Depósito</th></tr></thead><tbody>
             {[...closedWeeks].reverse().map((week, index) => <tr key={`${week.week || index}-${index}`}><td>Semana {week.week || '—'}</td><td>{money(week.gross ?? week.totalGross ?? 0)}</td><td>{money(week.perDiem ?? week.perDiemAmount ?? 0)}</td><td>{money(week.incidentDeduction ?? week.incidentDeductions ?? 0)}</td><td><strong>{money(week.net ?? week.deposit ?? week.netPay ?? 0)}</strong></td></tr>)}
           </tbody></table></div>
         )}

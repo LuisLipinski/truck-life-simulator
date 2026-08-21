@@ -3,20 +3,16 @@ import {
   applyPendingIncidentDeductions,
   currentWeekTrips,
   estimateTaxes,
-  LEVEL1_ROUTE_OVERRUN_RATE,
   mileagePaySummary,
-  PAY_LABELS,
-  PAY_RATES,
   perDiemDaysForTrips,
   routeOverrunSummary,
+  tripDistance,
   weeklyEmergencyReserveYield,
 } from '../../lib/phase1.js'
+import { formatDistance, formatMoney } from '../../config/games.js'
+import { useGame } from '../GameContext.jsx'
 import { useConfirm } from '../ConfirmProvider.jsx'
 import { useToast } from '../ToastProvider.jsx'
-
-function money(value) {
-  return Number(value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
-}
 
 function formatHours(hours) {
   const totalMinutes = Math.round(Number(hours || 0) * 60)
@@ -52,21 +48,23 @@ function LineLabel({ children, tip }) {
 }
 
 export default function PayslipTab({ state, commit }) {
+  const game = useGame()
+  const money = (value) => formatMoney(value, game)
   const toast = useToast()
   const confirm = useConfirm()
-  const [level1Gross, setLevel1Gross] = useState(850)
-  const [overrunRate, setOverrunRate] = useState(LEVEL1_ROUTE_OVERRUN_RATE)
-  const [benefits, setBenefits] = useState(36)
-  const [perDiemRate, setPerDiemRate] = useState(80)
+  const [level1Gross, setLevel1Gross] = useState(game.level1Gross)
+  const [overrunRate, setOverrunRate] = useState(game.routeOverrunRate)
+  const [benefits, setBenefits] = useState(game.weeklyBenefits)
+  const [perDiemRate, setPerDiemRate] = useState(game.perDiemRate)
   const [autoReserveEnabled, setAutoReserveEnabled] = useState(Boolean(state.autoReserveContribution?.enabled))
   const [autoReserveAmount, setAutoReserveAmount] = useState(state.autoReserveContribution?.amount ?? '')
   const [preview, setPreview] = useState(null)
 
   const weekTrips = useMemo(() => currentWeekTrips(state), [state])
-  const mileage = useMemo(() => mileagePaySummary(weekTrips), [weekTrips])
+  const mileage = useMemo(() => mileagePaySummary(weekTrips, game.id), [game.id, weekTrips])
   const perDiemDays = useMemo(() => perDiemDaysForTrips(weekTrips), [weekTrips])
-  const routeOverrun = useMemo(() => routeOverrunSummary(weekTrips), [weekTrips])
-  const weekMiles = useMemo(() => weekTrips.reduce((sum, trip) => sum + Number(trip.miles || 0), 0), [weekTrips])
+  const routeOverrun = useMemo(() => routeOverrunSummary(weekTrips, undefined, game.routeOverrunRate), [game.routeOverrunRate, weekTrips])
+  const weekDistance = useMemo(() => weekTrips.reduce((sum, trip) => sum + tripDistance(trip), 0), [weekTrips])
 
   function calculate() {
     const level = Number(state.currentLevel || state.careerLevel || 1)
@@ -78,17 +76,17 @@ export default function PayslipTab({ state, commit }) {
 
     if (level === 1) {
       gross = Math.max(0, Number(level1Gross) || 0) + routeOverrunPay
-      desc = `Nível 1 — salário semanal${routeOverrun.overrunMinutes ? ` + ${formatHours(routeOverrun.overrunHours)} Route Overrun automático @ ${money(effectiveOverrunRate)}/h` : ''}`
+      desc = `Nível 1 — salário semanal${routeOverrun.overrunMinutes ? ` + ${formatHours(routeOverrun.overrunHours)} ${game.overtimeLabel} @ ${money(effectiveOverrunRate)}/h` : ''}`
     } else {
       gross = mileage.gross
       perDiem = perDiemDays.days * Math.max(0, Number(perDiemRate) || 0)
       const parts = Object.entries(mileage.totals)
-        .filter(([, miles]) => miles > 0)
-        .map(([category, miles]) => `${PAY_LABELS[category]} ${miles.toLocaleString('en-US')} mi @ ${money(PAY_RATES[category])}`)
-      desc = `Nível ${level} — ${parts.join(' + ') || 'sem milhas'}`
+        .filter(([, distance]) => distance > 0)
+        .map(([category, distance]) => `${game.payLabels[category]} ${formatDistance(distance, game)} @ ${money(game.payRates[category])}`)
+      desc = `Nível ${level} — ${parts.join(' + ') || `sem ${game.distanceName}`}`
     }
 
-    const taxes = estimateTaxes(gross)
+    const taxes = estimateTaxes(gross, game.id)
     const taxesTotal = Object.values(taxes).reduce((sum, value) => sum + value, 0)
     const benefitValue = Math.max(0, Number(benefits) || 0)
     const netSalary = gross - taxesTotal - benefitValue
@@ -145,7 +143,7 @@ export default function PayslipTab({ state, commit }) {
     const closedWeek = {
       week: weekNumber,
       closedAt: new Date().toLocaleString('pt-BR'),
-      miles: weekMiles,
+      [game.distanceField]: weekDistance,
       level: result.level,
       gross: result.gross,
       taxes: result.taxesTotal,
@@ -218,19 +216,19 @@ export default function PayslipTab({ state, commit }) {
           <p>O fechamento credita o depósito, atualiza a reserva em segundo plano, congela a semana no histórico e inicia a próxima.</p>
         </div>
 
-        <TipLabel tip="O nível determina como o pagamento é calculado. No Nível 1 existe salário semanal fixo; nos Níveis 2 e 3 o bruto vem das milhas registradas por categoria.">Nível atual</TipLabel>
+        <TipLabel tip={`O nível determina o cálculo. No Nível 1 há salário semanal; nos Níveis 2 e 3 o bruto vem dos ${game.distanceName} por categoria.`}>Nível atual</TipLabel>
         <input value={`Nível ${state.currentLevel}`} readOnly />
 
         {state.currentLevel <= 1 ? (
           <>
-            <TipLabel tip="Salário bruto base do motorista local no Nível 1. O valor padrão da carreira é US$ 850 por semana antes de impostos, benefícios e outros descontos.">Salário semanal bruto</TipLabel>
+            <TipLabel tip={`Salário bruto base do motorista local. O padrão de ${game.shortName} é ${money(game.level1Gross)} por semana antes dos descontos.`}>Salário semanal bruto</TipLabel>
             <input type="number" min="0" step="0.01" value={level1Gross} onChange={(event) => setLevel1Gross(event.target.value)} />
 
-            <TipLabel tip="A quantidade de horas extras é calculada automaticamente pelas viagens. Este campo altera somente quanto cada hora de Route Overrun vale. O padrão da carreira é US$ 21,25/h.">Valor por hora de Route Overrun</TipLabel>
+            <TipLabel tip={`As horas extras são calculadas pelas viagens. O padrão da carreira é ${money(game.routeOverrunRate)}/h.`}>Valor por hora de {game.overtimeLabel}</TipLabel>
             <input type="number" min="0" step="0.01" value={overrunRate} onChange={(event) => setOverrunRate(event.target.value)} />
 
             <div className="readout-box">
-              <span>Route Overrun automático</span>
+              <span>{game.overtimeLabel} automático</span>
               <strong>{formatHours(routeOverrun.overrunHours)} • {money(displayedOverrunPay)}</strong>
               <small>O sistema soma o tempo das viagens por dia. Até 8h/dia fazem parte da jornada normal; somente o excedente recebe {money(displayedOverrunRate)}/h.</small>
             </div>
@@ -248,26 +246,26 @@ export default function PayslipTab({ state, commit }) {
           </>
         ) : (
           <>
-            <div className="readout-box"><span>Milhas pagas da semana</span><strong>{weekMiles.toLocaleString('en-US')} mi</strong></div>
+            <div className="readout-box"><span>{game.distanceName[0].toUpperCase() + game.distanceName.slice(1)} pagos da semana</span><strong>{formatDistance(weekDistance, game)}</strong></div>
             <div className="breakdown-list compact-breakdown">
-              {Object.entries(mileage.totals).filter(([, miles]) => miles > 0).map(([category, miles]) => (
-                <div key={category}><span>{PAY_LABELS[category]}</span><strong>{miles.toLocaleString('en-US')} mi × {money(PAY_RATES[category])}</strong></div>
+              {Object.entries(mileage.totals).filter(([, distance]) => distance > 0).map(([category, distance]) => (
+                <div key={category}><span>{game.payLabels[category]}</span><strong>{formatDistance(distance, game)} × {money(game.payRates[category])}</strong></div>
               ))}
             </div>
             <div className="two-columns">
               <div>
-                <TipLabel tip="Valor diário separado do salário para dias OTR qualificáveis. Nesta simulação o padrão é US$ 80 por dia e não se aplica a viagens locais de ida e volta no mesmo dia.">Per diem diário</TipLabel>
+                <TipLabel tip={`Valor diário separado do salário para viagens com pernoite. O padrão de ${game.shortName} é ${money(game.perDiemRate)} por dia.`}>{game.perDiemLabel}</TipLabel>
                 <input type="number" min="0" step="0.01" value={perDiemRate} onChange={(event) => setPerDiemRate(event.target.value)} />
               </div>
               <div>
-                <TipLabel tip="Quantidade de dias únicos da semana que qualificaram para per diem com base nas datas das viagens OTR registradas. O sistema evita contar o mesmo dia duas vezes.">Dias qualificáveis</TipLabel>
+                <TipLabel tip={`Dias únicos que qualificaram para ${game.perDiemLabel.toLowerCase()} pelas datas das viagens. O mesmo dia não é contado duas vezes.`}>Dias qualificáveis</TipLabel>
                 <input value={perDiemDays.days} readOnly />
               </div>
             </div>
           </>
         )}
 
-        <TipLabel tip="Desconto semanal dos benefícios do motorista. O padrão de US$ 36 representa médico/prescrição, dental e visão na simulação.">Benefícios semanais</TipLabel>
+        <TipLabel tip={`Desconto semanal pessoal da simulação. O padrão desta carreira é ${money(game.weeklyBenefits)}.`}>Benefícios / contribuições semanais</TipLabel>
         <input type="number" min="0" step="0.01" value={benefits} onChange={(event) => setBenefits(event.target.value)} />
 
         <div className="payslip-reserve-auto">
@@ -294,16 +292,12 @@ export default function PayslipTab({ state, commit }) {
           <p>Estimativa de simulação; retenções reais podem variar.</p>
         </div>
         <div className="payslip-lines">
-          {shown.level === 1 && <div><LineLabel tip="As horas são calculadas automaticamente pelas datas e horários das viagens. O valor usa a tarifa por hora informada no formulário.">Route Overrun</LineLabel><strong>+{money(shown.routeOverrunPay)} ({formatHours(shown.routeOverrunHours)} × {money(shown.routeOverrunRate)}/h)</strong></div>}
-          <div><LineLabel tip="Total antes de impostos e benefícios. No Nível 1 inclui salário base e Route Overrun calculado automaticamente; nos Níveis 2/3 vem das milhas pagas.">Salário bruto</LineLabel><strong>{money(shown.gross)}</strong></div>
-          <div><LineLabel tip="Retenção federal estimada pela fórmula simplificada da simulação. Não representa cálculo fiscal oficial.">Federal</LineLabel><strong>-{money(shown.taxes.federal)}</strong></div>
-          <div><LineLabel tip="Contribuição estimada de Social Security calculada sobre o salário bruto da semana.">Social Security</LineLabel><strong>-{money(shown.taxes.ss)}</strong></div>
-          <div><LineLabel tip="Contribuição estimada do Medicare calculada sobre o salário bruto da semana.">Medicare</LineLabel><strong>-{money(shown.taxes.medicare)}</strong></div>
-          <div><LineLabel tip="Estimativa simplificada do imposto de renda estadual da Califórnia usada somente para o roleplay financeiro.">California Income Tax</LineLabel><strong>-{money(shown.taxes.ca)}</strong></div>
-          <div><LineLabel tip="Estimativa de California SDI, usada na simulação como retenção estadual adicional.">California SDI</LineLabel><strong>-{money(shown.taxes.sdi)}</strong></div>
+          {shown.level === 1 && <div><LineLabel tip="As horas são calculadas automaticamente pelas datas e horários das viagens.">{game.overtimeLabel}</LineLabel><strong>+{money(shown.routeOverrunPay)} ({formatHours(shown.routeOverrunHours)} × {money(shown.routeOverrunRate)}/h)</strong></div>}
+          <div><LineLabel tip={`Total antes de impostos e benefícios. Nos Níveis 2/3 vem dos ${game.distanceName} pagos.`}>Salário bruto</LineLabel><strong>{money(shown.gross)}</strong></div>
+          {game.taxes.map(([key, label, tip]) => <div key={key}><LineLabel tip={tip}>{label}</LineLabel><strong>-{money(shown.taxes[key])}</strong></div>)}
           <div><LineLabel tip="Valor semanal informado no campo Benefícios semanais e descontado do salário.">Benefícios</LineLabel><strong>-{money(shown.benefits)}</strong></div>
-          <div className="emphasis-line"><LineLabel tip="Salário após impostos estimados e benefícios, antes de somar per diem e descontar ocorrências pendentes.">Salário líquido</LineLabel><strong>{money(shown.netSalary)}</strong></div>
-          <div><LineLabel tip="Valor não salarial calculado pelos dias OTR qualificáveis da semana. No Nível 1 ele é zero.">Per diem</LineLabel><strong>+{money(shown.perDiem)}</strong></div>
+          <div className="emphasis-line"><LineLabel tip={`Salário após impostos estimados e benefícios, antes de somar ${game.perDiemLabel.toLowerCase()} e ocorrências.`}>Salário líquido</LineLabel><strong>{money(shown.netSalary)}</strong></div>
+          <div><LineLabel tip="Valor não salarial calculado por dias qualificáveis com pernoite. No Nível 1 ele é zero.">{game.perDiemLabel}</LineLabel><strong>+{money(shown.perDiem)}</strong></div>
           <div><LineLabel tip="Total de multas ou acidentes que você marcou para descontar do próximo holerite e que puderam ser aplicados nesta semana.">Infrações/acidentes</LineLabel><strong>-{money(shown.incidentDeduction)}</strong></div>
           <div className="deposit-line"><LineLabel tip="Valor final do pagamento semanal. Se o aporte automático à reserva estiver ativo, a transferência acontece depois do depósito e fica somente no Histórico.">Depósito total</LineLabel><strong>{money(shown.deposit)}</strong></div>
         </div>
@@ -314,11 +308,11 @@ export default function PayslipTab({ state, commit }) {
         {(state.closedWeeks || []).length === 0 ? <div className="empty-inline">Nenhum holerite fechado ainda.</div> : (
           <div className="responsive-table compact-table">
             <table>
-              <thead><tr><th>Semana</th><th>Nível</th><th>Milhas</th><th>Bruto</th><th>Per diem</th><th>Ocorrências</th><th>Depósito</th><th>Fechada em</th></tr></thead>
+              <thead><tr><th>Semana</th><th>Nível</th><th>{game.distanceName}</th><th>Bruto</th><th>{game.perDiemLabel}</th><th>Ocorrências</th><th>Depósito</th><th>Fechada em</th></tr></thead>
               <tbody>
                 {[...state.closedWeeks].reverse().map((week, index) => (
                   <tr key={`${week.week}-${week.closedAt}-${index}`}>
-                    <td>{week.week}</td><td>{week.level}</td><td>{Number(week.miles || 0).toLocaleString('en-US')}</td><td>{money(week.gross)}</td><td>{money(week.perDiem)}</td><td>{money(week.incidentDeduction)}</td><td><strong>{money(week.deposit)}</strong></td><td>{week.closedAt || '—'}</td>
+                    <td>{week.week}</td><td>{week.level}</td><td>{formatDistance(week.distance ?? week.miles, game)}</td><td>{money(week.gross)}</td><td>{money(week.perDiem)}</td><td>{money(week.incidentDeduction)}</td><td><strong>{money(week.deposit)}</strong></td><td>{week.closedAt || '—'}</td>
                   </tr>
                 ))}
               </tbody>

@@ -8,40 +8,13 @@ import {
   setActiveCareer,
 } from './lib/storage.js'
 import { downloadCSVTemplate, downloadExcelTemplate, importCareerFile } from './lib/csv.js'
+import { formatMoney, gameIdFromPath, getGame, GAMES } from './config/games.js'
 import Phase1Page from './components/Phase1Page.jsx'
 import CityAutocomplete from './components/CityAutocomplete.jsx'
+import { GameProvider, useGame } from './components/GameContext.jsx'
 import { useConfirm } from './components/ConfirmProvider.jsx'
 import { useTutorial } from './components/GuidedTutorial.jsx'
 import { useToast } from './components/ToastProvider.jsx'
-
-const ATS_IMAGE = 'https://cdn.cloudflare.steamstatic.com/steam/apps/270880/header.jpg'
-const ETS_IMAGE = 'https://cdn.cloudflare.steamstatic.com/steam/apps/227300/header.jpg'
-
-const DEFAULT_COSTS = {
-  rent: 1650,
-  deposit: 1650,
-  license: 100,
-  groceries: 250,
-  home: 350,
-  phone: 60,
-  internet: 75,
-  transit: 72,
-}
-
-const COST_LABELS = {
-  rent: 'Primeiro mês de aluguel',
-  deposit: 'Depósito caução',
-  license: 'Licença / CDL inicial',
-  groceries: 'Mercado inicial',
-  home: 'Itens básicos da casa',
-  phone: 'Celular / chip',
-  internet: 'Internet / instalação',
-  transit: 'Transporte público inicial',
-}
-
-function money(value) {
-  return Number(value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
-}
 
 function useHashRoute() {
   const [hash, setHash] = useState(() => window.location.hash || '#/')
@@ -64,50 +37,47 @@ function HomePage() {
       <section className="hero">
         <span className="eyebrow">Career companion</span>
         <h1>Truck Life Simulator</h1>
-        <p>Escolha o jogo para acessar sua carreira realista.</p>
+        <p>Escolha o jogo para acessar uma carreira com dados, economia e regras próprias.</p>
       </section>
       <section className="game-grid">
-        <AppLink className="game-card interactive" to="/ats" aria-label="Abrir American Truck Simulator">
-          <span className="tag active">Disponível</span>
-          <img src={ATS_IMAGE} alt="American Truck Simulator" />
-          <h2>American Truck Simulator</h2>
-          <p>Carreira nos Estados Unidos, começando como motorista empregado.</p>
-        </AppLink>
-        <article className="game-card disabled" aria-disabled="true">
-          <span className="tag">Em breve</span>
-          <img src={ETS_IMAGE} alt="Euro Truck Simulator 2" />
-          <h2>Euro Truck Simulator 2</h2>
-          <p>Área reservada para a futura simulação de carreira na Europa.</p>
-        </article>
+        {Object.values(GAMES).map((game) => (
+          <AppLink className="game-card interactive" to={game.routes.careers} aria-label={`Abrir ${game.name}`} key={game.id}>
+            <span className="tag active">Disponível</span>
+            <img src={game.image} alt={game.name} />
+            <h2>{game.name}</h2>
+            <p>{game.description}</p>
+          </AppLink>
+        ))}
       </section>
-      <footer>Seus dados continuam salvos localmente neste navegador.</footer>
+      <footer>Carreiras de ATS e ETS2 ficam separadas e salvas localmente neste navegador.</footer>
     </main>
   )
 }
 
 function CareersPage() {
+  const game = useGame()
   const toast = useToast()
   const confirm = useConfirm()
-  const [careers, setCareers] = useState(() => loadCareers())
+  const [careers, setCareers] = useState(() => loadCareers(game.id))
   const [showCsvHelp, setShowCsvHelp] = useState(false)
   const fileInput = useRef(null)
 
   async function removeCareer(career) {
     const confirmed = await confirm({
       title: 'Excluir carreira?',
-      message: `A carreira de ${career.driverName} será removida desta lista. Essa ação não pode ser desfeita.`,
+      message: `A carreira de ${career.driverName} em ${game.shortName} será removida. Essa ação não pode ser desfeita.`,
       confirmLabel: 'Excluir carreira',
       tone: 'danger',
     })
     if (!confirmed) return
-    deleteCareer(career.id)
-    setCareers(loadCareers())
+    deleteCareer(career.id, game.id)
+    setCareers(loadCareers(game.id))
     toast.success(`A carreira de ${career.driverName} foi excluída.`)
   }
 
   function openCareer(career) {
-    setActiveCareer(career.id)
-    window.location.hash = `#/phases?career=${encodeURIComponent(career.id)}`
+    setActiveCareer(career.id, game.id)
+    window.location.hash = `#${game.routes.phases}?career=${encodeURIComponent(career.id)}`
   }
 
   async function importBackup(event) {
@@ -116,9 +86,9 @@ function CareersPage() {
     const extension = String(file.name || '').split('.').pop().toUpperCase()
     toast.info('Lendo e validando o backup da carreira...', { title: `Importando ${extension || 'arquivo'}`, duration: 2200 })
     try {
-      const result = await importCareerFile(file)
-      setCareers(loadCareers())
-      toast.success(`Carreira “${result.career.driverName}” importada com sucesso (${extension} • backup v${result.version}).`, { title: 'Importação concluída' })
+      const result = await importCareerFile(file, game.id)
+      setCareers(loadCareers(game.id))
+      toast.success(`Carreira “${result.career.driverName}” importada em ${game.shortName} (${extension} • backup v${result.version}).`, { title: 'Importação concluída' })
     } catch (error) {
       toast.error(`Não foi possível importar a carreira: ${error.message}`, { title: 'Erro ao importar arquivo' })
     } finally {
@@ -130,14 +100,19 @@ function CareersPage() {
     <main className="page-shell wide-shell">
       <AppLink className="back-link" to="/">← Voltar para jogos</AppLink>
       <section className="page-heading centered">
-        <img className="ats-logo" src={ATS_IMAGE} alt="American Truck Simulator" />
-        <span className="eyebrow">American Truck Simulator</span>
+        <img className="ats-logo" src={game.image} alt={game.name} />
+        <span className="eyebrow">{game.name}</span>
         <h1>Suas carreiras</h1>
-        <p>Crie uma nova carreira, importe um backup CSV, XLS ou XLSX, ou continue um personagem salvo neste navegador.</p>
+        <p>Crie, importe ou continue uma carreira de {game.shortName}. Dados de outros jogos não são misturados.</p>
+        <div className="game-resource-links" aria-label={`Links de ${game.shortName}`}>
+          <a href={game.officialUrl} target="_blank" rel="noreferrer">Site oficial</a>
+          <a href={game.storeUrl} target="_blank" rel="noreferrer">Steam</a>
+          <a href={game.workshopUrl} target="_blank" rel="noreferrer">Workshop</a>
+        </div>
       </section>
 
       <div className="action-row">
-        <AppLink className="button primary" to="/new">+ Criar nova carreira</AppLink>
+        <AppLink className="button primary" to={game.routes.new}>+ Criar nova carreira</AppLink>
         <button className="button success" type="button" onClick={() => fileInput.current?.click()}>Importar carreira</button>
         <button className="button secondary" type="button" onClick={() => setShowCsvHelp((value) => !value)}>Como importar uma carreira</button>
         <input ref={fileInput} type="file" accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onChange={importBackup} />
@@ -145,28 +120,26 @@ function CareersPage() {
 
       {showCsvHelp && (
         <section className="panel csv-help">
-          <span className="eyebrow">Importação de carreira</span>
+          <span className="eyebrow">Importação de carreira — {game.shortName}</span>
           <h2>Como importar uma carreira</h2>
-          <p>Você pode importar backups nos formatos <strong>CSV, XLS ou XLSX</strong>. Os três usam a identificação <code>ATS_CAREER_BACKUP</code> e podem guardar perfil, custos iniciais, estado, viagens, histórico, gastos personalizados, ocorrências e semanas fechadas.</p>
-          <p><strong>CSV:</strong> valores numéricos devem usar <strong>ponto</strong> para casas decimais e não devem ter separador de milhar. Exemplos válidos: <code>850</code>, <code>1602.63</code>, <code>0.50</code> e <code>21.25</code>. Não use <code>1602,63</code>, <code>1,602.63</code>, <code>1.602,63</code> ou símbolo de dólar.</p>
-          <p><strong>XLS/XLSX:</strong> preencha valores como células numéricas normais do Excel. A exibição pode usar vírgula ou ponto conforme a configuração regional do Excel; o app lê o valor numérico da célula.</p>
-          <p>Campos numéricos com letras ou formatos inválidos são recusados. A mensagem de erro informa o tipo, o campo e a linha que precisa ser corrigida antes da importação.</p>
-          <p>Ao importar, o React cria uma <strong>nova carreira</strong> com um novo ID. Backups antigos continuam aceitos e são normalizados para a estrutura atual.</p>
+          <p>Backups CSV, XLS e XLSX desta área usam a identificação <code>{game.backupMarker}</code>. Assim, uma carreira de ATS nunca é importada por engano como ETS2 — ou o contrário.</p>
+          <p><strong>CSV:</strong> use ponto para casas decimais e não use separador de milhar nem símbolo de moeda. Exemplos: <code>850</code>, <code>1602.63</code> e <code>0.50</code>.</p>
+          <p><strong>XLS/XLSX:</strong> use células numéricas normais. A exibição regional do Excel não altera o valor lido pelo aplicativo.</p>
+          <p>A importação cria uma nova carreira com outro ID e preserva perfil, custos iniciais, viagens, histórico, despesas, ocorrências, semanas fechadas e reserva.</p>
           <p>Não altere os nomes da primeira coluna, como <code>CAREER</code>, <code>STATE</code>, <code>TRIP</code> e <code>CLOSED_WEEK</code>.</p>
-          <p><strong>Quer começar por um arquivo pronto?</strong> Baixe um dos modelos abaixo, preencha os dados e depois use o botão <strong>Importar carreira</strong>.</p>
           <div className="action-row">
-            <button className="button secondary" type="button" onClick={downloadCSVTemplate}>Baixar modelo CSV</button>
-            <button className="button secondary" type="button" onClick={() => downloadExcelTemplate('xlsx')}>Baixar modelo XLSX</button>
-            <button className="button secondary" type="button" onClick={() => downloadExcelTemplate('xls')}>Baixar modelo XLS</button>
+            <button className="button secondary" type="button" onClick={() => downloadCSVTemplate(game.id)}>Baixar modelo CSV</button>
+            <button className="button secondary" type="button" onClick={() => downloadExcelTemplate('xlsx', game.id)}>Baixar modelo XLSX</button>
+            <button className="button secondary" type="button" onClick={() => downloadExcelTemplate('xls', game.id)}>Baixar modelo XLS</button>
           </div>
         </section>
       )}
 
       {careers.length === 0 ? (
         <div className="empty-state">
-          <h2>Nenhuma carreira criada</h2>
-          <p>Crie seu primeiro motorista ou importe um backup CSV, XLS ou XLSX.</p>
-          <AppLink className="button primary compact" to="/new">Criar carreira</AppLink>
+          <h2>Nenhuma carreira de {game.shortName} criada</h2>
+          <p>Crie seu primeiro motorista ou importe um backup {game.backupMarker}.</p>
+          <AppLink className="button primary compact" to={game.routes.new}>Criar carreira</AppLink>
         </div>
       ) : (
         <section className="career-grid">
@@ -187,32 +160,18 @@ function CareersPage() {
               }}
             >
               <div className="career-card-top">
-                <div>
-                  <span className="eyebrow">Nível {career.currentLevel || 1}</span>
-                  <h2>{career.driverName}</h2>
-                </div>
+                <div><span className="eyebrow">{game.shortName} • Nível {career.currentLevel || 1}</span><h2>{career.driverName}</h2></div>
                 <span className="pill">{career.city || 'Cidade não informada'}</span>
               </div>
               <div className="career-meta">
                 <span>Empresa</span><strong>{career.company || '—'}</strong>
-                <span>Saldo inicial</span><strong>{money(career.initialBalance ?? career.currentBalance)}</strong>
+                <span>Saldo inicial</span><strong>{formatMoney(career.initialBalance ?? career.currentBalance, game)}</strong>
               </div>
               <p className="career-bio">{career.bio || career.biography || 'Sem biografia cadastrada.'}</p>
               <div className="career-card-footer">
                 <span className="career-open-hint">Clique no card para continuar</span>
-                <button
-                  className="career-delete-icon"
-                  type="button"
-                  aria-label={`Excluir carreira ${career.driverName}`}
-                  title="Excluir carreira"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    removeCareer(career)
-                  }}
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                    <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-2 6h10l-.7 11H7.7L7 9Zm3 2v7h2v-7h-2Zm4 0v7h2v-7h-2Z" />
-                  </svg>
+                <button className="career-delete-icon" type="button" aria-label={`Excluir carreira ${career.driverName}`} title="Excluir carreira" onClick={(event) => { event.stopPropagation(); removeCareer(career) }}>
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-2 6h10l-.7 11H7.7L7 9Zm3 2v7h2v-7h-2Zm4 0v7h2v-7h-2Z" /></svg>
                 </button>
               </div>
             </article>
@@ -224,15 +183,16 @@ function CareersPage() {
 }
 
 function NewCareerPage() {
+  const game = useGame()
   const toast = useToast()
   const confirm = useConfirm()
   const { startTutorial } = useTutorial()
   const [driverName, setDriverName] = useState('')
   const [city, setCity] = useState('')
   const [company, setCompany] = useState('')
-  const [arrivalBalance, setArrivalBalance] = useState(5000)
+  const [arrivalBalance, setArrivalBalance] = useState(game.id === 'ats' ? 5000 : 3500)
   const [bio, setBio] = useState('')
-  const [costs, setCosts] = useState(DEFAULT_COSTS)
+  const [costs, setCosts] = useState(() => ({ ...game.setupCosts }))
   const [showTutorial, setShowTutorial] = useState(false)
 
   const totalCosts = useMemo(() => Object.values(costs).reduce((sum, value) => sum + Number(value || 0), 0), [costs])
@@ -251,37 +211,30 @@ function NewCareerPage() {
     if (remaining < 0) {
       const confirmed = await confirm({
         title: 'Criar com saldo negativo?',
-        message: `Os custos iniciais são maiores que o dinheiro disponível. A carreira começará com ${money(remaining)}.`,
-        confirmLabel: 'Criar mesmo assim',
-        tone: 'warning',
+        message: `Os custos iniciais são maiores que o dinheiro disponível. A carreira começará com ${formatMoney(remaining, game)}.`,
+        confirmLabel: 'Criar mesmo assim', tone: 'warning',
       })
       if (!confirmed) return
     }
 
     const career = createCareer({
-      driverName: driverName.trim(),
-      city: city.trim(),
-      company: company.trim(),
-      arrivalBalance: Number(arrivalBalance) || 0,
-      setupCosts: costs,
-      setupCostsTotal: totalCosts,
-      initialBalance: remaining,
-      currentBalance: remaining,
-      bio: bio.trim(),
-    })
-    toast.success(`Carreira de ${career.driverName} criada com sucesso.`, { title: 'Carreira criada' })
-    if (showTutorial) startTutorial(career.id)
-    else window.location.hash = `#/phases?career=${encodeURIComponent(career.id)}`
+      driverName: driverName.trim(), city: city.trim(), company: company.trim(), currency: game.currency,
+      arrivalBalance: Number(arrivalBalance) || 0, setupCosts: costs, setupCostsTotal: totalCosts,
+      initialBalance: remaining, currentBalance: remaining, bio: bio.trim(),
+    }, game.id)
+    toast.success(`Carreira de ${career.driverName} criada em ${game.shortName}.`, { title: 'Carreira criada' })
+    if (showTutorial) startTutorial(career.id, game.id)
+    else window.location.hash = `#${game.routes.phases}?career=${encodeURIComponent(career.id)}`
   }
 
   return (
     <main className="page-shell form-shell">
-      <AppLink className="back-link" to="/ats">← Voltar para carreiras</AppLink>
+      <AppLink className="back-link" to={game.routes.careers}>← Voltar para carreiras</AppLink>
       <form className="panel form-panel" onSubmit={submit}>
         <div className="section-heading">
-          <span className="eyebrow">Novo personagem</span>
+          <span className="eyebrow">Novo personagem • {game.shortName}</span>
           <h1>Criar nova carreira</h1>
-          <p>Cada carreira mantém progresso e finanças separados.</p>
+          <p>{game.region}, {game.distanceName} e valores em {game.currencyLabel}. Cada jogo mantém progresso separado.</p>
         </div>
 
         <label>Nome do motorista</label>
@@ -289,46 +242,37 @@ function NewCareerPage() {
 
         <div className="two-columns">
           <CityAutocomplete value={city} onChange={setCity} label="Cidade inicial" required />
-          <div>
-            <label>Nome da empresa</label>
-            <input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Ex.: Pacific Horizon Logistics" required />
-          </div>
+          <div><label>Nome da empresa</label><input value={company} onChange={(e) => setCompany(e.target.value)} placeholder={`Ex.: ${game.companyPlaceholder}`} required /></div>
         </div>
 
-        <label>Dinheiro ao chegar aos EUA (US$)</label>
+        <label>{game.arrivalLabel} ({game.currencyLabel})</label>
         <input type="number" min="0" step="0.01" value={arrivalBalance} onChange={(e) => setArrivalBalance(e.target.value)} />
 
         <section className="setup-panel">
           <div className="setup-heading">
-            <div>
-              <h2>Custos iniciais de mudança</h2>
-              <p>Edite os valores antes de criar a carreira.</p>
-            </div>
+            <div><h2>Custos iniciais de mudança</h2><p>Valores sugeridos para o roleplay de {game.shortName}; edite conforme a cidade escolhida.</p></div>
             <div className="inline-actions">
-              <button type="button" className="button secondary compact" onClick={() => setCosts(DEFAULT_COSTS)}>Restaurar</button>
-              <button type="button" className="button secondary compact" onClick={() => setCosts(Object.fromEntries(Object.keys(DEFAULT_COSTS).map((key) => [key, 0])))}>Zerar</button>
+              <button type="button" className="button secondary compact" onClick={() => setCosts({ ...game.setupCosts })}>Restaurar</button>
+              <button type="button" className="button secondary compact" onClick={() => setCosts(Object.fromEntries(Object.keys(game.setupCosts).map((key) => [key, 0])))}>Zerar</button>
             </div>
           </div>
           <div className="cost-grid">
             {Object.entries(costs).map(([key, value]) => (
-              <div className="cost-field" key={key}>
-                <label>{COST_LABELS[key]}</label>
-                <input type="number" min="0" step="0.01" value={value} onChange={(e) => updateCost(key, e.target.value)} />
-              </div>
+              <div className="cost-field" key={key}><label>{game.setupLabels[key]}</label><input type="number" min="0" step="0.01" value={value} onChange={(e) => updateCost(key, e.target.value)} /></div>
             ))}
           </div>
           <div className="summary-grid">
-            <div><span>Dinheiro ao chegar</span><strong>{money(arrivalBalance)}</strong></div>
-            <div><span>Total de custos</span><strong>{money(totalCosts)}</strong></div>
-            <div><span>Saldo inicial</span><strong className={remaining < 0 ? 'negative' : 'positive'}>{money(remaining)}</strong></div>
+            <div><span>Dinheiro disponível</span><strong>{formatMoney(arrivalBalance, game)}</strong></div>
+            <div><span>Total de custos</span><strong>{formatMoney(totalCosts, game)}</strong></div>
+            <div><span>Saldo inicial</span><strong className={remaining < 0 ? 'negative' : 'positive'}>{formatMoney(remaining, game)}</strong></div>
           </div>
         </section>
 
         <label>Biografia do personagem</label>
-        <textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Ex.: Brasileiro que imigrou legalmente para os EUA..." />
+        <textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder={`Ex.: ${game.bioPlaceholder}`} />
         <label className="tutorial-opt-in">
           <input type="checkbox" checked={showTutorial} onChange={(event) => setShowTutorial(event.target.checked)} />
-          <span><strong>Ver tutorial após criar a carreira</strong><small>Um tour guiado apresentará todas as telas e recursos sem alterar seus dados.</small></span>
+          <span><strong>Ver tutorial após criar a carreira</strong><small>O tour usará os textos, unidades e qualificações de {game.shortName} sem alterar seus dados.</small></span>
         </label>
         <button className="button primary submit-button" type="submit">Criar carreira e continuar</button>
       </form>
@@ -337,41 +281,28 @@ function NewCareerPage() {
 }
 
 function PhasesPage({ careerId }) {
-  const id = careerId || getActiveCareerId()
-  const career = id ? getCareer(id) : null
+  const game = useGame()
+  const id = careerId || getActiveCareerId(game.id)
+  const career = id ? getCareer(id, game.id) : null
 
   useEffect(() => {
-    if (career?.id) setActiveCareer(career.id)
-  }, [career?.id])
+    if (career?.id) setActiveCareer(career.id, game.id)
+  }, [career?.id, game.id])
 
   if (!career) {
-    return (
-      <main className="page-shell form-shell">
-        <AppLink className="back-link" to="/ats">← Voltar para carreiras</AppLink>
-        <div className="empty-state"><h2>Carreira não encontrada</h2><p>Escolha uma carreira salva para continuar.</p></div>
-      </main>
-    )
+    return <main className="page-shell form-shell"><AppLink className="back-link" to={game.routes.careers}>← Voltar para carreiras</AppLink><div className="empty-state"><h2>Carreira não encontrada</h2><p>Escolha uma carreira de {game.shortName} salva para continuar.</p></div></main>
   }
 
   return (
     <main className="page-shell phase-shell">
-      <AppLink className="back-link" to="/ats">← Voltar para carreiras</AppLink>
-      <section className="page-heading centered">
-        <span className="eyebrow">American Truck Simulator</span>
-        <h1>Fases da carreira</h1>
-        <p>Escolha a etapa da sua vida profissional.</p>
-      </section>
-      <div className="profile-strip">
-        <strong>{career.driverName}</strong>
-        <span>{career.city}</span>
-        <span>{career.company}</span>
-      </div>
+      <AppLink className="back-link" to={game.routes.careers}>← Voltar para carreiras</AppLink>
+      <section className="page-heading centered"><span className="eyebrow">{game.name}</span><h1>Fases da carreira</h1><p>Escolha a etapa da vida profissional do motorista.</p></section>
+      <div className="profile-strip"><strong>{career.driverName}</strong><span>{career.city}</span><span>{career.company}</span><span>{game.currency} • {game.distanceUnit}</span></div>
       <section className="phase-list" data-tour="career-phases">
-        <AppLink className="phase-card interactive" data-tour="phase-one" to={`/phase1?career=${encodeURIComponent(career.id)}`}>
-          <div><span className="eyebrow">Fase ativa</span><h2>Fase 1 — Motorista Empregado</h2><p>Company Driver • Níveis 1, 2 e 3 • Sem caminhão próprio.</p></div>
-          <span className="tag active">Abrir</span>
+        <AppLink className="phase-card interactive" data-tour="phase-one" to={`${game.routes.phase1}?career=${encodeURIComponent(career.id)}`}>
+          <div><span className="eyebrow">Fase ativa</span><h2>Fase 1 — Motorista Empregado</h2><p>{game.levelRoles[0]} • Níveis 1, 2 e 3 • Sem caminhão próprio.</p></div><span className="tag active">Abrir</span>
         </AppLink>
-        <article className="phase-card disabled"><div><h2>Fase 2</h2><p>Primeiro caminhão próprio e operação como owner-operator.</p></div><span className="tag">Em breve</span></article>
+        <article className="phase-card disabled"><div><h2>Fase 2</h2><p>Primeiro caminhão próprio e operação como autônomo.</p></div><span className="tag">Em breve</span></article>
         <article className="phase-card disabled"><div><h2>Fase 3</h2><p>Reservada para uma etapa futura da simulação.</p></div><span className="tag">Em breve</span></article>
       </section>
     </main>
@@ -380,13 +311,18 @@ function PhasesPage({ careerId }) {
 
 export default function App() {
   const { path, params } = useHashRoute()
+  if (path === '/') return <HomePage />
 
-  if (path === '/ats') return <CareersPage />
-  if (path === '/new') return <NewCareerPage />
-  if (path === '/phases') return <PhasesPage careerId={params.get('career')} />
-  if (path === '/phase1') {
-    const careerId = params.get('career') || getActiveCareerId()
-    return <Phase1Page careerId={careerId} onBack={() => { window.location.hash = `#/phases?career=${encodeURIComponent(careerId || '')}` }} />
+  const gameId = gameIdFromPath(path)
+  const game = getGame(gameId)
+  let page = null
+  if (path === game.routes.careers) page = <CareersPage />
+  else if (path === game.routes.new) page = <NewCareerPage />
+  else if (path === game.routes.phases) page = <PhasesPage careerId={params.get('career')} />
+  else if (path === game.routes.phase1) {
+    const careerId = params.get('career') || getActiveCareerId(game.id)
+    page = <Phase1Page gameId={game.id} careerId={careerId} onBack={() => { window.location.hash = `#${game.routes.phases}?career=${encodeURIComponent(careerId || '')}` }} />
   }
-  return <HomePage />
+
+  return page ? <GameProvider key={`${game.id}:${path}`} gameId={game.id}>{page}</GameProvider> : <HomePage />
 }

@@ -1,4 +1,5 @@
 import { getCareer, loadCareers, saveCareers } from './storage.js'
+import { getGame } from '../config/games.js'
 
 const LEGACY_STATE_KEY = 'ats_phase1_tabs_v3'
 const OLD_LEGACY_KEY = 'ats_phase1_tabs_v2'
@@ -7,60 +8,23 @@ export const EMERGENCY_RESERVE_ANNUAL_YIELD = 0.0325
 export const LEVEL1_ROUTE_OVERRUN_RATE = 21.25
 export const LEVEL1_DAILY_WORK_MINUTES = 8 * 60
 
-export const DEFAULT_EXPENSES = {
-  rent: 1650,
-  electricity: 100,
-  water: 60,
-  internet: 65,
-  phone: 55,
-  groceries: 400,
-  eatingOut: 150,
-  health: 180,
-  publicTransport: 72,
-  household: 80,
-  leisure: 150,
+export const DEFAULT_EXPENSES = getGame('ats').expenses
+export const EXPENSE_LABELS = getGame('ats').expenseLabels
+export const PAY_RATES = getGame('ats').payRates
+export const PAY_LABELS = getGame('ats').payLabels
+
+export function phase1StorageKey(careerId, gameId = 'ats') {
+  const game = getGame(gameId)
+  return careerId ? `${game.storagePrefix}_phase1_state_${careerId}` : `${game.storagePrefix}_phase1_tabs_v3`
 }
 
-export const EXPENSE_LABELS = {
-  rent: 'Aluguel',
-  electricity: 'Eletricidade',
-  water: 'Água / lixo',
-  internet: 'Internet',
-  phone: 'Celular',
-  groceries: 'Mercado',
-  eatingOut: 'Alimentação fora',
-  health: 'Saúde / parcela pessoal',
-  publicTransport: 'Ônibus / metrô',
-  household: 'Higiene / casa',
-  leisure: 'Lazer',
-}
-
-export const PAY_RATES = {
-  normal: 0.60,
-  hazmat: 0.63,
-  doubles: 0.64,
-  hazmat_doubles: 0.67,
-  deadhead: 0.50,
-}
-
-export const PAY_LABELS = {
-  normal: 'Loaded normal',
-  hazmat: 'Loaded HazMat',
-  doubles: 'Loaded Doubles / bitrem',
-  hazmat_doubles: 'Loaded HazMat + Doubles',
-  deadhead: 'Deadhead',
-}
-
-export function phase1StorageKey(careerId) {
-  return careerId ? `ats_phase1_state_${careerId}` : LEGACY_STATE_KEY
-}
-
-function makeDefaultState(career) {
+function makeDefaultState(career, gameId = 'ats') {
+  const game = getGame(gameId)
   const level = Number(career?.currentLevel || 1)
   return {
     balance: Number(career?.currentBalance ?? career?.initialBalance ?? 793),
     emergencyReserve: 0,
-    expenses: { ...DEFAULT_EXPENSES },
+    expenses: { ...game.expenses },
     history: [],
     trips: [],
     closedWeeks: [],
@@ -69,24 +33,26 @@ function makeDefaultState(career) {
     currentLevel: level,
     careerLevel: level,
     hazmatQualified: false,
+    dangerousGoodsQualified: false,
     academy: { level2: false, level3: false },
     currentWeek: 1,
   }
 }
 
-function normalizeExpenses(expenses) {
+function normalizeExpenses(expenses, gameId = 'ats') {
+  const defaults = getGame(gameId).expenses
   return Object.fromEntries(
-    Object.entries({ ...DEFAULT_EXPENSES, ...(expenses || {}) })
+    Object.entries({ ...defaults, ...(expenses || {}) })
       .filter(([key]) => key !== 'emergency'),
   )
 }
 
-function normalizeState(raw, career) {
-  const base = makeDefaultState(career)
+function normalizeState(raw, career, gameId = 'ats') {
+  const base = makeDefaultState(career, gameId)
   const state = { ...base, ...(raw || {}) }
   state.balance = Number(raw?.balance ?? base.balance)
   state.emergencyReserve = Math.max(0, Number(raw?.emergencyReserve || 0))
-  state.expenses = normalizeExpenses(raw?.expenses)
+  state.expenses = normalizeExpenses(raw?.expenses, gameId)
   state.history = Array.isArray(raw?.history) ? raw.history : []
   state.trips = Array.isArray(raw?.trips) ? raw.trips : []
   state.closedWeeks = Array.isArray(raw?.closedWeeks) ? raw.closedWeeks : []
@@ -96,7 +62,8 @@ function normalizeState(raw, career) {
   state.currentLevel = level
   state.careerLevel = level
   state.currentWeek = Number(raw?.currentWeek || 1)
-  state.hazmatQualified = Boolean(raw?.hazmatQualified)
+  state.dangerousGoodsQualified = Boolean(raw?.dangerousGoodsQualified ?? raw?.hazmatQualified)
+  state.hazmatQualified = state.dangerousGoodsQualified
   state.academy = {
     level2: Boolean(raw?.academy?.level2 || state.currentLevel >= 2),
     level3: Boolean(raw?.academy?.level3 || state.currentLevel >= 3),
@@ -104,28 +71,30 @@ function normalizeState(raw, career) {
   return state
 }
 
-export function loadPhase1State(careerId) {
-  const career = getCareer(careerId)
-  let raw = localStorage.getItem(phase1StorageKey(careerId))
-  if (!raw && careerId) raw = localStorage.getItem(LEGACY_STATE_KEY) || localStorage.getItem(OLD_LEGACY_KEY)
-  if (!raw) return makeDefaultState(career)
+export function loadPhase1State(careerId, gameId = 'ats') {
+  const career = getCareer(careerId, gameId)
+  let raw = localStorage.getItem(phase1StorageKey(careerId, gameId))
+  if (!raw && careerId && gameId === 'ats') raw = localStorage.getItem(LEGACY_STATE_KEY) || localStorage.getItem(OLD_LEGACY_KEY)
+  if (!raw) return makeDefaultState(career, gameId)
   try {
-    return normalizeState(JSON.parse(raw), career)
+    return normalizeState(JSON.parse(raw), career, gameId)
   } catch {
-    return makeDefaultState(career)
+    return makeDefaultState(career, gameId)
   }
 }
 
-export function savePhase1State(careerId, state) {
+export function savePhase1State(careerId, state, gameId = 'ats') {
   const normalized = {
     ...state,
     emergencyReserve: Math.max(0, Number(state.emergencyReserve || 0)),
-    expenses: normalizeExpenses(state.expenses),
+    expenses: normalizeExpenses(state.expenses, gameId),
+    dangerousGoodsQualified: Boolean(state.dangerousGoodsQualified ?? state.hazmatQualified),
+    hazmatQualified: Boolean(state.dangerousGoodsQualified ?? state.hazmatQualified),
     currentLevel: Number(state.currentLevel || state.careerLevel || 1),
     careerLevel: Number(state.currentLevel || state.careerLevel || 1),
   }
-  localStorage.setItem(phase1StorageKey(careerId), JSON.stringify(normalized))
-  const careers = loadCareers()
+  localStorage.setItem(phase1StorageKey(careerId, gameId), JSON.stringify(normalized))
+  const careers = loadCareers(gameId)
   const index = careers.findIndex((item) => item.id === careerId)
   if (index >= 0) {
     careers[index] = {
@@ -134,44 +103,54 @@ export function savePhase1State(careerId, state) {
       currentLevel: Number(normalized.currentLevel || 1),
       updatedAt: new Date().toISOString(),
     }
-    saveCareers(careers)
+    saveCareers(careers, gameId)
   }
 }
 
-export function totalMiles(state) {
-  return state.trips.reduce((sum, trip) => sum + Number(trip.miles || 0), 0)
+export function tripDistance(trip) {
+  return Number(trip?.distance ?? trip?.miles ?? 0)
 }
+
+export function totalMiles(state) {
+  return state.trips.reduce((sum, trip) => sum + tripDistance(trip), 0)
+}
+
+export const totalDistance = totalMiles
 
 export function currentWeekTrips(state) {
   return state.trips.filter((trip) => Number(trip.week || 1) === Number(state.currentWeek || 1))
 }
 
 export function currentWeekMiles(state) {
-  return currentWeekTrips(state).reduce((sum, trip) => sum + Number(trip.miles || 0), 0)
+  return currentWeekTrips(state).reduce((sum, trip) => sum + tripDistance(trip), 0)
 }
+
+export const currentWeekDistance = currentWeekMiles
 
 export function tripPayCategory(trip) {
   return trip.type === 'Deadhead' ? 'deadhead' : (trip.payCategory || 'normal')
 }
 
-export function validPayCategories(state) {
+export function validPayCategories(state, gameId = 'ats') {
   if (state.currentLevel <= 1) return ['normal']
   const categories = ['normal']
-  if (state.hazmatQualified) categories.push('hazmat')
+  const qualified = Boolean(state.dangerousGoodsQualified ?? state.hazmatQualified)
+  if (qualified) categories.push('hazmat')
   if (state.currentLevel >= 3) {
     categories.push('doubles')
-    if (state.hazmatQualified) categories.push('hazmat_doubles')
+    if (qualified) categories.push('hazmat_doubles')
   }
   return categories
 }
 
-export function mileagePaySummary(trips) {
+export function mileagePaySummary(trips, gameId = 'ats') {
+  const rates = getGame(gameId).payRates
   const totals = { normal: 0, hazmat: 0, doubles: 0, hazmat_doubles: 0, deadhead: 0 }
   for (const trip of trips) {
     const category = tripPayCategory(trip)
-    totals[category] = (totals[category] || 0) + Number(trip.miles || 0)
+    totals[category] = (totals[category] || 0) + tripDistance(trip)
   }
-  const gross = Object.entries(totals).reduce((sum, [key, miles]) => sum + miles * (PAY_RATES[key] || 0), 0)
+  const gross = Object.entries(totals).reduce((sum, [key, distance]) => sum + distance * (rates[key] || 0), 0)
   return { totals, gross }
 }
 
@@ -179,7 +158,7 @@ function localDayKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
-export function routeOverrunSummary(trips, dailyWorkMinutes = LEVEL1_DAILY_WORK_MINUTES) {
+export function routeOverrunSummary(trips, dailyWorkMinutes = LEVEL1_DAILY_WORK_MINUTES, rate = LEVEL1_ROUTE_OVERRUN_RATE) {
   const minutesByDay = new Map()
 
   for (const trip of trips || []) {
@@ -208,7 +187,7 @@ export function routeOverrunSummary(trips, dailyWorkMinutes = LEVEL1_DAILY_WORK_
   }))
   const totalMinutes = days.reduce((sum, day) => sum + day.minutes, 0)
   const overrunMinutes = days.reduce((sum, day) => sum + day.overrunMinutes, 0)
-  const pay = Math.round((overrunMinutes * LEVEL1_ROUTE_OVERRUN_RATE / 60) * 100) / 100
+  const pay = Math.round((overrunMinutes * rate / 60) * 100) / 100
 
   return {
     days,
@@ -216,7 +195,7 @@ export function routeOverrunSummary(trips, dailyWorkMinutes = LEVEL1_DAILY_WORK_
     totalHours: totalMinutes / 60,
     overrunMinutes,
     overrunHours: overrunMinutes / 60,
-    rate: LEVEL1_ROUTE_OVERRUN_RATE,
+    rate,
     pay,
   }
 }
@@ -253,8 +232,15 @@ export function weeklyEmergencyReserveYield(reserveBalance) {
   return principal * EMERGENCY_RESERVE_ANNUAL_YIELD / 52
 }
 
-export function estimateTaxes(gross) {
+export function estimateTaxes(gross, gameId = 'ats') {
   const value = Math.max(0, Number(gross || 0))
+  if (getGame(gameId).taxModel === 'eu-generic') {
+    return {
+      incomeTax: value * 0.16,
+      socialInsurance: value * 0.09,
+      solidarity: value * 0.015,
+    }
+  }
   const ss = value * 0.062
   const medicare = value * 0.0145
   const sdi = value * 0.013
@@ -287,27 +273,29 @@ export function applyPendingIncidentDeductions(incidents, maxAmount) {
   return { incidents: nextIncidents, applied }
 }
 
-export function getPromotionStatus(state) {
-  const miles = totalMiles(state)
+export function getPromotionStatus(state, gameId = 'ats') {
+  const game = getGame(gameId)
+  const distance = totalMiles(state)
+  const [level2Goal, level3Goal] = game.promotionGoals
   if (state.currentLevel === 1) {
     return {
-      goal: 10000,
-      remaining: Math.max(0, 10000 - miles),
-      ready: miles >= 10000 && !state.academy.level2,
+      goal: level2Goal,
+      remaining: Math.max(0, level2Goal - distance),
+      ready: distance >= level2Goal && !state.academy.level2,
       nextLevel: 2,
       title: 'Nível 2 disponível',
-      requirement: 'Truck Driving Proficiency + US$ 300',
+      requirement: `${game.promotionModules[0]} + ${game.currencyLabel} ${game.promotionCosts[0]}`,
     }
   }
   if (state.currentLevel === 2) {
     return {
-      goal: 50000,
-      remaining: Math.max(0, 50000 - miles),
-      ready: miles >= 50000 && !state.academy.level3,
+      goal: level3Goal,
+      remaining: Math.max(0, level3Goal - distance),
+      ready: distance >= level3Goal && !state.academy.level3,
       nextLevel: 3,
       title: 'Nível 3 disponível',
-      requirement: 'Double Trailer Handling + US$ 59',
+      requirement: `${game.promotionModules[1]} + ${game.currencyLabel} ${game.promotionCosts[1]}`,
     }
   }
-  return { goal: 50000, remaining: 0, ready: false, nextLevel: null, title: 'Nível máximo da Fase 1', requirement: '' }
+  return { goal: level3Goal, remaining: 0, ready: false, nextLevel: null, title: 'Nível máximo da Fase 1', requirement: '' }
 }

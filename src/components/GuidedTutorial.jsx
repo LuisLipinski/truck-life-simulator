@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { getGame } from '../config/games.js'
 
 export const TUTORIAL_STORAGE_KEY = 'ats_guided_tour_v1'
 
@@ -145,13 +146,35 @@ export const TUTORIAL_STEPS = [
   },
 ]
 
+export function tutorialStepsForGame(gameId = 'ats') {
+  if (gameId === 'ats') return TUTORIAL_STEPS
+  return TUTORIAL_STEPS.map((step) => ({
+    ...step,
+    title: step.title
+      .replaceAll('Milhas', 'Quilômetros')
+      .replaceAll('HazMat', 'ADR'),
+    text: step.text
+      .replaceAll('American Truck Simulator', 'Euro Truck Simulator 2')
+      .replaceAll('ATS', 'ETS2')
+      .replaceAll('10.000 e 50.000 milhas', '16.000 e 80.000 quilômetros')
+      .replaceAll('milhas', 'quilômetros')
+      .replaceAll('Loaded e Deadhead', 'Com carga e reposicionamento vazio')
+      .replaceAll('HazMat', 'ADR')
+      .replaceAll('Company Driver', 'motorista empregado')
+      .replaceAll('OTR', 'internacional')
+      .replaceAll('Route Overrun', 'hora extra de rota')
+      .replaceAll('per diem', 'diária internacional'),
+  }))
+}
+
 const TutorialContext = createContext(null)
 
 function readStoredTour() {
   try {
     const stored = JSON.parse(window.sessionStorage.getItem(TUTORIAL_STORAGE_KEY) || 'null')
-    if (!stored?.careerId || !Number.isInteger(stored.index) || stored.index < 0 || stored.index >= TUTORIAL_STEPS.length) return null
-    return stored
+    const gameId = stored?.gameId || 'ats'
+    if (!stored?.careerId || !Number.isInteger(stored.index) || stored.index < 0 || stored.index >= tutorialStepsForGame(gameId).length) return null
+    return { ...stored, gameId }
   } catch {
     return null
   }
@@ -166,15 +189,17 @@ function storeTour(tour) {
   }
 }
 
-function stepHash(step, careerId) {
-  return `#${step.route}?career=${encodeURIComponent(careerId)}`
+function stepHash(step, careerId, gameId = 'ats') {
+  const game = getGame(gameId)
+  const route = step.route === '/phase1' ? game.routes.phase1 : game.routes.phases
+  return `#${route}?career=${encodeURIComponent(careerId)}`
 }
 
 function clamp(value, minimum, maximum) {
   return Math.min(Math.max(value, minimum), maximum)
 }
 
-function TutorialOverlay({ step, index, onBack, onNext, onExit }) {
+function TutorialOverlay({ step, index, totalSteps, onBack, onNext, onExit }) {
   const [spotlight, setSpotlight] = useState(null)
   const [popoverPosition, setPopoverPosition] = useState(null)
   const targetRef = useRef(null)
@@ -290,8 +315,8 @@ function TutorialOverlay({ step, index, onBack, onNext, onExit }) {
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [onExit])
 
-  const isLast = index === TUTORIAL_STEPS.length - 1
-  const progress = ((index + 1) / TUTORIAL_STEPS.length) * 100
+  const isLast = index === totalSteps - 1
+  const progress = ((index + 1) / totalSteps) * 100
 
   return (
     <div className={`guided-tutorial-layer${spotlight ? '' : ' locating'}`}>
@@ -309,7 +334,7 @@ function TutorialOverlay({ step, index, onBack, onNext, onExit }) {
       >
         <div className="guided-tutorial-meta">
           <span className="eyebrow">Tour guiado</span>
-          <strong>Etapa {index + 1} de {TUTORIAL_STEPS.length}</strong>
+          <strong>Etapa {index + 1} de {totalSteps}</strong>
         </div>
         <div className="guided-tutorial-progress" aria-hidden="true"><span style={{ width: `${progress}%` }} /></div>
         <h2 id="guided-tutorial-title">{step.title}</h2>
@@ -328,13 +353,16 @@ function TutorialOverlay({ step, index, onBack, onNext, onExit }) {
 
 export function TutorialProvider({ children }) {
   const [tour, setTour] = useState(readStoredTour)
-  const activeStep = tour ? TUTORIAL_STEPS[tour.index] : null
+  const steps = useMemo(() => tutorialStepsForGame(tour?.gameId || 'ats'), [tour?.gameId])
+  const activeStep = tour ? steps[tour.index] : null
 
-  const startTutorial = useCallback((careerId) => {
-    const nextTour = { careerId: String(careerId), index: 0 }
+  const startTutorial = useCallback((careerId, gameId = 'ats') => {
+    const nextTour = gameId === 'ats'
+      ? { careerId: String(careerId), index: 0 }
+      : { careerId: String(careerId), gameId, index: 0 }
     storeTour(nextTour)
     setTour(nextTour)
-    window.location.hash = stepHash(TUTORIAL_STEPS[0], nextTour.careerId)
+    window.location.hash = stepHash(tutorialStepsForGame(gameId)[0], nextTour.careerId, gameId)
   }, [])
 
   const exitTutorial = useCallback(() => {
@@ -346,11 +374,12 @@ export function TutorialProvider({ children }) {
     setTour((current) => {
       if (!current) return null
       const nextIndex = current.index + direction
-      if (nextIndex >= TUTORIAL_STEPS.length) {
+      const currentSteps = tutorialStepsForGame(current.gameId || 'ats')
+      if (nextIndex >= currentSteps.length) {
         storeTour(null)
         return null
       }
-      const nextTour = { ...current, index: clamp(nextIndex, 0, TUTORIAL_STEPS.length - 1) }
+      const nextTour = { ...current, index: clamp(nextIndex, 0, currentSteps.length - 1) }
       storeTour(nextTour)
       return nextTour
     })
@@ -358,7 +387,7 @@ export function TutorialProvider({ children }) {
 
   useEffect(() => {
     if (!tour || !activeStep) return undefined
-    const expectedHash = stepHash(activeStep, tour.careerId)
+    const expectedHash = stepHash(activeStep, tour.careerId, tour.gameId)
     const keepTutorialRoute = () => {
       if (window.location.hash !== expectedHash) window.location.hash = expectedHash
     }
@@ -381,6 +410,7 @@ export function TutorialProvider({ children }) {
         <TutorialOverlay
           step={activeStep}
           index={tour.index}
+          totalSteps={steps.length}
           onBack={() => changeStep(-1)}
           onNext={() => changeStep(1)}
           onExit={exitTutorial}

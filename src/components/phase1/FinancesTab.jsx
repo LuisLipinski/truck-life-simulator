@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import {
   EMERGENCY_RESERVE_ANNUAL_YIELD,
-  EXPENSE_LABELS,
   monthlyExpenseTotal,
 } from '../../lib/phase1.js'
+import { formatMoney } from '../../config/games.js'
+import { useGame } from '../GameContext.jsx'
 import { useConfirm } from '../ConfirmProvider.jsx'
 import { useToast } from '../ToastProvider.jsx'
 
@@ -13,10 +14,6 @@ const EXPENSE_TIPS = {
   phone: 'Plano de celular e linha telefônica usados pelo motorista.',
   internet: 'Internet residencial mensal da simulação.',
   transit: 'Transporte pessoal fora do caminhão da empresa, como ônibus, metrô ou corridas ocasionais.',
-}
-
-function money(value) {
-  return Number(value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function now() {
@@ -55,6 +52,8 @@ function TipLabel({ children, tip, className = '' }) {
 }
 
 export default function FinancesTab({ state, commit }) {
+  const game = useGame()
+  const money = (value) => formatMoney(value, game)
   const toast = useToast()
   const confirm = useConfirm()
   const [manualBalance, setManualBalance] = useState(() => moneyInput(state.balance))
@@ -269,7 +268,7 @@ export default function FinancesTab({ state, commit }) {
         <div className="expense-fields-grid">
           {Object.entries(state.expenses || {}).filter(([key]) => key !== 'emergency').map(([key, value]) => (
             <div key={key} className="expense-field">
-              <TipLabel tip={EXPENSE_TIPS[key] || 'Valor mensal desta despesa pessoal. Ele entra no total quando você aplicar as despesas mensais.'}>{EXPENSE_LABELS[key] || key}</TipLabel>
+              <TipLabel tip={EXPENSE_TIPS[key] || 'Valor mensal desta despesa pessoal. Ele entra no total quando você aplicar as despesas mensais.'}>{game.expenseLabels[key] || key}</TipLabel>
               <input type="text" inputMode="decimal" defaultValue={moneyInput(value)} onBlur={(event) => { if (updateExpense(key, event.target.value)) event.target.value = moneyInput(event.target.value); else event.target.value = moneyInput(value) }} />
             </div>
           ))}

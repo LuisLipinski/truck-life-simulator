@@ -1,11 +1,9 @@
 import { useMemo, useState } from 'react'
 import { pendingIncidentTotal } from '../../lib/phase1.js'
+import { formatMoney } from '../../config/games.js'
+import { useGame } from '../GameContext.jsx'
 import { useConfirm } from '../ConfirmProvider.jsx'
 import { useToast } from '../ToastProvider.jsx'
-
-function money(value) {
-  return Number(value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
-}
 
 function Tip({ text }) {
   return <button className="react-info-tip" type="button" aria-label="Mais informações" data-tip={text}>i</button>
@@ -16,6 +14,8 @@ function Label({ children, tip }) {
 }
 
 export default function IncidentsTab({ state, commit }) {
+  const game = useGame()
+  const money = (value) => formatMoney(value, game)
   const toast = useToast()
   const confirm = useConfirm()
   const [type, setType] = useState('Infração')
@@ -102,7 +102,7 @@ export default function IncidentsTab({ state, commit }) {
           <div className="two-columns"><div><Label tip="Data em que a ocorrência aconteceu na sua simulação.">Data</Label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div><div><Label tip="Horário aproximado da ocorrência. Pode ser deixado em branco se não souber.">Hora</Label><input type="time" value={time} onChange={(e) => setTime(e.target.value)} /></div></div>
           <Label tip="Você pode vincular a ocorrência a uma viagem já registrada ou informar a rota manualmente.">Rota relacionada</Label>
           <select value={routeMode} onChange={(e) => setRouteMode(e.target.value)}><option value="manual">Outra / informar manualmente</option>{trips.map((trip) => <option key={trip.id} value={`trip:${trip.id}`}>Semana {trip.week || 1} — {trip.origin} → {trip.destination}</option>)}</select>
-          {routeMode === 'manual' && <><Label tip="Informe rodovia, cidades ou uma referência suficiente para lembrar onde ocorreu.">Rota</Label><input value={manualRoute} onChange={(e) => setManualRoute(e.target.value)} placeholder="Ex.: I-5, Los Angeles → Bakersfield" /></>}
+          {routeMode === 'manual' && <><Label tip="Informe rodovia, cidades ou uma referência suficiente para lembrar onde ocorreu.">Rota</Label><input value={manualRoute} onChange={(e) => setManualRoute(e.target.value)} placeholder={game.id === 'ats' ? 'Ex.: I-5, Los Angeles → Bakersfield' : 'Ex.: A2, Berlin → Hannover'} /></>}
           <Label tip="Registre resumidamente o que aconteceu para manter o histórico da carreira compreensível.">Descrição</Label><textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descreva o que aconteceu" />
           <Label tip="Saldo agora desconta imediatamente. Próximo holerite deixa a cobrança pendente e desconta no fechamento semanal, carregando eventual restante.">Método de cobrança</Label>
           <select value={chargeMethod} onChange={(e) => setChargeMethod(e.target.value)}><option value="balance">Descontar do saldo agora</option><option value="payslip">Descontar no próximo holerite</option></select>
