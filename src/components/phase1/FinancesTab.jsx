@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import {
   EMERGENCY_RESERVE_ANNUAL_YIELD,
-  EXPENSE_LABELS,
   monthlyExpenseTotal,
 } from '../../lib/phase1.js'
+import { formatMoney } from '../../config/games.js'
+import { useGame } from '../GameContext.jsx'
 import { useConfirm } from '../ConfirmProvider.jsx'
 import { useToast } from '../ToastProvider.jsx'
 
@@ -13,10 +14,6 @@ const EXPENSE_TIPS = {
   phone: 'Plano de celular e linha telefônica usados pelo motorista.',
   internet: 'Internet residencial mensal da simulação.',
   transit: 'Transporte pessoal fora do caminhão da empresa, como ônibus, metrô ou corridas ocasionais.',
-}
-
-function money(value) {
-  return Number(value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function now() {
@@ -55,6 +52,9 @@ function TipLabel({ children, tip, className = '' }) {
 }
 
 export default function FinancesTab({ state, commit }) {
+  const game = useGame()
+  const monthlyPayroll = game.payrollPeriod === 'monthly'
+  const money = (value) => formatMoney(value, game)
   const toast = useToast()
   const confirm = useConfirm()
   const [manualBalance, setManualBalance] = useState(() => moneyInput(state.balance))
@@ -247,9 +247,9 @@ export default function FinancesTab({ state, commit }) {
           <div className="section-heading compact-heading">
             <span className="eyebrow">Reserva de emergência</span>
             <h2>{money(reserve)}</h2>
-            <p>Dinheiro separado do saldo disponível. O rendimento é creditado semanalmente quando o holerite é fechado.</p>
+            <p>Dinheiro separado do saldo disponível. O rendimento é creditado {monthlyPayroll ? 'mensalmente' : 'semanalmente'} quando o holerite é fechado.</p>
           </div>
-          <div className="reserve-rate-note">Taxa simulada: <strong>{(EMERGENCY_RESERVE_ANNUAL_YIELD * 100).toFixed(2)}% ao ano</strong> ≈ <strong>{(EMERGENCY_RESERVE_ANNUAL_YIELD / 52 * 100).toFixed(4)}% por semana</strong>.</div>
+          <div className="reserve-rate-note">Taxa simulada: <strong>{(EMERGENCY_RESERVE_ANNUAL_YIELD * 100).toFixed(2)}% ao ano</strong> ≈ <strong>{(EMERGENCY_RESERVE_ANNUAL_YIELD / (monthlyPayroll ? 12 : 52) * 100).toFixed(4)}% por {monthlyPayroll ? 'mês' : 'semana'}</strong>.</div>
           <TipLabel tip="Transfere dinheiro da conta pessoal para a reserva. Aceita vírgula ou ponto e usa no máximo duas casas decimais.">Adicionar à reserva</TipLabel>
           <div className="reserve-inline-action"><input type="text" inputMode="decimal" value={reserveDeposit} onChange={(event) => setReserveDeposit(event.target.value)} placeholder="0.00" /><button className="button secondary" type="button" onClick={addToReserve}>Adicionar</button></div>
           <form className="reserve-use-form" onSubmit={useReserve}>
@@ -269,7 +269,7 @@ export default function FinancesTab({ state, commit }) {
         <div className="expense-fields-grid">
           {Object.entries(state.expenses || {}).filter(([key]) => key !== 'emergency').map(([key, value]) => (
             <div key={key} className="expense-field">
-              <TipLabel tip={EXPENSE_TIPS[key] || 'Valor mensal desta despesa pessoal. Ele entra no total quando você aplicar as despesas mensais.'}>{EXPENSE_LABELS[key] || key}</TipLabel>
+              <TipLabel tip={EXPENSE_TIPS[key] || 'Valor mensal desta despesa pessoal. Ele entra no total quando você aplicar as despesas mensais.'}>{game.expenseLabels[key] || key}</TipLabel>
               <input type="text" inputMode="decimal" defaultValue={moneyInput(value)} onBlur={(event) => { if (updateExpense(key, event.target.value)) event.target.value = moneyInput(event.target.value); else event.target.value = moneyInput(value) }} />
             </div>
           ))}

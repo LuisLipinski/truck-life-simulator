@@ -1,49 +1,131 @@
-export const CAREERS_KEY = 'ats_careers_v1'
-export const ACTIVE_CAREER_KEY = 'ats_active_career'
+import { getGame } from '../config/games.js'
+import { getAtsStateProfile, inferAtsStateCode } from '../config/atsStates.js'
+import { ATS_EXCHANGE_RATE_DATE, getAtsCurrency, getAtsExchangeRate } from '../config/atsCurrencies.js'
+import { getEts2CountryProfile, inferEts2CountryCode } from '../config/ets2Countries.js'
+import { ETS2_EXCHANGE_RATE_DATE, getEts2Currency, getEts2ExchangeRate } from '../config/ets2Currencies.js'
 
-export function loadCareers() {
+export function careersStorageKey(gameId = 'ats') {
+  return `${getGame(gameId).storagePrefix}_careers_v1`
+}
+
+export function activeCareerStorageKey(gameId = 'ats') {
+  return `${getGame(gameId).storagePrefix}_active_career`
+}
+
+export const CAREERS_KEY = careersStorageKey('ats')
+export const ACTIVE_CAREER_KEY = activeCareerStorageKey('ats')
+export const ETS2_CAREERS_KEY = careersStorageKey('ets2')
+export const ETS2_ACTIVE_CAREER_KEY = activeCareerStorageKey('ets2')
+
+function normalizeCareer(career, gameId = 'ats') {
+  if (!career) return career
+  if (gameId === 'ats') {
+    const inferredCode = inferAtsStateCode(career.city)
+    const stateCode = getAtsStateProfile(career.stateCode)?.code || inferredCode || 'CA'
+    const profile = getAtsStateProfile(stateCode)
+    const currency = getAtsCurrency(career.currency)?.code || 'USD'
+    const exchangeRate = currency === 'USD'
+      ? 1
+      : Number(career.exchangeRate) > 0
+        ? Number(career.exchangeRate)
+        : getAtsExchangeRate('USD', currency)
+    const financialProfile = getGame(
+      'ats', stateCode, currency, exchangeRate, career.exchangeRateAsOf || ATS_EXCHANGE_RATE_DATE,
+      career.city, career.cityCostFactor, career.citySalaryFactor, career.cityMarketLabel,
+    )
+    return {
+      ...career,
+      gameId: 'ats',
+      stateCode,
+      stateName: profile.name,
+      baseCurrency: 'USD',
+      currency,
+      exchangeRate,
+      exchangeRateAsOf: career.exchangeRateAsOf || ATS_EXCHANGE_RATE_DATE,
+      cityMarketVersion: financialProfile.cityMarketVersion,
+      cityMarketLabel: financialProfile.cityMarketLabel,
+      cityCostFactor: financialProfile.cityCostFactor,
+      citySalaryFactor: financialProfile.citySalaryFactor,
+    }
+  }
+  const inferredCode = inferEts2CountryCode(career.city)
+  const countryCode = getEts2CountryProfile(career.countryCode)?.code || inferredCode || 'DE'
+  const profile = getEts2CountryProfile(countryCode)
+  const currency = getEts2Currency(career.currency)?.code || profile.currency
+  const exchangeRate = currency === profile.currency
+    ? 1
+    : Number(career.exchangeRate) > 0
+      ? Number(career.exchangeRate)
+      : getEts2ExchangeRate(profile.currency, currency)
+  const financialProfile = getGame(
+    'ets2', countryCode, currency, exchangeRate, career.exchangeRateAsOf || ETS2_EXCHANGE_RATE_DATE,
+    career.city, career.cityCostFactor, career.citySalaryFactor, career.cityMarketLabel,
+  )
+  return {
+    ...career,
+    gameId: 'ets2',
+    countryCode,
+    countryName: profile.name,
+    baseCurrency: profile.currency,
+    currency,
+    exchangeRate,
+    exchangeRateAsOf: career.exchangeRateAsOf || ETS2_EXCHANGE_RATE_DATE,
+    cityMarketVersion: financialProfile.cityMarketVersion,
+    cityMarketLabel: financialProfile.cityMarketLabel,
+    cityCostFactor: financialProfile.cityCostFactor,
+    citySalaryFactor: financialProfile.citySalaryFactor,
+  }
+}
+
+export function loadCareers(gameId = 'ats') {
   try {
-    const value = JSON.parse(localStorage.getItem(CAREERS_KEY) || '[]')
-    return Array.isArray(value) ? value : []
+    const value = JSON.parse(localStorage.getItem(careersStorageKey(gameId)) || '[]')
+    if (!Array.isArray(value)) return []
+    const normalized = value.map((career) => normalizeCareer(career, gameId))
+    if (JSON.stringify(normalized) !== JSON.stringify(value)) {
+      localStorage.setItem(careersStorageKey(gameId), JSON.stringify(normalized))
+    }
+    return normalized
   } catch {
     return []
   }
 }
 
-export function saveCareers(careers) {
-  localStorage.setItem(CAREERS_KEY, JSON.stringify(careers))
+export function saveCareers(careers, gameId = 'ats') {
+  localStorage.setItem(careersStorageKey(gameId), JSON.stringify(careers))
 }
 
-export function getCareer(id) {
-  return loadCareers().find((career) => career.id === id) || null
+export function getCareer(id, gameId = 'ats') {
+  return loadCareers(gameId).find((career) => career.id === id) || null
 }
 
-export function createCareer(input) {
-  const careers = loadCareers()
-  const career = {
+export function createCareer(input, gameId = 'ats') {
+  const careers = loadCareers(gameId)
+  const career = normalizeCareer({
     id: `career_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    gameId,
     currentLevel: 1,
     ...input,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-  }
+  }, gameId)
   careers.push(career)
-  saveCareers(careers)
-  localStorage.setItem(ACTIVE_CAREER_KEY, career.id)
+  saveCareers(careers, gameId)
+  localStorage.setItem(activeCareerStorageKey(gameId), career.id)
   return career
 }
 
-export function deleteCareer(id) {
-  saveCareers(loadCareers().filter((career) => career.id !== id))
-  if (localStorage.getItem(ACTIVE_CAREER_KEY) === id) {
-    localStorage.removeItem(ACTIVE_CAREER_KEY)
+export function deleteCareer(id, gameId = 'ats') {
+  saveCareers(loadCareers(gameId).filter((career) => career.id !== id), gameId)
+  if (localStorage.getItem(activeCareerStorageKey(gameId)) === id) {
+    localStorage.removeItem(activeCareerStorageKey(gameId))
   }
 }
 
-export function setActiveCareer(id) {
-  localStorage.setItem(ACTIVE_CAREER_KEY, id)
+export function setActiveCareer(id, gameId = 'ats') {
+  localStorage.setItem(activeCareerStorageKey(gameId), id)
 }
 
-export function getActiveCareerId() {
-  return localStorage.getItem(ACTIVE_CAREER_KEY)
+export function getActiveCareerId(gameId = 'ats') {
+  return localStorage.getItem(activeCareerStorageKey(gameId))
 }

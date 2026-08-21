@@ -1,17 +1,21 @@
 import { BarChart, LineChart } from './Charts.jsx'
-
-function money(value) {
-  return Number(value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
-}
+import { formatMoney } from '../../config/games.js'
+import { useGame } from '../GameContext.jsx'
 
 function Tip({ text }) {
   return <button className="react-info-tip" type="button" aria-label="Mais informações" data-tip={text}>i</button>
 }
 
 export default function HistoryTab({ state }) {
+  const game = useGame()
+  const monthlyPayroll = game.payrollPeriod === 'monthly'
+  const money = (value) => formatMoney(value, game)
   const history = Array.isArray(state.history) ? state.history : []
   const closedWeeks = Array.isArray(state.closedWeeks) ? state.closedWeeks : []
   const incidents = Array.isArray(state.incidents) ? state.incidents : []
+  const periodLabel = (period) => monthlyPayroll && (period.periodType === 'month' || period.month)
+    ? `Mês ${period.month}`
+    : `Semana ${period.week || '—'}${monthlyPayroll ? ' (legado)' : ''}`
 
   const balanceData = history
     .filter((item) => Number.isFinite(Number(item.balance)))
@@ -21,18 +25,18 @@ export default function HistoryTab({ state }) {
       value: Number(item.balance),
     }))
 
-  const weeklyDepositData = [...closedWeeks]
+  const depositData = [...closedWeeks]
     .slice(-8)
-    .map((week) => ({
-      label: `Semana ${week.week || '—'}`,
-      value: Number(week.net ?? week.deposit ?? week.netPay ?? 0),
+    .map((period) => ({
+      label: periodLabel(period),
+      value: Number(period.net ?? period.deposit ?? period.netPay ?? 0),
     }))
 
   return (
     <>
       <section className="history-summary-grid" data-tour="history-summary">
         <article className="panel history-summary"><span className="metric-label line-label-with-tip">Movimentações <Tip text="Entradas e saídas que alteraram o saldo da carreira, como salários, despesas, ajustes e qualificações." /></span><strong>{history.length}</strong><span>Entradas e saídas registradas</span></article>
-        <article className="panel history-summary"><span className="metric-label line-label-with-tip">Semanas fechadas <Tip text="Cada holerite gerado congela uma semana e cria um registro permanente aqui." /></span><strong>{closedWeeks.length}</strong><span>Holerites concluídos</span></article>
+        <article className="panel history-summary"><span className="metric-label line-label-with-tip">{monthlyPayroll ? 'Meses fechados' : 'Semanas fechadas'} <Tip text={monthlyPayroll ? 'Cada holerite reúne as semanas operacionais encerradas e cria um registro mensal permanente.' : 'Cada holerite gerado congela uma semana e cria um registro permanente aqui.'} /></span><strong>{closedWeeks.length}</strong><span>Holerites concluídos</span></article>
         <article className="panel history-summary"><span className="metric-label line-label-with-tip">Ocorrências <Tip text="Total de infrações, acidentes e outras cobranças registradas durante a carreira." /></span><strong>{incidents.length}</strong><span>Infrações e acidentes cadastrados</span></article>
       </section>
 
@@ -45,11 +49,11 @@ export default function HistoryTab({ state }) {
           emptyText="Registre pelo menos duas movimentações financeiras para ver a evolução do saldo."
         />
         <BarChart
-          title="Depósitos por semana"
-          description="Compara o valor efetivamente depositado nas últimas semanas fechadas."
-          data={weeklyDepositData}
+          title={`Depósitos por ${monthlyPayroll ? 'mês' : 'semana'}`}
+          description={`Compara o valor efetivamente depositado nos últimos ${monthlyPayroll ? 'meses' : 'semanas'} fechados.`}
+          data={depositData}
           formatValue={money}
-          emptyText="Feche um holerite para começar a comparar os depósitos semanais."
+          emptyText={`Feche um holerite para começar a comparar os depósitos ${monthlyPayroll ? 'mensais' : 'semanais'}.`}
         />
       </section>
 
@@ -63,10 +67,10 @@ export default function HistoryTab({ state }) {
       </section>
 
       <section className="panel history-panel">
-        <div className="section-heading compact-heading"><span className="eyebrow">Holerites</span><h2 className="line-label-with-tip">Semanas fechadas <Tip text="Mostra o resumo financeiro de cada semana já encerrada. Esses registros não devem ser alterados depois do fechamento." /></h2><p>Resumo das semanas já concluídas.</p></div>
-        {closedWeeks.length === 0 ? <div className="empty-inline">Nenhuma semana fechada ainda.</div> : (
-          <div className="responsive-table"><table><thead><tr><th>Semana</th><th>Bruto</th><th>Per diem</th><th>Ocorrências</th><th>Depósito</th></tr></thead><tbody>
-            {[...closedWeeks].reverse().map((week, index) => <tr key={`${week.week || index}-${index}`}><td>Semana {week.week || '—'}</td><td>{money(week.gross ?? week.totalGross ?? 0)}</td><td>{money(week.perDiem ?? week.perDiemAmount ?? 0)}</td><td>{money(week.incidentDeduction ?? week.incidentDeductions ?? 0)}</td><td><strong>{money(week.net ?? week.deposit ?? week.netPay ?? 0)}</strong></td></tr>)}
+        <div className="section-heading compact-heading"><span className="eyebrow">Holerites</span><h2 className="line-label-with-tip">{monthlyPayroll ? 'Meses fechados' : 'Semanas fechadas'} <Tip text={`Mostra o resumo financeiro de cada ${monthlyPayroll ? 'mês' : 'semana'} já encerrado. Esses registros não devem ser alterados depois do fechamento.`} /></h2><p>Resumo dos períodos já concluídos.</p></div>
+        {closedWeeks.length === 0 ? <div className="empty-inline">Nenhum holerite fechado ainda.</div> : (
+          <div className="responsive-table"><table><thead><tr><th>Período</th>{monthlyPayroll && <th>Semanas</th>}<th>Bruto</th><th>{game.perDiemLabel}</th><th>Ocorrências</th><th>Depósito</th></tr></thead><tbody>
+            {[...closedWeeks].reverse().map((period, index) => <tr key={`${period.month || period.week || index}-${index}`}><td>{periodLabel(period)}</td>{monthlyPayroll && <td>{Array.isArray(period.weeks) ? period.weeks.join(', ') : period.week || '—'}</td>}<td>{money(period.gross ?? period.totalGross ?? 0)}</td><td>{money(period.perDiem ?? period.perDiemAmount ?? 0)}</td><td>{money(period.incidentDeduction ?? period.incidentDeductions ?? 0)}</td><td><strong>{money(period.net ?? period.deposit ?? period.netPay ?? 0)}</strong></td></tr>)}
           </tbody></table></div>
         )}
       </section>

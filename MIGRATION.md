@@ -1,14 +1,16 @@
 # Migração React e estado atual
 
-Atualizado em: **20/08/2026**
+Atualizado em: **21/08/2026**
 
-Branch ativa: **`development`**
+Branch documentada originalmente: **`development`**
+
+> Este arquivo preserva o histórico detalhado da migração inicial do ATS para React. O estado funcional atual de ATS + ETS2, incluindo sede fiscal, mercado municipal, moeda independente, folha mensal e backup tabular v12, está consolidado no [README.md](README.md).
 
 Aplicação publicada: **https://luislipinski.github.io/truck-life-simulator/**
 
 ## 1. Visão geral
 
-O **Truck Life Simulator** é um companion de carreira realista para o American Truck Simulator. A aplicação mantém uma economia pessoal própria, separada da economia do ATS, e permite acompanhar a vida profissional e financeira de um motorista nos Estados Unidos.
+O **Truck Life Simulator** começou como um companion de carreira para American Truck Simulator e agora também possui uma área independente para Euro Truck Simulator 2. A aplicação mantém economias próprias, separadas do dinheiro exibido pelos jogos.
 
 O fluxo atual começa com um brasileiro chegando legalmente aos Estados Unidos, sem caminhão próprio, iniciando como motorista empregado. O usuário cria um ou mais personagens, registra viagens, fecha holerites, paga despesas, mantém uma reserva de emergência, registra ocorrências e evolui pelos três níveis da Fase 1.
 
@@ -52,7 +54,7 @@ Versões de Node aceitas pelo projeto:
 | `src/components/GuidedTutorial.jsx` | Tour guiado, navegação automática entre telas e destaque visual dos recursos |
 | `src/lib/storage.js` | Leitura e gravação das carreiras no `localStorage` |
 | `src/lib/phase1.js` | Estado, cálculos financeiros, progressão, milhas, per diem e Route Overrun |
-| `src/lib/csv.js` | Backup v7, CSV, XLS, XLSX, validação, importação e exportação |
+| `src/lib/csv.js` | Backup tabular v12, compatibilidade legada, CSV, XLS, XLSX, validação, importação e exportação múltipla |
 | `src/data/atsCities.js` | Cidades disponíveis no autocomplete do ATS |
 | `src/components/MobileHelp.jsx` | Exibição dos textos dos ícones de informação no mobile |
 | `.github/workflows/delivery-pipeline.yml` | Testes, promoções, rollback e deploy no GitHub Pages |
@@ -861,3 +863,63 @@ O build apresenta apenas um aviso não bloqueante por existir um chunk JavaScrip
 A migração funcional para React está concluída para o fluxo atualmente existente da Fase 1. A versão React já cria e gerencia carreiras, registra viagens, calcula pagamentos, controla finanças, processa ocorrências, aplica progressões, mantém backups e está publicada no GitHub Pages.
 
 O trabalho restante é principalmente de validação funcional e visual, otimização e planejamento das futuras Fases 2 e 3. O desenvolvimento passa a ser integrado em `development` e promovido para `master` pela pipeline.
+
+## 29. Sede fiscal completa no ETS2 e no ATS
+
+Atualização de 20/08/2026:
+
+- os 34 países existentes em `ets2Cities.js` agora possuem perfil financeiro, moeda fiscal, cidades filtradas, salário, custos e retenções;
+- Alemanha, Reino Unido e Polônia preservam os cálculos nacionais detalhados;
+- os outros países usam um modelo efetivo simplificado, com imposto de renda e contribuição social separados e fontes apresentadas na interface;
+- os 20 estados existentes em `atsCities.js` agora possuem perfil financeiro próprio;
+- a criação de carreira ATS exige estado-sede antes da cidade e filtra as cidades pela sigla estadual;
+- imposto federal, Social Security e Medicare usam referências de 2026;
+- cada estado aplica sua própria alíquota/faixa; Califórnia acrescenta SDI e Washington acrescenta WA Cares;
+- Nevada, Texas, Washington e Wyoming não aplicam imposto estadual sobre salários;
+- ATS passa a oferecer USD e EUR, as duas moedas de exibição verificadas no jogo original;
+- o câmbio do ATS também é congelado na criação da carreira;
+- carreiras ATS antigas têm o estado inferido pela cidade, com Califórnia apenas como fallback;
+- o backup foi elevado para v10 e inclui `stateCode`, `stateName`, moeda e cotação do ATS;
+- o tutorial passou a ter 29 etapas no ATS e acrescenta a explicação do ciclo mensal no ETS2.
+
+Validação automatizada desta entrega:
+
+- 16 arquivos de teste aprovados;
+- 93 testes aprovados;
+- 49 módulos transformados no build de produção;
+- build concluído, com o aviso não bloqueante já conhecido para o chunk principal maior que 500 kB.
+
+Os valores de salário e custo de vida continuam editáveis e são aproximações de roleplay. As retenções não substituem folha oficial e não incluem todos os créditos pessoais nem impostos municipais ou distritais.
+
+## 30. Mercado municipal no ATS e no ETS2
+
+Atualização de 20/08/2026:
+
+- o estado do ATS e o país do ETS2 continuam sendo a sede fiscal e a origem das retenções;
+- cada cidade mapeada recebe um perfil municipal de custo e salário;
+- aluguel, caução, alimentação, transporte e despesas urbanas usam o multiplicador de custo da cidade-base;
+- salário fixo, hora extra e tarifas dos Níveis 2 e 3 usam o multiplicador salarial da cidade-base;
+- no ATS, as tarifas por milha também passam a variar pela referência salarial de cada estado;
+- cidades manuais de mods usam a referência neutra da sede;
+- destino de viagem não altera impostos, aluguel ou salário da carreira;
+- os multiplicadores são congelados na carreira e em cada holerite para preservar o histórico;
+- o backup v11 acrescenta `cityMarketVersion`, `cityMarketLabel`, `cityCostFactor` e `citySalaryFactor`, mantendo importação de v1 a v10;
+- HUD e BLS fundamentam as diferenças metropolitanas do ATS; Eurostat fundamenta as diferenças urbanas e regionais do ETS2;
+- todos os valores continuam editáveis e servem apenas como estimativas de roleplay.
+
+Validação automatizada desta entrega: 16 arquivos e 98 testes aprovados; build de produção concluído com 50 módulos transformados e apenas o aviso não bloqueante já conhecido para o chunk principal maior que 500 kB.
+
+## 31. Importação tabular e exportação múltipla
+
+Atualização de 21/08/2026:
+
+- o formato v12 passa a usar a primeira linha como cabeçalho e uma carreira por linha abaixo;
+- os títulos são apresentados em português e indicam campos obrigatórios, padrões automáticos e colunas técnicas;
+- o modelo novo pode criar várias carreiras na mesma importação;
+- as colunas JSON de exportação mantêm todo o estado variável sem voltar ao formato antigo de dezenas de linhas;
+- a importação valida todas as carreiras antes de gravar e impede mistura de ATS e ETS2;
+- a tela de carreiras ganhou modo de seleção, ação de selecionar todas e exportação das selecionadas em um único CSV;
+- o botão interno de exportação individual foi mantido e agora também gera o formato tabular;
+- arquivos antigos de v1 a v11 continuam sendo importados pelo leitor legado.
+
+Validação automatizada desta entrega: 16 arquivos e 102 testes aprovados; build de produção concluído com 50 módulos transformados e apenas o aviso não bloqueante já conhecido para o chunk principal maior que 500 kB.

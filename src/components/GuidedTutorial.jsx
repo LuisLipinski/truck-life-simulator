@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { getGame } from '../config/games.js'
 
 export const TUTORIAL_STORAGE_KEY = 'ats_guided_tour_v1'
 
@@ -29,9 +30,14 @@ export const TUTORIAL_STEPS = [
     text: 'Estes cartões mostram o total mensal e a situação da semana. Você também pode clicar neles para abrir diretamente Despesas ou Holerite.',
   },
   {
+    id: 'career-profile', route: '/phase1', tab: 'overview', target: 'career-profile',
+    title: 'Sede fiscal, cidade e moeda',
+    text: 'O estado-sede define impostos e a referência financeira. A cidade-base ajusta aluguel, despesas e salários dos três níveis; a moeda define como os valores aparecem. O destino das viagens não muda sua folha.',
+  },
+  {
     id: 'career-backup', route: '/phase1', tab: 'overview', target: 'career-backup',
     title: 'Backup da carreira',
-    text: 'Exporte um CSV para guardar perfil, viagens, finanças, ocorrências e semanas fechadas. A importação do arquivo fica na lista de carreiras.',
+    text: 'Exporte um CSV para guardar sede fiscal, perfil municipal, moeda, viagens, finanças, ocorrências e semanas fechadas. A importação do arquivo fica na lista de carreiras.',
   },
   {
     id: 'journal-navigation', route: '/phase1', tab: 'progress', target: 'journal-navigation',
@@ -145,13 +151,57 @@ export const TUTORIAL_STEPS = [
   },
 ]
 
+export function tutorialStepsForGame(gameId = 'ats') {
+  if (gameId === 'ats') return TUTORIAL_STEPS
+  const overrides = {
+    'career-summary': 'No topo ficam saldo, nível atual, progresso em quilômetros, mês do holerite e semana operacional. Esses números se atualizam conforme você usa a aplicação.',
+    'overview-shortcuts': 'Estes cartões mostram as despesas mensais e a situação do mês. Você também pode clicar neles para abrir diretamente Despesas ou Holerite.',
+    'career-profile': 'O país-sede define impostos, contribuições e a referência financeira. A cidade-base representa a região e ajusta aluguel, despesas e salários dos três níveis. A moeda escolhida controla a exibição e o destino das viagens não muda a folha.',
+    'career-backup': 'Exporte um CSV para guardar país-sede, cidade e perfil municipal, moeda, cotação registrada, viagens, finanças, ocorrências, semanas operacionais e holerites mensais. A importação fica na lista de carreiras.',
+    'trip-summary': 'Aqui você acompanha quilômetros da semana operacional e da carreira, estimativa por categoria e diárias. No Nível 1, o salário permanece mensal.',
+    'trip-history': 'Todas as viagens ficam listadas por semana operacional. Ao encerrar uma semana no Holerite, seus trechos ficam congelados e não podem mais ser excluídos.',
+    'reserve-tools': 'Faça aportes manuais ou resgates com motivo. A reserva fica separada do saldo e recebe rendimento mensal quando o holerite é fechado.',
+    'payslip-form': 'No ETS2, encerre de quatro a cinco semanas operacionais antes de gerar o holerite mensal. Revise salário ou quilômetros, retenções do país-sede, diárias, ocorrências e eventual aporte à reserva.',
+    'closed-weeks': 'O holerite reúne as semanas encerradas e fecha o mês. O depósito e as retenções nacionais ficam registrados para conferência, e a semana atual continua aberta para o próximo período.',
+    'history-summary': 'Os indicadores e gráficos resumem movimentações, holerites mensais e ocorrências para mostrar como a carreira evolui ao longo do tempo.',
+    rules: 'Consulte como funcionam os três níveis, rotas, país-sede, economia própria, fechamento mensal e as regras operacionais europeias do roleplay.',
+  }
+  return TUTORIAL_STEPS.flatMap((step) => {
+    const transformed = {
+      ...step,
+      title: (step.id === 'career-profile' ? 'Sede fiscal, cidade e moeda' : step.title)
+        .replaceAll('Milhas', 'Quilômetros')
+        .replaceAll('HazMat', 'ADR')
+        .replaceAll('Semanas fechadas', 'Meses fechados'),
+      text: overrides[step.id] || step.text
+        .replaceAll('American Truck Simulator', 'Euro Truck Simulator 2')
+        .replaceAll('ATS', 'ETS2')
+        .replaceAll('10.000 e 50.000 milhas', '16.000 e 80.000 quilômetros')
+        .replaceAll('milhas', 'quilômetros')
+        .replaceAll('Loaded e Deadhead', 'Com carga e reposicionamento vazio')
+        .replaceAll('HazMat', 'ADR')
+        .replaceAll('Company Driver', 'motorista empregado')
+        .replaceAll('OTR', 'internacional')
+        .replaceAll('Route Overrun', 'hora extra de rota')
+        .replaceAll('per diem', 'diária internacional'),
+    }
+    if (step.id !== 'payslip-form') return [transformed]
+    return [transformed, {
+      id: 'payroll-period', route: '/phase1', tab: 'payslip', target: 'payroll-period',
+      title: 'Semanas operacionais do mês',
+      text: 'Encerrar uma semana congela suas viagens e abre a próxima, sem depositar salário. Após quatro semanas, o holerite mensal é liberado; a quinta semana é opcional e encerra o limite do período.',
+    }]
+  })
+}
+
 const TutorialContext = createContext(null)
 
 function readStoredTour() {
   try {
     const stored = JSON.parse(window.sessionStorage.getItem(TUTORIAL_STORAGE_KEY) || 'null')
-    if (!stored?.careerId || !Number.isInteger(stored.index) || stored.index < 0 || stored.index >= TUTORIAL_STEPS.length) return null
-    return stored
+    const gameId = stored?.gameId || 'ats'
+    if (!stored?.careerId || !Number.isInteger(stored.index) || stored.index < 0 || stored.index >= tutorialStepsForGame(gameId).length) return null
+    return { ...stored, gameId }
   } catch {
     return null
   }
@@ -166,15 +216,17 @@ function storeTour(tour) {
   }
 }
 
-function stepHash(step, careerId) {
-  return `#${step.route}?career=${encodeURIComponent(careerId)}`
+function stepHash(step, careerId, gameId = 'ats') {
+  const game = getGame(gameId)
+  const route = step.route === '/phase1' ? game.routes.phase1 : game.routes.phases
+  return `#${route}?career=${encodeURIComponent(careerId)}`
 }
 
 function clamp(value, minimum, maximum) {
   return Math.min(Math.max(value, minimum), maximum)
 }
 
-function TutorialOverlay({ step, index, onBack, onNext, onExit }) {
+function TutorialOverlay({ step, index, totalSteps, onBack, onNext, onExit }) {
   const [spotlight, setSpotlight] = useState(null)
   const [popoverPosition, setPopoverPosition] = useState(null)
   const targetRef = useRef(null)
@@ -290,8 +342,8 @@ function TutorialOverlay({ step, index, onBack, onNext, onExit }) {
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [onExit])
 
-  const isLast = index === TUTORIAL_STEPS.length - 1
-  const progress = ((index + 1) / TUTORIAL_STEPS.length) * 100
+  const isLast = index === totalSteps - 1
+  const progress = ((index + 1) / totalSteps) * 100
 
   return (
     <div className={`guided-tutorial-layer${spotlight ? '' : ' locating'}`}>
@@ -309,7 +361,7 @@ function TutorialOverlay({ step, index, onBack, onNext, onExit }) {
       >
         <div className="guided-tutorial-meta">
           <span className="eyebrow">Tour guiado</span>
-          <strong>Etapa {index + 1} de {TUTORIAL_STEPS.length}</strong>
+          <strong>Etapa {index + 1} de {totalSteps}</strong>
         </div>
         <div className="guided-tutorial-progress" aria-hidden="true"><span style={{ width: `${progress}%` }} /></div>
         <h2 id="guided-tutorial-title">{step.title}</h2>
@@ -328,13 +380,16 @@ function TutorialOverlay({ step, index, onBack, onNext, onExit }) {
 
 export function TutorialProvider({ children }) {
   const [tour, setTour] = useState(readStoredTour)
-  const activeStep = tour ? TUTORIAL_STEPS[tour.index] : null
+  const steps = useMemo(() => tutorialStepsForGame(tour?.gameId || 'ats'), [tour?.gameId])
+  const activeStep = tour ? steps[tour.index] : null
 
-  const startTutorial = useCallback((careerId) => {
-    const nextTour = { careerId: String(careerId), index: 0 }
+  const startTutorial = useCallback((careerId, gameId = 'ats') => {
+    const nextTour = gameId === 'ats'
+      ? { careerId: String(careerId), index: 0 }
+      : { careerId: String(careerId), gameId, index: 0 }
     storeTour(nextTour)
     setTour(nextTour)
-    window.location.hash = stepHash(TUTORIAL_STEPS[0], nextTour.careerId)
+    window.location.hash = stepHash(tutorialStepsForGame(gameId)[0], nextTour.careerId, gameId)
   }, [])
 
   const exitTutorial = useCallback(() => {
@@ -346,11 +401,12 @@ export function TutorialProvider({ children }) {
     setTour((current) => {
       if (!current) return null
       const nextIndex = current.index + direction
-      if (nextIndex >= TUTORIAL_STEPS.length) {
+      const currentSteps = tutorialStepsForGame(current.gameId || 'ats')
+      if (nextIndex >= currentSteps.length) {
         storeTour(null)
         return null
       }
-      const nextTour = { ...current, index: clamp(nextIndex, 0, TUTORIAL_STEPS.length - 1) }
+      const nextTour = { ...current, index: clamp(nextIndex, 0, currentSteps.length - 1) }
       storeTour(nextTour)
       return nextTour
     })
@@ -358,7 +414,7 @@ export function TutorialProvider({ children }) {
 
   useEffect(() => {
     if (!tour || !activeStep) return undefined
-    const expectedHash = stepHash(activeStep, tour.careerId)
+    const expectedHash = stepHash(activeStep, tour.careerId, tour.gameId)
     const keepTutorialRoute = () => {
       if (window.location.hash !== expectedHash) window.location.hash = expectedHash
     }
@@ -381,6 +437,7 @@ export function TutorialProvider({ children }) {
         <TutorialOverlay
           step={activeStep}
           index={tour.index}
+          totalSteps={steps.length}
           onBack={() => changeStep(-1)}
           onNext={() => changeStep(1)}
           onExit={exitTutorial}
