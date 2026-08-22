@@ -63,7 +63,7 @@ export default function PayslipTab({ state, commit }) {
   )
   const mileage = useMemo(() => mileagePaySummary(periodTrips, game), [game, periodTrips])
   const perDiemDays = useMemo(() => perDiemDaysForTrips(periodTrips), [periodTrips])
-  const routeOverrun = useMemo(() => routeOverrunSummary(periodTrips, undefined, game.routeOverrunRate), [game.routeOverrunRate, periodTrips])
+  const routeOverrun = useMemo(() => routeOverrunSummary(periodTrips, undefined, game.routeOverrunRate, game), [game, periodTrips])
   const periodDistance = useMemo(() => periodTrips.reduce((sum, trip) => sum + tripDistance(trip), 0), [periodTrips])
   const payrollReady = !monthlyPayroll || completedWeeks.length >= game.minWeeksPerPayroll
   const canCloseWeek = monthlyPayroll && completedWeeks.length < game.maxWeeksPerPayroll
@@ -113,6 +113,9 @@ export default function PayslipTab({ state, commit }) {
       routeOverrunPay: level === 1 ? routeOverrunPay : 0,
       routeOverrunHours: level === 1 ? routeOverrun.overrunHours : 0,
       routeOverrunRate: level === 1 ? effectiveOverrunRate : 0,
+      routeElapsedMinutes: level === 1 ? routeOverrun.totalElapsedMinutes : 0,
+      routeBreakMinutes: level === 1 ? routeOverrun.totalBreakMinutes : 0,
+      routeWorkedMinutes: level === 1 ? routeOverrun.totalMinutes : 0,
       desc,
     }
   }
@@ -207,6 +210,12 @@ export default function PayslipTab({ state, commit }) {
       cityMarketLabel: game.cityMarketLabel || '',
       cityCostFactor: game.cityCostFactor || 1,
       citySalaryFactor: game.citySalaryFactor || 1,
+      routeElapsedMinutes: result.routeElapsedMinutes,
+      routeBreakMinutes: result.routeBreakMinutes,
+      routeWorkedMinutes: result.routeWorkedMinutes,
+      routeOverrunHours: result.routeOverrunHours,
+      routeOverrunRate: result.routeOverrunRate,
+      routeOverrunPay: result.routeOverrunPay,
     }
 
     const historyEntries = [
@@ -298,13 +307,13 @@ export default function PayslipTab({ state, commit }) {
             <div className="readout-box">
               <span>{game.overtimeLabel} automático</span>
               <strong>{formatHours(routeOverrun.overrunHours)} • {money(displayedOverrunPay)}</strong>
-              <small>O sistema soma o tempo das viagens por dia. Até 8h/dia fazem parte da jornada normal; somente o excedente recebe {money(displayedOverrunRate)}/h.</small>
+              <small>{game.id === 'ets2' ? 'O sistema desconta as pausas registradas dentro de cada viagem antes de comparar o tempo líquido com a jornada normal de 8h/dia. Intervalos entre viagens já não entram no total.' : `O sistema soma o tempo das viagens por dia. Até 8h/dia fazem parte da jornada normal; somente o excedente recebe ${money(displayedOverrunRate)}/h.`}</small>
             </div>
 
             {routeOverrun.days.length > 0 && (
               <div className="breakdown-list compact-breakdown">
                 {routeOverrun.days.map((day) => (
-                  <div key={day.date}><span>{day.date}</span><strong>{formatHours(day.hours)} trabalhadas{day.overrunMinutes > 0 ? ` • +${formatHours(day.overrunHours)} extra` : ' • sem extra'}</strong></div>
+                  <div key={day.date}><span>{day.date}</span><strong>{game.id === 'ets2' ? `${formatHours(day.elapsedHours)} corridas • -${formatHours(day.breakHours)} de pausa • ` : ''}{formatHours(day.hours)} trabalhadas{day.overrunMinutes > 0 ? ` • +${formatHours(day.overrunHours)} extra` : ' • sem extra'}</strong></div>
                 ))}
               </div>
             )}
@@ -345,7 +354,8 @@ export default function PayslipTab({ state, commit }) {
       <section className="panel payslip-preview-card" data-tour="payslip-preview">
         <div className="section-heading compact-heading"><span className="eyebrow">Prévia • {periodName}</span><h2>Holerite</h2><p>Estimativa de roleplay para {game.countryName || game.stateName || game.region}; não substitui uma folha real.</p></div>
         <div className="payslip-lines">
-          {shown.level === 1 && <div><LineLabel tip="As horas são calculadas automaticamente pelas datas e horários das viagens.">{game.overtimeLabel}</LineLabel><strong>+{money(shown.routeOverrunPay)} ({formatHours(shown.routeOverrunHours)} × {money(shown.routeOverrunRate)}/h)</strong></div>}
+          {shown.level === 1 && game.id === 'ets2' && <div><LineLabel tip="Tempo não trabalhado informado nas viagens, descontado antes do cálculo de horas extras. Intervalos entre viagens já ficam naturalmente fora do tempo registrado.">Pausas descontadas</LineLabel><strong>-{formatHours(Number(shown.routeBreakMinutes || 0) / 60)}</strong></div>}
+          {shown.level === 1 && <div><LineLabel tip="O saldo usa o tempo entre saída e chegada, desconta as pausas não trabalhadas e compara o resultado com 8 horas líquidas por dia.">Saldo de {game.overtimeLabel.toLowerCase()}</LineLabel><strong>+{money(shown.routeOverrunPay)} ({formatHours(shown.routeOverrunHours)} × {money(shown.routeOverrunRate)}/h)</strong></div>}
           <div><LineLabel tip={`Total antes de impostos e outros descontos. Nos Níveis 2/3 vem dos ${game.distanceName} pagos.`}>Salário bruto</LineLabel><strong>{money(shown.gross)}</strong></div>
           {game.taxes.map(([key, label, tip]) => <div key={key}><LineLabel tip={tip}>{label}</LineLabel><strong>-{money(shown.taxes[key])}</strong></div>)}
           <div><LineLabel tip={`Valor adicional informado no campo de descontos ${periodAdjective}s.`}>Outros descontos</LineLabel><strong>-{money(shown.benefits)}</strong></div>
@@ -360,9 +370,9 @@ export default function PayslipTab({ state, commit }) {
         <div className="section-heading compact-heading"><span className="eyebrow">Histórico de holerites</span><h2>{monthlyPayroll ? 'Meses fechados' : 'Semanas fechadas'}</h2></div>
         {(state.closedWeeks || []).length === 0 ? <div className="empty-inline">Nenhum holerite fechado ainda.</div> : (
           <div className="responsive-table compact-table"><table>
-            <thead><tr><th>Período</th><th>Semanas</th><th>Nível</th><th>{game.distanceName}</th><th>Bruto</th><th>{game.perDiemLabel}</th><th>Ocorrências</th><th>Depósito</th><th>Fechado em</th></tr></thead>
+            <thead><tr><th>Período</th><th>Semanas</th><th>Nível</th><th>{game.distanceName}</th><th>Horas extras</th><th>Bruto</th><th>{game.perDiemLabel}</th><th>Ocorrências</th><th>Depósito</th><th>Fechado em</th></tr></thead>
             <tbody>{[...state.closedWeeks].reverse().map((period, index) => (
-              <tr key={`${period.month || period.week}-${period.closedAt}-${index}`}><td>{closedPeriodLabel(period, game)}</td><td>{Array.isArray(period.weeks) ? period.weeks.join(', ') : period.week || '—'}</td><td>{period.level}</td><td>{formatDistance(period.distance ?? period.miles, game)}</td><td>{money(period.gross)}</td><td>{money(period.perDiem)}</td><td>{money(period.incidentDeduction)}</td><td><strong>{money(period.deposit)}</strong></td><td>{period.closedAt || '—'}</td></tr>
+              <tr key={`${period.month || period.week}-${period.closedAt}-${index}`}><td>{closedPeriodLabel(period, game)}</td><td>{Array.isArray(period.weeks) ? period.weeks.join(', ') : period.week || '—'}</td><td>{period.level}</td><td>{formatDistance(period.distance ?? period.miles, game)}</td><td>{period.level === 1 ? `${formatHours(period.routeOverrunHours)} • ${money(period.routeOverrunPay)}` : '—'}</td><td>{money(period.gross)}</td><td>{money(period.perDiem)}</td><td>{money(period.incidentDeduction)}</td><td><strong>{money(period.deposit)}</strong></td><td>{period.closedAt || '—'}</td></tr>
             ))}</tbody>
           </table></div>
         )}

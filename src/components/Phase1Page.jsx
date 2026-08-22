@@ -13,6 +13,8 @@ import {
   payrollWeeks,
   perDiemDaysForTrips,
   savePhase1State,
+  suggestedTripBreakMinutes,
+  tripBreakMinutes,
   tripDistance,
   totalMiles,
   validPayCategories,
@@ -265,9 +267,11 @@ function TripForm({ state, onAdd }) {
   const [type, setType] = useState('Loaded')
   const [payCategory, setPayCategory] = useState('normal')
   const [distance, setDistance] = useState('')
+  const [breakMinutes, setBreakMinutes] = useState('')
 
   const categories = validPayCategories(state, game.id)
   const effectiveCategory = type === 'Deadhead' ? 'deadhead' : (categories.includes(payCategory) ? payCategory : 'normal')
+  const breakSuggestion = suggestedTripBreakMinutes({ departureAt, arrivalAt }, game)
 
   function submit(event) {
     event.preventDefault()
@@ -286,6 +290,14 @@ function TripForm({ state, onAdd }) {
       toast.error(`Informe uma distância válida em ${game.distanceName}.`)
       return
     }
+    const elapsedMinutes = Math.round((end - start) / 60000)
+    const pauseValue = game.id === 'ets2' && breakMinutes === ''
+      ? breakSuggestion
+      : Math.max(0, Number(breakMinutes) || 0)
+    if (!Number.isFinite(pauseValue) || pauseValue >= elapsedMinutes) {
+      toast.error('A pausa precisa ser menor que o tempo total entre a saída e a chegada.')
+      return
+    }
 
     onAdd({
       id: Date.now(),
@@ -299,6 +311,7 @@ function TripForm({ state, onAdd }) {
       cargo: type === 'Deadhead' ? '' : cargo.trim(),
       type,
       payCategory: effectiveCategory,
+      ...(game.id === 'ets2' ? { breakMinutes: Math.round(pauseValue) } : {}),
       [game.distanceField]: distanceValue,
       createdAt: new Date().toISOString(),
     })
@@ -309,6 +322,7 @@ function TripForm({ state, onAdd }) {
     setDestinationCompany('')
     setCargo('')
     setDistance('')
+    setBreakMinutes('')
   }
 
   return (
@@ -334,6 +348,11 @@ function TripForm({ state, onAdd }) {
         <div><label>Carga</label><input value={cargo} disabled={type === 'Deadhead'} onChange={(e) => setCargo(e.target.value)} placeholder={type === 'Deadhead' ? 'Viagem vazia' : 'Ex.: alimentos, equipamentos'} /></div>
         <div><label>{game.distanceName[0].toUpperCase() + game.distanceName.slice(1)}</label><input type="number" min="1" step="1" value={distance} onChange={(e) => setDistance(e.target.value)} required /></div>
       </div>
+      {game.id === 'ets2' && <div>
+        <label>Pausa não trabalhada dentro da viagem (minutos)</label>
+        <input type="number" min="0" step="15" value={breakMinutes} onChange={(e) => setBreakMinutes(e.target.value)} placeholder={String(breakSuggestion)} />
+        <small>Deixe vazio para aplicar a sugestão de {breakSuggestion} min conforme a duração registrada. Ajuste se a pausa real foi diferente. Intervalos entre duas viagens já ficam fora das horas trabalhadas.</small>
+      </div>}
       <button className="button primary submit-button" type="submit">Registrar viagem</button>
     </form>
   )
@@ -376,8 +395,8 @@ function TripsTab({ state, onAddTrip, onDeleteTrip }) {
       <section className="panel trips-panel" data-tour="trip-history">
         <div className="section-heading compact-heading"><span className="eyebrow">Histórico de viagens</span><h2>Trechos registrados</h2><p>Mostrando todas as viagens da carreira, com a semana de cada trecho.</p></div>
         {state.trips.length === 0 ? <div className="empty-inline">Nenhuma viagem registrada.</div> : (
-          <div className="responsive-table"><table><thead><tr><th>Semana</th><th>Saída</th><th>Chegada</th><th>Rota</th><th>Tipo</th><th>Categoria</th><th>{game.distanceName}</th><th></th></tr></thead><tbody>{[...state.trips].reverse().map((trip) => (
-            <tr key={trip.id}><td>{trip.week || 1}</td><td>{formatDateTime(trip.departureAt)}</td><td>{formatDateTime(trip.arrivalAt)}</td><td><strong>{trip.origin || '—'} → {trip.destination || '—'}</strong><small>{trip.cargo ? `Carga: ${trip.cargo}` : trip.type === 'Deadhead' ? 'Viagem vazia' : ''}</small></td><td>{trip.type === 'Deadhead' ? game.tripTypes.deadhead : game.tripTypes.loaded}</td><td>{game.payLabels[trip.type === 'Deadhead' ? 'deadhead' : (trip.payCategory || 'normal')]}</td><td>{formatDistance(tripDistance(trip), game)}</td><td><button className="table-delete" onClick={() => onDeleteTrip(trip)}>Excluir</button></td></tr>
+          <div className="responsive-table"><table><thead><tr><th>Semana</th><th>Saída</th><th>Chegada</th><th>Rota</th><th>Tipo</th><th>Categoria</th><th>{game.distanceName}</th>{game.id === 'ets2' && <th>Pausa</th>}<th></th></tr></thead><tbody>{[...state.trips].reverse().map((trip) => (
+            <tr key={trip.id}><td>{trip.week || 1}</td><td>{formatDateTime(trip.departureAt)}</td><td>{formatDateTime(trip.arrivalAt)}</td><td><strong>{trip.origin || '—'} → {trip.destination || '—'}</strong><small>{trip.cargo ? `Carga: ${trip.cargo}` : trip.type === 'Deadhead' ? 'Viagem vazia' : ''}</small></td><td>{trip.type === 'Deadhead' ? game.tripTypes.deadhead : game.tripTypes.loaded}</td><td>{game.payLabels[trip.type === 'Deadhead' ? 'deadhead' : (trip.payCategory || 'normal')]}</td><td>{formatDistance(tripDistance(trip), game)}</td>{game.id === 'ets2' && <td>{tripBreakMinutes(trip, game)} min</td>}<td><button className="table-delete" onClick={() => onDeleteTrip(trip)}>Excluir</button></td></tr>
           ))}</tbody></table></div>
         )}
       </section>

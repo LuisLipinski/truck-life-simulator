@@ -84,6 +84,28 @@ describe('PayslipTab Level 1 route overrun', () => {
     expect(container.textContent).toContain('$60.00')
     expect(container.textContent).toContain('$30.00/h')
   })
+
+  it('shows ETS2 elapsed time, deducted breaks, worked time and overtime balance', () => {
+    const state = baseState({
+      currentWeek: 2,
+      closedOperationalWeeks: [1],
+      trips: [{
+        week: 1,
+        departureAt: '2026-08-20T07:00:00',
+        arrivalAt: '2026-08-20T16:00:00',
+        breakMinutes: 45,
+        distance: 200,
+      }],
+    })
+    renderPayslip(state, vi.fn(), { gameId: 'ets2', countryCode: 'DE', city: 'Berlin, Alemanha' })
+
+    expect(container.textContent).toContain('9h corridas')
+    expect(container.textContent).toContain('-0h 45min de pausa')
+    expect(container.textContent).toContain('8h 15min trabalhadas')
+    expect(container.textContent).toContain('+0h 15min extra')
+    expect(container.textContent).toContain('Pausas descontadas')
+    expect(container.textContent).toContain('Saldo de hora extra de rota')
+  })
 })
 
 describe('PayslipTab reserve automation', () => {

@@ -51,6 +51,14 @@ O país-sede é escolhido antes da cidade-base. Ele não muda quando o motorista
 
 Todas as cidades mapeadas no ATS e no ETS2 recebem um perfil entre cidade menor, centro regional, metrópole principal e mercado de custo alto, com ajustes específicos para mercados excepcionais. Cidades adicionadas manualmente por mods usam fator neutro da sede até que o usuário edite os valores.
 
+### Jornada, pausas e horas extras no ETS2
+
+A regra operacional de condução não muda por cidade. A referência europeia exige 45 minutos de pausa após no máximo 4h30 de condução, com possibilidade de divisão em 15 + 30 minutos. Para a jornada móvel, o intervalo total mínimo é de 30 minutos quando o trabalho fica entre 6 e 9 horas e de 45 minutos acima de 9 horas, em blocos de pelo menos 15 minutos. Leis nacionais e acordos coletivos podem oferecer condições mais favoráveis, mas não são usados para criar regras municipais de almoço na simulação.
+
+No Registro de Viagens do ETS2, saída e chegada formam o tempo corrido do trecho. O campo de pausa guarda o total não trabalhado ocorrido dentro desse intervalo. Se ficar vazio, a aplicação sugere automaticamente 45 minutos para cada bloco completo de até 4h30 que precise ser sucedido por nova condução; o usuário pode substituir a sugestão pelo tempo realmente usado. Intervalos entre duas viagens já não entram nas horas registradas.
+
+Para o motorista do Nível 1, o holerite agrupa os trechos por dia, desconta as pausas e compara o tempo líquido com a jornada normal de 8 horas. A prévia e o fechamento preservam tempo corrido, pausas, tempo computado, saldo de horas extras, tarifa e valor pago. Nos Níveis 2 e 3, a pausa continua registrada para o roleplay operacional, mas a remuneração permanece por quilômetro.
+
 ### País fiscal e moeda da carreira
 
 Na criação da carreira, a moeda local do país vem selecionada por padrão, mas pode ser trocada. A aplicação mantém duas referências:

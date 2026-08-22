@@ -20,7 +20,7 @@ function levelsFor(game) {
       { level: 'Nível 1', title: game.levelRoles[0], tip: 'Rotas locais e regionais, salário mensal fixo e retorno à base como padrão.', bullets: [
         `Salário bruto fixo de ${formatMoney(game.level1Gross, game)} por mês.`,
         'Cavalo mecânico da empresa e operação local/regional; normalmente retorna à base no mesmo dia.',
-        'Jornada de referência da simulação: segunda a sexta, com pausa e controle de horas.',
+        'Jornada normal da simulação: 8 horas líquidas por dia. Pausas não trabalhadas são descontadas antes de apurar o saldo de horas extras.',
         `${game.overtimeLabel}: ${formatMoney(game.routeOverrunRate, game)}/h após a jornada diária de referência.`,
         `Carga e reposicionamento vazio contam para progressão; não há ${game.perDiemLabel.toLowerCase()}.`,
         `Sem ${q.name} ou Euro Combi.`,
@@ -30,7 +30,7 @@ function levelsFor(game) {
         'Viagens internacionais e de vários dias com cabine leito.',
         `Carga padrão: ${formatMoney(game.payRates.normal, game)}/km; reposicionamento vazio: ${formatMoney(game.payRates.deadhead, game)}/km.`,
         `${game.perDiemLabel} de ${formatMoney(game.perDiemRate, game)}/dia qualificável.`,
-        'Roleplay europeu: 4h30 de condução antes da pausa, 9h diárias como referência e descanso diário.',
+        'Roleplay europeu: até 4h30 de condução antes de 45 min de pausa, que podem ser divididos em 15 + 30 min; 9h diárias de condução como referência.',
         `${q.name} opcional por ${formatMoney(q.cost, game)}; carga ADR paga ${formatMoney(game.payRates.hazmat, game)}/km.`,
         `Promoção após ${formatDistance(level3Goal, game)} totais + ${game.promotionModules[1]} + ${formatMoney(level3Cost, game)}.`,
       ] },
@@ -99,6 +99,12 @@ export default function RulesTab() {
           {game.financeSources?.length > 0 && <span className="country-source-links">Fontes fiscais e salariais: {game.financeSources.map(([label, url], index) => <span key={url}>{index > 0 ? ' • ' : ''}<a href={url} target="_blank" rel="noreferrer">{label}</a></span>)}</span>}
           {game.cityMarketSources?.length > 0 && <span className="country-source-links">Fontes municipais e regionais: {game.cityMarketSources.map(([label, url], index) => <span key={url}>{index > 0 ? ' • ' : ''}<a href={url} target="_blank" rel="noreferrer">{label}</a></span>)}</span>}
           {game.currency !== game.baseCurrency && game.exchangeRateSources?.length > 0 && <span className="country-source-links">Fontes cambiais: {game.exchangeRateSources.map(([label, url], index) => <span key={url}>{index > 0 ? ' • ' : ''}<a href={url} target="_blank" rel="noreferrer">{label}</a></span>)}</span>}
+        </div>}
+        {game.id === 'ets2' && <div className="notice-box">
+          <strong>Jornada, almoço e saldo de horas</strong>
+          <span>A regra operacional não muda por cidade. Após no máximo 4h30 de condução, use 45 min de pausa; ela pode ser dividida em 15 + 30 min. Na jornada móvel, o mínimo total é 30 min entre 6 e 9 horas de trabalho e 45 min acima de 9 horas, sempre em blocos de pelo menos 15 min.</span>
+          <span>No Registro de Viagens, saída–chegada representa o tempo corrido. Informe a pausa não trabalhada que ocorreu dentro desse intervalo; se o campo ficar vazio, a aplicação sugere o total conforme os blocos de 4h30. Intervalos entre duas viagens já ficam fora do cálculo. No Nível 1, o holerite desconta essas pausas e considera hora extra somente o que ultrapassar 8 horas líquidas no mesmo dia.</span>
+          <span className="country-source-links">Fontes operacionais: <a href="https://transport.ec.europa.eu/transport-modes/road/social-provisions/driving-time-and-rest-periods_en" target="_blank" rel="noreferrer">Comissão Europeia — condução e descanso</a> • <a href="https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX%3A32002L0015" target="_blank" rel="noreferrer">Diretiva 2002/15/CE — jornada móvel</a></span>
         </div>}
       </section>
 

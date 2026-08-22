@@ -7,6 +7,8 @@ const OLD_LEGACY_KEY = 'ats_phase1_tabs_v2'
 export const EMERGENCY_RESERVE_ANNUAL_YIELD = 0.0325
 export const LEVEL1_ROUTE_OVERRUN_RATE = 21.25
 export const LEVEL1_DAILY_WORK_MINUTES = 8 * 60
+export const ETS2_DRIVING_BLOCK_MINUTES = 4.5 * 60
+export const ETS2_DRIVING_BREAK_MINUTES = 45
 
 export const DEFAULT_EXPENSES = getGame('ats').expenses
 export const EXPENSE_LABELS = getGame('ats').expenseLabels
@@ -195,39 +197,112 @@ function localDayKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
-export function routeOverrunSummary(trips, dailyWorkMinutes = LEVEL1_DAILY_WORK_MINUTES, rate = LEVEL1_ROUTE_OVERRUN_RATE) {
-  const minutesByDay = new Map()
+function tripTimeSegments(trip) {
+  if (!trip?.departureAt || !trip?.arrivalAt) return []
+  const start = new Date(trip.departureAt)
+  const end = new Date(trip.arrivalAt)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) return []
 
-  for (const trip of trips || []) {
-    if (!trip.departureAt || !trip.arrivalAt) continue
-    const start = new Date(trip.departureAt)
-    const end = new Date(trip.arrivalAt)
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) continue
+  const segments = []
+  let cursor = new Date(start)
+  while (cursor < end) {
+    const nextMidnight = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 1)
+    const segmentEnd = end < nextMidnight ? end : nextMidnight
+    const minutes = Math.max(0, Math.round((segmentEnd - cursor) / 60000))
+    if (minutes > 0) segments.push({ date: localDayKey(cursor), minutes })
+    cursor = segmentEnd
+  }
+  return segments
+}
 
-    let cursor = new Date(start)
-    while (cursor < end) {
-      const nextMidnight = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 1)
-      const segmentEnd = end < nextMidnight ? end : nextMidnight
-      const minutes = Math.max(0, Math.round((segmentEnd - cursor) / 60000))
-      const key = localDayKey(cursor)
-      minutesByDay.set(key, (minutesByDay.get(key) || 0) + minutes)
-      cursor = segmentEnd
+export function suggestedTripBreakMinutes(trip, gameOrId = 'ats') {
+  const gameId = typeof gameOrId === 'string' ? gameOrId : gameOrId?.id
+  if (gameId !== 'ets2') return 0
+
+  const elapsedMinutes = tripTimeSegments(trip).reduce((sum, segment) => sum + segment.minutes, 0)
+  let suggestedMinutes = 0
+  let nextDrivingLimit = ETS2_DRIVING_BLOCK_MINUTES
+  while (elapsedMinutes > nextDrivingLimit) {
+    suggestedMinutes += ETS2_DRIVING_BREAK_MINUTES
+    nextDrivingLimit += ETS2_DRIVING_BREAK_MINUTES + ETS2_DRIVING_BLOCK_MINUTES
+  }
+  return Math.min(suggestedMinutes, elapsedMinutes)
+}
+
+export function tripBreakMinutes(trip, gameOrId = 'ats') {
+  const elapsedMinutes = tripTimeSegments(trip).reduce((sum, segment) => sum + segment.minutes, 0)
+  const hasRecordedBreak = trip?.breakMinutes !== undefined && trip?.breakMinutes !== null && trip?.breakMinutes !== ''
+  const recorded = Number(trip?.breakMinutes)
+  const minutes = hasRecordedBreak && Number.isFinite(recorded)
+    ? recorded
+    : suggestedTripBreakMinutes(trip, gameOrId)
+  return Math.min(elapsedMinutes, Math.max(0, Math.round(minutes)))
+}
+
+function allocateBreakAcrossSegments(segments, breakMinutes) {
+  const totalMinutes = segments.reduce((sum, segment) => sum + segment.minutes, 0)
+  if (!totalMinutes || !breakMinutes) return segments.map(() => 0)
+
+  const exactShares = segments.map((segment) => breakMinutes * segment.minutes / totalMinutes)
+  const allocations = exactShares.map(Math.floor)
+  let remaining = breakMinutes - allocations.reduce((sum, minutes) => sum + minutes, 0)
+  const remainderOrder = exactShares
+    .map((share, index) => ({ index, remainder: share - allocations[index] }))
+    .sort((a, b) => b.remainder - a.remainder)
+
+  for (let index = 0; remaining > 0; index = (index + 1) % remainderOrder.length) {
+    const segmentIndex = remainderOrder[index].index
+    if (allocations[segmentIndex] < segments[segmentIndex].minutes) {
+      allocations[segmentIndex] += 1
+      remaining -= 1
     }
   }
+  return allocations
+}
 
-  const days = [...minutesByDay.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, minutes]) => ({
-    date,
-    minutes,
-    hours: minutes / 60,
-    overrunMinutes: Math.max(0, minutes - dailyWorkMinutes),
-    overrunHours: Math.max(0, minutes - dailyWorkMinutes) / 60,
-  }))
+export function routeOverrunSummary(trips, dailyWorkMinutes = LEVEL1_DAILY_WORK_MINUTES, rate = LEVEL1_ROUTE_OVERRUN_RATE, gameOrId = 'ats') {
+  const totalsByDay = new Map()
+
+  for (const trip of trips || []) {
+    const segments = tripTimeSegments(trip)
+    const breakAllocations = allocateBreakAcrossSegments(segments, tripBreakMinutes(trip, gameOrId))
+    segments.forEach((segment, index) => {
+      const totals = totalsByDay.get(segment.date) || { elapsedMinutes: 0, breakMinutes: 0 }
+      totals.elapsedMinutes += segment.minutes
+      totals.breakMinutes += breakAllocations[index]
+      totalsByDay.set(segment.date, totals)
+    })
+  }
+
+  const days = [...totalsByDay.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, totals]) => {
+    const elapsedMinutes = totals.elapsedMinutes
+    const breakMinutes = Math.min(elapsedMinutes, totals.breakMinutes)
+    const minutes = Math.max(0, elapsedMinutes - breakMinutes)
+    const overrunMinutes = Math.max(0, minutes - dailyWorkMinutes)
+    return {
+      date,
+      elapsedMinutes,
+      elapsedHours: elapsedMinutes / 60,
+      breakMinutes,
+      breakHours: breakMinutes / 60,
+      minutes,
+      hours: minutes / 60,
+      overrunMinutes,
+      overrunHours: overrunMinutes / 60,
+    }
+  })
+  const totalElapsedMinutes = days.reduce((sum, day) => sum + day.elapsedMinutes, 0)
+  const totalBreakMinutes = days.reduce((sum, day) => sum + day.breakMinutes, 0)
   const totalMinutes = days.reduce((sum, day) => sum + day.minutes, 0)
   const overrunMinutes = days.reduce((sum, day) => sum + day.overrunMinutes, 0)
   const pay = Math.round((overrunMinutes * rate / 60) * 100) / 100
 
   return {
     days,
+    totalElapsedMinutes,
+    totalElapsedHours: totalElapsedMinutes / 60,
+    totalBreakMinutes,
+    totalBreakHours: totalBreakMinutes / 60,
     totalMinutes,
     totalHours: totalMinutes / 60,
     overrunMinutes,
