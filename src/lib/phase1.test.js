@@ -12,7 +12,9 @@ import {
   perDiemDaysForTrips,
   pendingIncidentTotal,
   routeOverrunSummary,
+  suggestedTripBreakMinutes,
   totalMiles,
+  tripBreakMinutes,
   tripPayCategory,
   validPayCategories,
   weeklyEmergencyReserveYield,
@@ -104,6 +106,42 @@ describe('Phase 1 Level 1 route overrun', () => {
 
     expect(summary.days.map((day) => day.hours)).toEqual([4, 6])
     expect(summary.overrunHours).toBe(0)
+  })
+
+  it('suggests ETS2 driving breaks after each continued 4h30 block', () => {
+    const firstBlock = { departureAt: '2026-08-20T07:00:00', arrivalAt: '2026-08-20T11:30:00' }
+    const continuedFirstBlock = { ...firstBlock, arrivalAt: '2026-08-20T11:31:00' }
+    const continuedSecondBlock = { ...firstBlock, arrivalAt: '2026-08-20T16:46:00' }
+
+    expect(suggestedTripBreakMinutes(firstBlock, 'ets2')).toBe(0)
+    expect(suggestedTripBreakMinutes(continuedFirstBlock, 'ets2')).toBe(45)
+    expect(suggestedTripBreakMinutes(continuedSecondBlock, 'ets2')).toBe(90)
+    expect(suggestedTripBreakMinutes(continuedSecondBlock, 'ats')).toBe(0)
+  })
+
+  it('deducts an ETS2 trip break before calculating the daily overtime balance', () => {
+    const trip = {
+      departureAt: '2026-08-20T07:00:00',
+      arrivalAt: '2026-08-20T16:00:00',
+      breakMinutes: 45,
+    }
+    const summary = routeOverrunSummary([trip], undefined, 20, 'ets2')
+
+    expect(tripBreakMinutes(trip, 'ets2')).toBe(45)
+    expect(summary.totalElapsedHours).toBe(9)
+    expect(summary.totalBreakHours).toBe(0.75)
+    expect(summary.totalHours).toBe(8.25)
+    expect(summary.overrunHours).toBe(0.25)
+    expect(summary.pay).toBe(5)
+  })
+
+  it('uses the ETS2 suggestion for legacy trips and lets an explicit pause override it', () => {
+    const legacyTrip = { departureAt: '2026-08-20T07:00:00', arrivalAt: '2026-08-20T16:00:00' }
+    const explicitTrip = { ...legacyTrip, breakMinutes: 30 }
+
+    expect(tripBreakMinutes(legacyTrip, 'ets2')).toBe(45)
+    expect(routeOverrunSummary([legacyTrip], undefined, 20, 'ets2').overrunHours).toBe(0.25)
+    expect(routeOverrunSummary([explicitTrip], undefined, 20, 'ets2').overrunHours).toBe(0.5)
   })
 })
 
