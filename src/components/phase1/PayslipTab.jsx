@@ -42,7 +42,7 @@ function closedPeriodLabel(period, game) {
   return `Semana ${period.week || '—'}`
 }
 
-export default function PayslipTab({ state, commit }) {
+export default function PayslipTab({ career, state, commit }) {
   const game = useGame()
   const money = (value) => formatMoney(value, game)
   const toast = useToast()
@@ -210,6 +210,8 @@ export default function PayslipTab({ state, commit }) {
       cityMarketLabel: game.cityMarketLabel || '',
       cityCostFactor: game.cityCostFactor || 1,
       citySalaryFactor: game.citySalaryFactor || 1,
+      employer: career?.company || '',
+      driverName: career?.driverName || '',
       routeElapsedMinutes: result.routeElapsedMinutes,
       routeBreakMinutes: result.routeBreakMinutes,
       routeWorkedMinutes: result.routeWorkedMinutes,

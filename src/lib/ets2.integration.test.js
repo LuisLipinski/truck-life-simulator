@@ -110,7 +110,7 @@ describe('ETS2 career domain', () => {
     expect(result.gameId).toBe('ets2')
     expect(getCareer(result.career.id, 'ets2')?.city).toBe('Berlin, Alemanha')
     expect(getCareer(result.career.id, 'ats')).toBeNull()
-    expect(result.state.trips[0]).toMatchObject({ type: 'Deadhead', payCategory: 'deadhead', distance: 280 })
+    expect(result.state.trips[0]).toMatchObject({ type: 'Deadhead', payCategory: 'deadhead', distance: 280, source: 'IMPORT' })
     expect(result.state.dangerousGoodsQualified).toBe(true)
     expect(result.career.countryCode).toBe('DE')
     expect(result.career.currency).toBe('EUR')

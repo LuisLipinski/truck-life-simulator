@@ -59,6 +59,20 @@ No Registro de Viagens do ETS2, saída e chegada formam o tempo corrido do trech
 
 Para o motorista do Nível 1, o holerite agrupa os trechos por dia, desconta as pausas e compara o tempo líquido com a jornada normal de 8 horas. A prévia e o fechamento preservam tempo corrido, pausas, tempo computado, saldo de horas extras, tarifa e valor pago. Nos Níveis 2 e 3, a pausa continua registrada para o roleplay operacional, mas a remuneração permanece por quilômetro.
 
+### Viagens preparadas para telemetria
+
+O registro manual de viagens de ATS e ETS2 aceita marca e modelo do caminhão em texto livre, inclusive veículos de mods, além das leituras inicial e final do odômetro. As leituras formam uma distância auxiliar de conferência e nunca substituem automaticamente a distância oficial informada pelo motorista, porque troca de caminhão, Truck Tools e outras alterações podem produzir diferenças legítimas.
+
+Cada trecho guarda sua origem de dados como `MANUAL`, `TELEMETRY` ou `IMPORT`. Viagens novas criadas na tela usam `MANUAL`; backups modernos preservam a origem e importações legadas recebem normalização compatível.
+
+### Perfil, empregadora e mudança de base
+
+Na Visão Geral, **Gerenciar carreira** permite corrigir o nome do motorista, atualizar ou remover a biografia, trocar de empregadora e mudar a sede/cidade-base. Trocas de empresa e base exigem uma data efetiva e confirmação em modal.
+
+As mudanças geram eventos estruturados com os valores anterior e novo. Antes de trocar empresa ou base, viagens e holerites legados recebem somente os snapshots históricos que ainda não possuíam; dados já registrados não são substituídos. Novas viagens guardam a empregadora e a base vigentes, e novos holerites também preservam o motorista e a empresa do período.
+
+Ao mudar de base, a moeda de exibição escolhida para a carreira é mantida. País ou estado, moeda fiscal, cotação, impostos, salários e despesas padrão passam ao novo perfil para os próximos cálculos; saldo, movimentações financeiras e períodos fechados não são recalculados. A linha do tempo fica disponível no Histórico e é incluída no backup tabular.
+
 ### País fiscal e moeda da carreira
 
 Na criação da carreira, a moeda local do país vem selecionada por padrão, mas pode ser trocada. A aplicação mantém duas referências:

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   createCareer,
+  CAREER_UPDATED_EVENT,
   deleteCareer,
   getActiveCareerId,
   getCareer,
@@ -20,10 +21,16 @@ import { useToast } from './components/ToastProvider.jsx'
 
 function useHashRoute() {
   const [hash, setHash] = useState(() => window.location.hash || '#/')
+  const [, setCareerRevision] = useState(0)
   useEffect(() => {
     const onHashChange = () => setHash(window.location.hash || '#/')
+    const onCareerUpdated = () => setCareerRevision((revision) => revision + 1)
     window.addEventListener('hashchange', onHashChange)
-    return () => window.removeEventListener('hashchange', onHashChange)
+    window.addEventListener(CAREER_UPDATED_EVENT, onCareerUpdated)
+    return () => {
+      window.removeEventListener('hashchange', onHashChange)
+      window.removeEventListener(CAREER_UPDATED_EVENT, onCareerUpdated)
+    }
   }, [])
   const [path, query = ''] = hash.replace(/^#/, '').split('?')
   return { path: path || '/', params: new URLSearchParams(query) }

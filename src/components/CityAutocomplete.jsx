@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useId, useMemo, useRef, useState } from 'react'
 import { normalizeCitySearch } from '../data/atsCities.js'
 import { useGame } from './GameContext.jsx'
 
@@ -7,6 +7,8 @@ export default function CityAutocomplete({ value, onChange, placeholder = 'Digit
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(-1)
   const blurTimer = useRef(null)
+  const inputId = useId()
+  const listboxId = useId()
   const raw = String(value || '').trim()
   const query = normalizeCitySearch(raw)
 
@@ -54,9 +56,10 @@ export default function CityAutocomplete({ value, onChange, placeholder = 'Digit
 
   return (
     <div className="city-field">
-      <label>{label}</label>
+      <label htmlFor={inputId}>{label}</label>
       <div className="react-city-autocomplete">
         <input
+          id={inputId}
           value={value}
           disabled={disabled}
           required={required}
@@ -65,6 +68,8 @@ export default function CityAutocomplete({ value, onChange, placeholder = 'Digit
           role="combobox"
           aria-expanded={open}
           aria-autocomplete="list"
+          aria-controls={listboxId}
+          aria-activedescendant={open && active >= 0 ? `${listboxId}-option-${active}` : undefined}
           onFocus={() => { if (!disabled) setOpen(true) }}
           onBlur={() => { blurTimer.current = setTimeout(() => setOpen(false), 120) }}
           onChange={(event) => { onChange(event.target.value); setOpen(true); setActive(-1) }}
@@ -79,11 +84,12 @@ export default function CityAutocomplete({ value, onChange, placeholder = 'Digit
           onClick={() => { setOpen((current) => !current); setActive(-1) }}
         >▾</button>
         {open && (
-          <div className="react-city-results" role="listbox">
+          <div className="react-city-results" id={listboxId} role="listbox">
             <div className="react-city-results-header">{raw ? `${matches.length} cidade(s) encontrada(s)` : 'Todas as cidades'}</div>
             {matches.map((city, index) => (
               <button
                 type="button"
+                id={`${listboxId}-option-${index}`}
                 role="option"
                 aria-selected={index === active}
                 className={`react-city-option${index === active ? ' active' : ''}`}
@@ -96,7 +102,9 @@ export default function CityAutocomplete({ value, onChange, placeholder = 'Digit
             {showManual && (
               <button
                 type="button"
+                id={`${listboxId}-option-${matches.length}`}
                 role="option"
+                aria-selected={matches.length === active}
                 className={`react-city-option manual${matches.length === active ? ' active' : ''}`}
                 onMouseDown={(event) => event.preventDefault()}
                 onMouseEnter={() => setActive(matches.length)}

@@ -1,18 +1,25 @@
 import { BarChart, LineChart } from './Charts.jsx'
 import { formatMoney } from '../../config/games.js'
 import { useGame } from '../GameContext.jsx'
+import { careerEventDescription, careerEventLabel } from '../../lib/careerEvents.js'
 
 function Tip({ text }) {
   return <button className="react-info-tip" type="button" aria-label="Mais informações" data-tip={text}>i</button>
 }
 
-export default function HistoryTab({ state }) {
+function formatEffectiveDate(value) {
+  const [year, month, day] = String(value || '').split('-')
+  return year && month && day ? `${day}/${month}/${year}` : value || '—'
+}
+
+export default function HistoryTab({ career, state }) {
   const game = useGame()
   const monthlyPayroll = game.payrollPeriod === 'monthly'
   const money = (value) => formatMoney(value, game)
   const history = Array.isArray(state.history) ? state.history : []
   const closedWeeks = Array.isArray(state.closedWeeks) ? state.closedWeeks : []
   const incidents = Array.isArray(state.incidents) ? state.incidents : []
+  const careerEvents = Array.isArray(career?.events) ? career.events : []
   const periodLabel = (period) => monthlyPayroll && (period.periodType === 'month' || period.month)
     ? `Mês ${period.month}`
     : `Semana ${period.week || '—'}${monthlyPayroll ? ' (legado)' : ''}`
@@ -38,6 +45,7 @@ export default function HistoryTab({ state }) {
         <article className="panel history-summary"><span className="metric-label line-label-with-tip">Movimentações <Tip text="Entradas e saídas que alteraram o saldo da carreira, como salários, despesas, ajustes e qualificações." /></span><strong>{history.length}</strong><span>Entradas e saídas registradas</span></article>
         <article className="panel history-summary"><span className="metric-label line-label-with-tip">{monthlyPayroll ? 'Meses fechados' : 'Semanas fechadas'} <Tip text={monthlyPayroll ? 'Cada holerite reúne as semanas operacionais encerradas e cria um registro mensal permanente.' : 'Cada holerite gerado congela uma semana e cria um registro permanente aqui.'} /></span><strong>{closedWeeks.length}</strong><span>Holerites concluídos</span></article>
         <article className="panel history-summary"><span className="metric-label line-label-with-tip">Ocorrências <Tip text="Total de infrações, acidentes e outras cobranças registradas durante a carreira." /></span><strong>{incidents.length}</strong><span>Infrações e acidentes cadastrados</span></article>
+        <article className="panel history-summary"><span className="metric-label line-label-with-tip">Eventos de carreira <Tip text="Correções de perfil, trocas de empresa e mudanças de base com valores anteriores e novos." /></span><strong>{careerEvents.length}</strong><span>Alterações estruturais preservadas</span></article>
       </section>
 
       <section className="career-charts-grid history-charts-grid" aria-label="Gráficos financeiros do histórico da carreira">
@@ -62,6 +70,15 @@ export default function HistoryTab({ state }) {
         {history.length === 0 ? <div className="empty-inline">Nenhuma movimentação registrada.</div> : (
           <div className="responsive-table"><table><thead><tr><th>Data</th><th>Descrição</th><th>Valor</th><th>Saldo</th></tr></thead><tbody>
             {history.map((item, index) => <tr key={`${item.date || 'history'}-${index}`}><td>{item.date || '—'}</td><td>{item.desc || item.description || '—'}</td><td className={Number(item.amount ?? item.value ?? 0) < 0 ? 'negative' : 'positive'}>{money(item.amount ?? item.value ?? 0)}</td><td>{money(item.balance)}</td></tr>)}
+          </tbody></table></div>
+        )}
+      </section>
+
+      <section className="panel history-panel" data-tour="career-events">
+        <div className="section-heading compact-heading"><span className="eyebrow">Linha do tempo</span><h2>Eventos da carreira</h2><p>Perfil, empregadora e base com data efetiva. O histórico anterior não é recalculado.</p></div>
+        {careerEvents.length === 0 ? <div className="empty-inline">Nenhuma alteração estrutural registrada.</div> : (
+          <div className="responsive-table"><table><thead><tr><th>Data efetiva</th><th>Evento</th><th>Alteração</th></tr></thead><tbody>
+            {[...careerEvents].reverse().map((event, index) => <tr key={event.id || `${event.type}-${index}`}><td>{formatEffectiveDate(event.effectiveDate)}</td><td><strong>{careerEventLabel(event.type)}</strong></td><td>{careerEventDescription(event)}</td></tr>)}
           </tbody></table></div>
         )}
       </section>

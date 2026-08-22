@@ -55,11 +55,12 @@ describe('CSV backup integration', () => {
       stateCode: 'CA', stateName: 'California', currency: 'USD', baseCurrency: 'USD', exchangeRate: 1, exchangeRateAsOf: '2026-08-20',
       arrivalBalance: 5000, initialBalance: 793, currentBalance: 1200, currentLevel: 2, bio: 'Backup completo',
       setupCosts: { rent: 1650, deposit: 1650, license: 100 }, createdAt: '2026-08-20T10:00:00.000Z',
+      events: [{ id: 'event_1', type: 'EMPLOYER_CHANGED', effectiveDate: '2026-08-21', changes: { company: { previous: 'Old Co', next: 'Pacific Logistics' } } }],
     }
     const state = {
       balance: 1200, emergencyReserve: 250, currentLevel: 2, careerLevel: 2, currentWeek: 4,
       expenses: { rent: 1650 }, history: [{ desc: 'Teste', value: 10 }],
-      trips: [{ id: 1, week: 3, origin: 'Los Angeles, CA', destination: 'Fresno, CA', miles: 220, type: 'Loaded' }],
+      trips: [{ id: 1, week: 3, origin: 'Los Angeles, CA', destination: 'Fresno, CA', miles: 220, type: 'Loaded', truckMake: 'Kenworth', truckModel: 'T680', odometerStart: 1200, odometerEnd: 1425, source: 'MANUAL' }],
       customExpenses: [{ id: 'exp_1', name: 'Lavanderia', value: 25, monthly: true }], incidents: [], closedWeeks: [],
       academy: { level2: true, level3: false }, hazmatQualified: true, dangerousGoodsQualified: true,
     }
@@ -70,7 +71,7 @@ describe('CSV backup integration', () => {
     const importedState = loadPhase1State(result.career.id)
 
     expect(result.career.id).not.toBe(career.id)
-    expect(result.career).toMatchObject({ driverName: 'Backup Driver', currentBalance: 1200, currentLevel: 2 })
+    expect(result.career).toMatchObject({ driverName: 'Backup Driver', currentBalance: 1200, currentLevel: 2, events: career.events })
     expect(importedState).toMatchObject({ balance: 1200, emergencyReserve: 250, currentWeek: 4 })
     expect(importedState.trips).toEqual(state.trips)
     expect(importedState.customExpenses).toEqual(state.customExpenses)

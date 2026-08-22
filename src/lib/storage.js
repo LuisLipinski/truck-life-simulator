@@ -16,6 +16,7 @@ export const CAREERS_KEY = careersStorageKey('ats')
 export const ACTIVE_CAREER_KEY = activeCareerStorageKey('ats')
 export const ETS2_CAREERS_KEY = careersStorageKey('ets2')
 export const ETS2_ACTIVE_CAREER_KEY = activeCareerStorageKey('ets2')
+export const CAREER_UPDATED_EVENT = 'truck-life:career-updated'
 
 function normalizeCareer(career, gameId = 'ats') {
   if (!career) return career
@@ -46,6 +47,7 @@ function normalizeCareer(career, gameId = 'ats') {
       cityMarketLabel: financialProfile.cityMarketLabel,
       cityCostFactor: financialProfile.cityCostFactor,
       citySalaryFactor: financialProfile.citySalaryFactor,
+      events: Array.isArray(career.events) ? career.events : [],
     }
   }
   const inferredCode = inferEts2CountryCode(career.city)
@@ -74,6 +76,7 @@ function normalizeCareer(career, gameId = 'ats') {
     cityMarketLabel: financialProfile.cityMarketLabel,
     cityCostFactor: financialProfile.cityCostFactor,
     citySalaryFactor: financialProfile.citySalaryFactor,
+    events: Array.isArray(career.events) ? career.events : [],
   }
 }
 
@@ -113,6 +116,27 @@ export function createCareer(input, gameId = 'ats') {
   saveCareers(careers, gameId)
   localStorage.setItem(activeCareerStorageKey(gameId), career.id)
   return career
+}
+
+export function updateCareer(id, updates, gameId = 'ats') {
+  const careers = loadCareers(gameId)
+  const index = careers.findIndex((career) => career.id === id)
+  if (index < 0) return null
+  const current = careers[index]
+  const updated = normalizeCareer({
+    ...current,
+    ...(updates || {}),
+    id: current.id,
+    gameId,
+    createdAt: current.createdAt,
+    updatedAt: new Date().toISOString(),
+  }, gameId)
+  careers[index] = updated
+  saveCareers(careers, gameId)
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(CAREER_UPDATED_EVENT, { detail: { careerId: id, gameId } }))
+  }
+  return updated
 }
 
 export function deleteCareer(id, gameId = 'ats') {

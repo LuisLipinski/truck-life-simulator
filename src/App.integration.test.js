@@ -265,6 +265,48 @@ describe('career card navigation', () => {
     expect(document.body.textContent).not.toContain('Social Security')
   })
 
+  it('refreshes the active career immediately after a profile correction', async () => {
+    const career = seedCareer()
+    window.location.hash = `#/phase1?career=${career.id}`
+    await act(async () => {
+      root.render(createElement(ToastProvider, null, createElement(ConfirmProvider, null, createElement(TutorialProvider, null, createElement(App)))))
+    })
+
+    setInputValue(document.querySelector('#career-edit-driver'), 'Corrected Driver')
+    await act(async () => {
+      document.querySelector('#career-profile-editor').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+      await Promise.resolve()
+    })
+
+    expect(document.querySelector('.phase1-driver-block h1')?.textContent).toBe('Corrected Driver')
+    expect(JSON.parse(localStorage.getItem(CAREERS_KEY))[0].events[0]).toMatchObject({ type: 'PROFILE_UPDATED' })
+  })
+
+  it('remounts the financial context immediately after a confirmed base change', async () => {
+    const career = seedCareer()
+    window.location.hash = `#/phase1?career=${career.id}`
+    await act(async () => {
+      root.render(createElement(ToastProvider, null, createElement(ConfirmProvider, null, createElement(TutorialProvider, null, createElement(App)))))
+    })
+
+    const baseTab = [...document.querySelectorAll('.career-management-tabs button')].find((button) => button.textContent === 'Base')
+    await act(async () => baseTab.click())
+    setSelectValue(document.querySelector('#career-new-location'), 'TX')
+    setInputValue(document.querySelector('#career-base-editor .react-city-autocomplete input'), 'Dallas, TX')
+    await act(async () => {
+      document.querySelector('#career-base-editor').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+      await Promise.resolve()
+    })
+    await act(async () => {
+      document.querySelector('.react-confirm-confirm').click()
+      await Promise.resolve()
+    })
+
+    expect(document.querySelector('.phase1-driver-block')?.textContent).toContain('Dallas, TX')
+    expect(document.querySelector('[data-tour="career-profile"]')?.textContent).toContain('Texas (TX)')
+    expect(JSON.parse(localStorage.getItem(CAREERS_KEY))[0]).toMatchObject({ city: 'Dallas, TX', stateCode: 'TX' })
+  })
+
   it('walks through every tutorial step and reaches each screen target', async () => {
     const career = seedCareer()
     sessionStorage.setItem(TUTORIAL_STORAGE_KEY, JSON.stringify({ careerId: career.id, index: 0 }))

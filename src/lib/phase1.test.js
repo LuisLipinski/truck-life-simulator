@@ -9,13 +9,17 @@ import {
   getPromotionStatus,
   mileagePaySummary,
   monthlyExpenseTotal,
+  normalizeTrip,
+  normalizeTripSource,
   perDiemDaysForTrips,
   pendingIncidentTotal,
   routeOverrunSummary,
   suggestedTripBreakMinutes,
   totalMiles,
   tripBreakMinutes,
+  tripOdometerDistance,
   tripPayCategory,
+  tripVehicleLabel,
   validPayCategories,
   weeklyEmergencyReserveYield,
 } from './phase1.js'
@@ -48,6 +52,30 @@ describe('Phase 1 mileage and weekly filters', () => {
     expect(totalMiles(state)).toBe(400)
     expect(currentWeekTrips(state)).toHaveLength(2)
     expect(currentWeekMiles(state)).toBe(300)
+  })
+})
+
+describe('telemetry-ready trip data', () => {
+  it('derives an auxiliary odometer distance without changing the official distance', () => {
+    const trip = { miles: 115, odometerStart: 48200.4, odometerEnd: 48320.9 }
+
+    expect(tripOdometerDistance(trip)).toBe(120.5)
+    expect(totalMiles(makeState({ trips: [trip] }))).toBe(115)
+  })
+
+  it('requires a complete, non-decreasing odometer pair for the derived distance', () => {
+    expect(tripOdometerDistance({ odometerStart: 100 })).toBeNull()
+    expect(tripOdometerDistance({ odometerStart: 100, odometerEnd: 99 })).toBeNull()
+    expect(tripOdometerDistance({ odometerStart: -1, odometerEnd: 10 })).toBeNull()
+  })
+
+  it('normalizes supported sources and keeps legacy trips compatible', () => {
+    expect(normalizeTripSource('telemetry')).toBe('TELEMETRY')
+    expect(normalizeTripSource('unknown')).toBe('MANUAL')
+    expect(normalizeTrip({ truckMake: '  Volvo ', truckModel: ' FH16 ', odometerStart: '10.5', odometerEnd: '20' })).toEqual({
+      source: 'MANUAL', truckMake: 'Volvo', truckModel: 'FH16', odometerStart: 10.5, odometerEnd: 20,
+    })
+    expect(tripVehicleLabel({ truckMake: 'Volvo', truckModel: 'FH16' })).toBe('Volvo FH16')
   })
 })
 
@@ -142,6 +170,39 @@ describe('Phase 1 Level 1 route overrun', () => {
     expect(tripBreakMinutes(legacyTrip, 'ets2')).toBe(45)
     expect(routeOverrunSummary([legacyTrip], undefined, 20, 'ets2').overrunHours).toBe(0.25)
     expect(routeOverrunSummary([explicitTrip], undefined, 20, 'ets2').overrunHours).toBe(0.5)
+  })
+
+  it('normalizes negative or invalid recorded pauses safely', () => {
+    const trip = { departureAt: '2026-08-20T07:00:00', arrivalAt: '2026-08-20T16:00:00' }
+
+    expect(tripBreakMinutes({ ...trip, breakMinutes: -30 }, 'ets2')).toBe(0)
+    expect(tripBreakMinutes({ ...trip, breakMinutes: 'inválida' }, 'ets2')).toBe(45)
+  })
+
+  it('distributes a recorded break across both days when a trip crosses midnight', () => {
+    const trip = {
+      departureAt: '2026-08-20T20:00:00',
+      arrivalAt: '2026-08-21T06:00:00',
+      breakMinutes: 60,
+    }
+    const summary = routeOverrunSummary([trip], undefined, 20, 'ets2')
+
+    expect(summary.days.map((day) => day.breakHours)).toEqual([0.4, 0.6])
+    expect(summary.days.map((day) => day.hours)).toEqual([3.6, 5.4])
+    expect(summary.totalBreakHours).toBe(1)
+  })
+
+  it('combines pauses from multiple trips on the same day before calculating overtime', () => {
+    const summary = routeOverrunSummary([
+      { departureAt: '2026-08-20T07:00:00', arrivalAt: '2026-08-20T12:00:00', breakMinutes: 30 },
+      { departureAt: '2026-08-20T13:00:00', arrivalAt: '2026-08-20T18:30:00', breakMinutes: 30 },
+    ], undefined, 20, 'ets2')
+
+    expect(summary.days).toHaveLength(1)
+    expect(summary.totalElapsedHours).toBe(10.5)
+    expect(summary.totalBreakHours).toBe(1)
+    expect(summary.totalHours).toBe(9.5)
+    expect(summary.overrunHours).toBe(1.5)
   })
 })
 
