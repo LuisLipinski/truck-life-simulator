@@ -9,6 +9,7 @@ export const LEVEL1_ROUTE_OVERRUN_RATE = 21.25
 export const LEVEL1_DAILY_WORK_MINUTES = 8 * 60
 export const ETS2_DRIVING_BLOCK_MINUTES = 4.5 * 60
 export const ETS2_DRIVING_BREAK_MINUTES = 45
+export const TRIP_DATA_SOURCES = Object.freeze(['MANUAL', 'TELEMETRY', 'IMPORT'])
 
 export const DEFAULT_EXPENSES = getGame('ats').expenses
 export const EXPENSE_LABELS = getGame('ats').expenseLabels
@@ -52,6 +53,39 @@ function normalizeExpenses(expenses, gameId = 'ats', career = null) {
   )
 }
 
+export function normalizeTripSource(source, fallback = 'MANUAL') {
+  const normalized = String(source || '').trim().toUpperCase()
+  if (TRIP_DATA_SOURCES.includes(normalized)) return normalized
+  return TRIP_DATA_SOURCES.includes(fallback) ? fallback : 'MANUAL'
+}
+
+function optionalOdometerValue(value) {
+  if (value == null || String(value).trim() === '') return null
+  const number = Number(value)
+  return Number.isFinite(number) && number >= 0 ? number : null
+}
+
+export function normalizeTrip(trip, fallbackSource = 'MANUAL') {
+  const normalized = {
+    ...(trip || {}),
+    source: normalizeTripSource(trip?.source, fallbackSource),
+  }
+
+  for (const key of ['truckMake', 'truckModel']) {
+    const value = String(trip?.[key] || '').trim()
+    if (value) normalized[key] = value
+    else delete normalized[key]
+  }
+
+  for (const key of ['odometerStart', 'odometerEnd']) {
+    const value = optionalOdometerValue(trip?.[key])
+    if (value == null) delete normalized[key]
+    else normalized[key] = value
+  }
+
+  return normalized
+}
+
 function normalizeState(raw, career, gameId = 'ats') {
   const base = makeDefaultState(career, gameId)
   const state = { ...base, ...(raw || {}) }
@@ -59,7 +93,7 @@ function normalizeState(raw, career, gameId = 'ats') {
   state.emergencyReserve = Math.max(0, Number(raw?.emergencyReserve || 0))
   state.expenses = normalizeExpenses(raw?.expenses, gameId, career)
   state.history = Array.isArray(raw?.history) ? raw.history : []
-  state.trips = Array.isArray(raw?.trips) ? raw.trips : []
+  state.trips = Array.isArray(raw?.trips) ? raw.trips.map((trip) => normalizeTrip(trip)) : []
   state.closedWeeks = Array.isArray(raw?.closedWeeks) ? raw.closedWeeks : []
   state.customExpenses = Array.isArray(raw?.customExpenses) ? raw.customExpenses : []
   state.incidents = Array.isArray(raw?.incidents) ? raw.incidents : []
@@ -107,6 +141,7 @@ export function savePhase1State(careerId, state, gameId = 'ats') {
     currentPayrollMonth: Math.max(1, Number(state.currentPayrollMonth || 1)),
     payPeriodStartWeek: Math.max(1, Number(state.payPeriodStartWeek || 1)),
     closedOperationalWeeks: [...new Set((state.closedOperationalWeeks || []).map(Number).filter(Number.isFinite))],
+    trips: Array.isArray(state.trips) ? state.trips.map((trip) => normalizeTrip(trip)) : [],
   }
   localStorage.setItem(phase1StorageKey(careerId, gameId), JSON.stringify(normalized))
   const careers = loadCareers(gameId)
@@ -124,6 +159,20 @@ export function savePhase1State(careerId, state, gameId = 'ats') {
 
 export function tripDistance(trip) {
   return Number(trip?.distance ?? trip?.miles ?? 0)
+}
+
+export function tripOdometerDistance(trip) {
+  const start = optionalOdometerValue(trip?.odometerStart)
+  const end = optionalOdometerValue(trip?.odometerEnd)
+  if (start == null || end == null || end < start) return null
+  return Math.round((end - start) * 100) / 100
+}
+
+export function tripVehicleLabel(trip) {
+  return [trip?.truckMake, trip?.truckModel]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .join(' ')
 }
 
 export function totalMiles(state) {

@@ -35,6 +35,11 @@ export const TUTORIAL_STEPS = [
     text: 'O estado-sede define impostos e a referência financeira. A cidade-base ajusta aluguel, despesas e salários dos três níveis; a moeda define como os valores aparecem. O destino das viagens não muda sua folha.',
   },
   {
+    id: 'career-management', route: '/phase1', tab: 'overview', target: 'career-management',
+    title: 'Perfil, empresa e base',
+    text: 'Corrija o nome ou a biografia e registre trocas de empresa ou de base com data efetiva. Cada mudança preserva os valores anteriores e só altera os próximos registros e cálculos.',
+  },
+  {
     id: 'career-backup', route: '/phase1', tab: 'overview', target: 'career-backup',
     title: 'Backup da carreira',
     text: 'Exporte um CSV para guardar sede fiscal, perfil municipal, moeda, viagens, finanças, ocorrências e semanas fechadas. A importação do arquivo fica na lista de carreiras.',
@@ -47,7 +52,7 @@ export const TUTORIAL_STEPS = [
   {
     id: 'trip-form', route: '/phase1', tab: 'progress', target: 'trip-form',
     title: 'Registrar uma viagem',
-    text: 'Informe saída, chegada, cidades, empresas, carga, tipo e milhas. Loaded e Deadhead entram na progressão e os horários alimentam Route Overrun e per diem.',
+    text: 'Informe saída, chegada, cidades, empresas, carga, tipo e milhas. Marca, modelo e odômetros são opcionais e preparam a viagem para futura telemetria; a distância digitada continua oficial. Loaded e Deadhead entram na progressão e os horários alimentam Route Overrun e per diem.',
   },
   {
     id: 'trip-summary', route: '/phase1', tab: 'progress', target: 'trip-summary',
@@ -135,6 +140,11 @@ export const TUTORIAL_STEPS = [
     text: 'Salários, despesas, ajustes, aportes e qualificações aparecem aqui com valor e saldo resultante. Os registros mais recentes ficam primeiro.',
   },
   {
+    id: 'career-events', route: '/phase1', tab: 'history', target: 'career-events',
+    title: 'Linha do tempo da carreira',
+    text: 'Correções de perfil, trocas de empresa e mudanças de base aparecem com data efetiva e os valores anterior e novo, sem reescrever viagens ou holerites fechados.',
+  },
+  {
     id: 'rules', route: '/phase1', tab: 'rules', target: 'rules',
     title: 'Regras da simulação',
     text: 'Consulte como funcionam os três níveis, rotas, retorno à base, economia própria, fluxo semanal e outras regras do roleplay realista.',
@@ -158,7 +168,7 @@ export function tutorialStepsForGame(gameId = 'ats') {
     'overview-shortcuts': 'Estes cartões mostram as despesas mensais e a situação do mês. Você também pode clicar neles para abrir diretamente Despesas ou Holerite.',
     'career-profile': 'O país-sede define impostos, contribuições e a referência financeira. A cidade-base representa a região e ajusta aluguel, despesas e salários dos três níveis. A moeda escolhida controla a exibição e o destino das viagens não muda a folha.',
     'career-backup': 'Exporte um CSV para guardar país-sede, cidade e perfil municipal, moeda, cotação registrada, viagens, finanças, ocorrências, semanas operacionais e holerites mensais. A importação fica na lista de carreiras.',
-    'trip-form': 'Informe saída, chegada, cidades, empresas, carga, tipo, quilômetros e a pausa não trabalhada dentro da viagem. Se a pausa ficar vazia, a aplicação sugere o mínimo pelos blocos europeus de 4h30; esse tempo será descontado antes de calcular horas extras.',
+    'trip-form': 'Informe saída, chegada, cidades, empresas, carga, tipo, quilômetros e a pausa não trabalhada dentro da viagem. Marca, modelo e odômetros são opcionais e preparam a viagem para futura telemetria sem substituir a distância oficial. Se a pausa ficar vazia, a aplicação sugere o mínimo pelos blocos europeus de 4h30; esse tempo será descontado antes de calcular horas extras.',
     'trip-summary': 'Aqui você acompanha quilômetros da semana operacional e da carreira, estimativa por categoria e diárias. No Nível 1, o salário permanece mensal.',
     'trip-history': 'Todas as viagens ficam listadas por semana operacional. Ao encerrar uma semana no Holerite, seus trechos ficam congelados e não podem mais ser excluídos.',
     'reserve-tools': 'Faça aportes manuais ou resgates com motivo. A reserva fica separada do saldo e recebe rendimento mensal quando o holerite é fechado.',

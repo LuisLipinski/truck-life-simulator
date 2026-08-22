@@ -10,6 +10,7 @@ import {
   getCareer,
   loadCareers,
   setActiveCareer,
+  updateCareer,
 } from './storage.js'
 import {
   loadPhase1State,
@@ -140,6 +141,19 @@ describe('career and Phase 1 storage integration', () => {
     }))
 
     expect(loadPhase1State(career.id).emergencyReserve).toBe(0)
+  })
+
+  it('updates a career while preserving its identity and normalizing legacy events', () => {
+    const career = createCareer({ driverName: 'Old Driver', city: 'Los Angeles, CA', company: 'Old Logistics', initialBalance: 793 })
+    expect(getCareer(career.id).events).toEqual([])
+
+    const updated = updateCareer(career.id, {
+      driverName: 'Corrected Driver',
+      events: [{ id: 'event_1', type: 'PROFILE_UPDATED', effectiveDate: '2026-08-22' }],
+    })
+
+    expect(updated).toMatchObject({ id: career.id, driverName: 'Corrected Driver' })
+    expect(getCareer(career.id).events).toEqual([{ id: 'event_1', type: 'PROFILE_UPDATED', effectiveDate: '2026-08-22' }])
   })
 
   it('removes the active career pointer when that career is deleted', () => {

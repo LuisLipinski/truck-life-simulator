@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx'
 import { activeCareerStorageKey, loadCareers, saveCareers } from './storage.js'
-import { loadPhase1State, phase1StorageKey, tripDistance } from './phase1.js'
+import { loadPhase1State, normalizeTrip, phase1StorageKey, tripDistance } from './phase1.js'
 import { gameIdFromBackupMarker, getGame, getGameForCareer } from '../config/games.js'
 import { getAtsStateProfile, inferAtsStateCode } from '../config/atsStates.js'
 import { getAtsCurrency } from '../config/atsCurrencies.js'
@@ -311,7 +311,7 @@ function normalizeTableState(rawState, game, initialBalance, row, indexes, lineI
       ? { ...game.expenses, ...source.expenses }
       : { ...game.expenses },
     history: Array.isArray(source.history) ? source.history : [],
-    trips: Array.isArray(source.trips) ? source.trips : [],
+    trips: Array.isArray(source.trips) ? source.trips.map((trip) => normalizeTrip(trip)) : [],
     closedWeeks: Array.isArray(source.closedWeeks) ? source.closedWeeks : [],
     customExpenses: Array.isArray(source.customExpenses) ? source.customExpenses : [],
     incidents: Array.isArray(source.incidents) ? source.incidents : [],
@@ -677,7 +677,7 @@ function importCareerRows(rows, expectedGameId) {
       const modern = row.length >= 13
       const generatedId = Date.now() + Math.floor(Math.random() * 10000)
       const normalizedType = importedTripType(modern ? row[10] : row[9])
-      imported.state.trips.push(modern ? {
+      imported.state.trips.push(normalizeTrip(modern ? {
         id: hasValue(row[1]) ? parseStrictNumber(row[1]) : generatedId,
         week: parseStrictNumber(row[2]) || 1,
         departureAt: row[3] || '', arrivalAt: row[4] || '', date: String(row[3] || '').slice(0, 10),
@@ -688,7 +688,7 @@ function importCareerRows(rows, expectedGameId) {
         week: parseStrictNumber(row[2]) || 1,
         date: row[3] || '', departureAt: row[3] || '', arrivalAt: '', origin: row[4] || '', originCompany: row[5] || '—', destination: row[6] || '', destinationCompany: row[7] || '—', cargo: row[8] || '',
         type: normalizedType, payCategory: importedPayCategory(row[10] && Number.isNaN(parseStrictNumber(row[10])) ? row[10] : '', normalizedType), [game.distanceField]: parseStrictNumber(row[row.length - 1]),
-      })
+      }, 'IMPORT'))
     } else if (type === 'HISTORY' && row[1] !== 'date') {
       const value = hasValue(row[4]) ? parseStrictNumber(row[4]) : 0
       imported.state.history.push({ date: row[1] || '', type: row[2] || '', desc: row[3] || '', value, amount: value, balance: hasValue(row[5]) ? parseStrictNumber(row[5]) : 0 })
