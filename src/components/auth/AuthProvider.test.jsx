@@ -43,6 +43,7 @@ afterEach(() => {
   container?.remove()
   clearAccessSession()
   delete document.documentElement.dataset.authenticated
+  delete document.documentElement.dataset.authResolved
   window.location.hash = '#/'
   vi.restoreAllMocks()
   delete globalThis.fetch
@@ -51,6 +52,39 @@ afterEach(() => {
 })
 
 describe('AuthProvider', () => {
+  it('keeps authentication unresolved while the refresh cookie is still being checked', async () => {
+    const csrfToken = 'd'.repeat(43)
+    let resolveCsrf
+
+    globalThis.fetch = vi.fn((url) => {
+      if (url === `${API_BASE_URL}/api/v1/auth/csrf`) {
+        return new Promise((resolve) => { resolveCsrf = resolve })
+      }
+      if (url === `${API_BASE_URL}/api/v1/auth/refresh`) {
+        return Promise.resolve(response(401, { code: 'REFRESH_TOKEN_INVALID', detail: 'missing' }, { 'content-type': 'application/problem+json' }))
+      }
+      throw new Error(`Unexpected URL: ${url}`)
+    })
+
+    await act(async () => {
+      root.render(<AuthProvider><Probe /></AuthProvider>)
+    })
+
+    expect(container.textContent).toContain('loading:none')
+    expect(document.documentElement.dataset.authResolved).toBeUndefined()
+    expect(document.documentElement.dataset.authenticated).toBeUndefined()
+
+    await act(async () => {
+      resolveCsrf(response(200, { token: csrfToken, headerName: 'X-CSRF-TOKEN' }))
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await vi.waitFor(() => expect(container.textContent).toContain('anonymous:none'))
+
+    expect(document.documentElement.dataset.authResolved).toBe('true')
+    expect(document.documentElement.dataset.authenticated).toBeUndefined()
+  })
+
   it('restores the account from the refresh cookie without persisting the access token', async () => {
     const csrfToken = 'e'.repeat(43)
     globalThis.fetch = vi.fn(async (url) => {
@@ -82,6 +116,7 @@ describe('AuthProvider', () => {
     expect(globalThis.fetch.mock.calls[2][1].headers.Authorization).toBe('Bearer restored-token')
     expect(localStorage.length).toBe(0)
     expect(sessionStorage.length).toBe(0)
+    expect(document.documentElement.dataset.authResolved).toBe('true')
     expect(document.documentElement.dataset.authenticated).toBe('true')
   })
 
@@ -106,6 +141,7 @@ describe('AuthProvider', () => {
     })
     await vi.waitFor(() => expect(window.location.hash).toBe('#/login?returnTo=%2Faccount'))
 
+    expect(document.documentElement.dataset.authResolved).toBe('true')
     expect(container.textContent).not.toContain('private account')
   })
 })
