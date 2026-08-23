@@ -1,4 +1,5 @@
 import { clearAccessSession, getAccessSession, setAccessSession } from './authSession.js'
+import { beginBackendActivity } from './backendActivity.js'
 
 const DEFAULT_API_BASE_URL = 'https://truck-life-simulator-api.onrender.com'
 const DEFAULT_CSRF_HEADER = 'X-CSRF-TOKEN'
@@ -35,41 +36,47 @@ async function readPayload(response) {
 async function requestOnce(path, options = {}) {
   const method = options.method || 'GET'
   const hasBody = options.body !== undefined
-  let response
+  const endBackendActivity = beginBackendActivity()
 
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
-      method,
-      credentials: 'include',
-      cache: 'no-store',
-      signal: options.signal,
-      headers: {
-        Accept: 'application/json, application/problem+json',
-        ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
-        ...options.headers,
-      },
-      body: hasBody ? JSON.stringify(options.body) : undefined,
-    })
-  } catch (cause) {
-    throw new ApiProblemError('A API não pôde ser acessada.', {
-      status: 0,
-      code: 'API_UNAVAILABLE',
-      cause,
-    })
-  }
+    let response
 
-  const payload = await readPayload(response)
-  if (!response.ok) {
-    throw new ApiProblemError(payload?.detail || 'A solicitação não pôde ser concluída.', {
-      status: response.status,
-      code: payload?.code || `HTTP_${response.status}`,
-      correlationId: payload?.correlationId,
-      retryAfter: response.headers.get('retry-after'),
-      violations: payload?.violations,
-    })
-  }
+    try {
+      response = await fetch(`${API_BASE_URL}${path}`, {
+        method,
+        credentials: 'include',
+        cache: 'no-store',
+        signal: options.signal,
+        headers: {
+          Accept: 'application/json, application/problem+json',
+          ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
+          ...options.headers,
+        },
+        body: hasBody ? JSON.stringify(options.body) : undefined,
+      })
+    } catch (cause) {
+      throw new ApiProblemError('A API não pôde ser acessada.', {
+        status: 0,
+        code: 'API_UNAVAILABLE',
+        cause,
+      })
+    }
 
-  return payload
+    const payload = await readPayload(response)
+    if (!response.ok) {
+      throw new ApiProblemError(payload?.detail || 'A solicitação não pôde ser concluída.', {
+        status: response.status,
+        code: payload?.code || `HTTP_${response.status}`,
+        correlationId: payload?.correlationId,
+        retryAfter: response.headers.get('retry-after'),
+        violations: payload?.violations,
+      })
+    }
+
+    return payload
+  } finally {
+    endBackendActivity()
+  }
 }
 
 async function csrfProtectedPost(path, options = {}) {
