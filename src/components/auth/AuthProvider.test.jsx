@@ -73,8 +73,10 @@ describe('AuthProvider', () => {
       throw new Error(`Unexpected URL: ${url}`)
     })
 
-    await act(async () => {
+    act(() => {
       root.render(<AuthProvider><Probe /></AuthProvider>)
+    })
+    await act(async () => {
       await vi.waitFor(() => expect(container.textContent).toContain('authenticated:restored@example.com'))
     })
 
@@ -97,12 +99,14 @@ describe('AuthProvider', () => {
       throw new Error(`Unexpected URL: ${url}`)
     })
 
-    await act(async () => {
+    act(() => {
       root.render(
         <AuthProvider>
           <ProtectedRoute returnTo="/account"><div>private account</div></ProtectedRoute>
         </AuthProvider>,
       )
+    })
+    await act(async () => {
       await vi.waitFor(() => expect(window.location.hash).toBe('#/login?returnTo=%2Faccount'))
     })
 
