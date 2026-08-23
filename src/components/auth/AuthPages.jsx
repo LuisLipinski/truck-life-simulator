@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ApiProblemError, authApi } from '../../lib/authApi.js'
-import { setAccessSession } from '../../lib/authSession.js'
+import { useAuth } from './AuthProvider.jsx'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const VERIFICATION_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/
@@ -138,10 +138,23 @@ function validatePassword(password, confirmation) {
   return null
 }
 
-export function LoginPage() {
-  const [email, setEmail] = useState('')
+function safeReturnTo(value) {
+  const target = String(value || '').trim()
+  if (!target.startsWith('/') || target.startsWith('//')) return null
+  if (target === '/login' || target === '/register' || target === '/forgot-password' || target === '/reset-password') return null
+  return target
+}
+
+export function LoginPage({ params }) {
+  const auth = useAuth()
+  const registered = params?.get('registered') === '1'
+  const [email, setEmail] = useState(params?.get('email') || '')
   const [password, setPassword] = useState('')
-  const [feedback, setFeedback] = useState(null)
+  const [feedback, setFeedback] = useState(() => registered ? {
+    type: 'success',
+    title: 'Conta criada',
+    message: 'Cadastro concluído. Verifique seu e-mail antes de entrar; depois use suas credenciais normalmente.',
+  } : null)
   const [submitting, setSubmitting] = useState(false)
 
   async function submit(event) {
@@ -153,10 +166,11 @@ export function LoginPage() {
     }
     setSubmitting(true)
     try {
-      const session = await authApi.login({ email: email.trim(), password })
-      setAccessSession(session)
+      await auth.login({ email: email.trim(), password })
       setPassword('')
-      setFeedback({ type: 'success', title: 'Login realizado', message: 'Sua sessão foi criada com segurança. Você já pode continuar para o simulador.' })
+      setFeedback({ type: 'success', title: 'Login realizado', message: 'Sua sessão foi criada com segurança.' })
+      const destination = safeReturnTo(params?.get('returnTo')) || '/account'
+      window.location.hash = `#${destination}`
     } catch (error) {
       setFeedback(authErrorFeedback(error, 'login'))
     } finally {
@@ -176,7 +190,6 @@ export function LoginPage() {
         <div className="auth-form-links"><HashLink to="/forgot-password">Esqueci minha senha</HashLink></div>
         <button className="button primary auth-submit" type="submit" disabled={submitting}>{submitting ? 'Entrando…' : 'Entrar'}</button>
       </form>
-      {feedback?.type === 'success' && <HashLink className="button success auth-continue" to="/">Continuar para o simulador</HashLink>}
       {feedback?.title === 'E-mail ainda não verificado' && <HashLink className="auth-inline-cta" to={`/verify-email?email=${encodeURIComponent(email.trim())}`}>Verificar ou reenviar e-mail</HashLink>}
       <p className="auth-switch">Ainda não tem uma conta? <HashLink to="/register">Criar conta</HashLink></p>
     </AuthLayout>
@@ -206,14 +219,16 @@ export function RegisterPage() {
     }
     setSubmitting(true)
     try {
-      await authApi.register({ displayName: cleanName, email: email.trim(), password })
+      const cleanEmail = email.trim()
+      await authApi.register({ displayName: cleanName, email: cleanEmail, password })
       setPassword('')
       setConfirmation('')
       setFeedback({
         type: 'success',
         title: 'Solicitação recebida',
-        message: 'Se o cadastro puder ser concluído, enviaremos as instruções de verificação para o e-mail informado.',
+        message: 'Cadastro concluído. Redirecionando para o login.',
       })
+      window.location.hash = `#/login?registered=1&email=${encodeURIComponent(cleanEmail)}`
     } catch (error) {
       setFeedback(authErrorFeedback(error, 'register'))
     } finally {
@@ -237,7 +252,6 @@ export function RegisterPage() {
         <PasswordField id="register-confirmation" label="Confirmar senha" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="new-password" disabled={submitting} />
         <button className="button primary auth-submit" type="submit" disabled={submitting}>{submitting ? 'Criando conta…' : 'Criar conta'}</button>
       </form>
-      {feedback?.type === 'success' && <HashLink className="auth-inline-cta" to={`/verify-email?email=${encodeURIComponent(email.trim())}`}>Ir para verificação de e-mail</HashLink>}
       <p className="auth-switch">Já possui uma conta? <HashLink to="/login">Entrar</HashLink></p>
     </AuthLayout>
   )
@@ -412,7 +426,7 @@ export function ResetPasswordPage({ params }) {
 }
 
 export default function PublicAuthPage({ path, params }) {
-  if (path === '/login') return <LoginPage />
+  if (path === '/login') return <LoginPage params={params} />
   if (path === '/register') return <RegisterPage />
   if (path === '/verify-email') return <VerifyEmailPage params={params} />
   if (path === '/forgot-password') return <ForgotPasswordPage />
