@@ -43,6 +43,7 @@ afterEach(() => {
   container?.remove()
   clearAccessSession()
   delete document.documentElement.dataset.authenticated
+  delete document.documentElement.dataset.authResolved
   window.location.hash = '#/'
   vi.restoreAllMocks()
   delete globalThis.fetch
@@ -51,6 +52,18 @@ afterEach(() => {
 })
 
 describe('AuthProvider', () => {
+  it('keeps authentication unresolved while the refresh cookie is still being checked', async () => {
+    globalThis.fetch = vi.fn(() => new Promise(() => {}))
+
+    await act(async () => {
+      root.render(<AuthProvider><Probe /></AuthProvider>)
+    })
+
+    expect(container.textContent).toContain('loading:none')
+    expect(document.documentElement.dataset.authResolved).toBeUndefined()
+    expect(document.documentElement.dataset.authenticated).toBeUndefined()
+  })
+
   it('restores the account from the refresh cookie without persisting the access token', async () => {
     const csrfToken = 'e'.repeat(43)
     globalThis.fetch = vi.fn(async (url) => {
@@ -82,6 +95,7 @@ describe('AuthProvider', () => {
     expect(globalThis.fetch.mock.calls[2][1].headers.Authorization).toBe('Bearer restored-token')
     expect(localStorage.length).toBe(0)
     expect(sessionStorage.length).toBe(0)
+    expect(document.documentElement.dataset.authResolved).toBe('true')
     expect(document.documentElement.dataset.authenticated).toBe('true')
   })
 
@@ -106,6 +120,7 @@ describe('AuthProvider', () => {
     })
     await vi.waitFor(() => expect(window.location.hash).toBe('#/login?returnTo=%2Faccount'))
 
+    expect(document.documentElement.dataset.authResolved).toBe('true')
     expect(container.textContent).not.toContain('private account')
   })
 })
