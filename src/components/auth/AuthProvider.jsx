@@ -97,12 +97,22 @@ export function AuthProvider({ children }) {
   }, [])
 
   useEffect(() => {
+    if (state.status === 'loading') {
+      delete document.documentElement.dataset.authResolved
+    } else {
+      document.documentElement.dataset.authResolved = 'true'
+    }
+
     if (state.status === 'authenticated') {
       document.documentElement.dataset.authenticated = 'true'
     } else {
       delete document.documentElement.dataset.authenticated
     }
-    return () => { delete document.documentElement.dataset.authenticated }
+
+    return () => {
+      delete document.documentElement.dataset.authResolved
+      delete document.documentElement.dataset.authenticated
+    }
   }, [state.status])
 
   const login = useCallback(async (credentials) => {
