@@ -5,15 +5,13 @@
 .backend-loading-stage{position:relative;height:190px;margin:0 auto 20px;overflow:hidden;border-radius:20px;border:1px solid rgba(100,116,139,.28);background:#111827}
 .backend-loading-scene{display:block;width:100%;height:100%}
 .backend-loading-headlight,.backend-forklift-light{filter:drop-shadow(0 0 6px rgba(253,230,138,.8))}
-.backend-forklift-trip{animation:backend-forklift-trip 4.8s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
-.backend-forklift-crate{animation:backend-carried-crate 4.8s linear infinite}
-.backend-loaded-crate{opacity:0;animation:backend-loaded-crate 4.8s linear infinite}
+.backend-forklift-trip{opacity:0;animation:backend-forklift-trip 6.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.backend-forklift-crate{animation:backend-carried-crate 6.4s linear infinite}
 .backend-loading-retry-fallback{position:fixed;z-index:2002;left:50%;top:calc(50% + 196px);width:min(440px,calc(100% - 40px));transform:translateX(-50%);padding:14px 16px 16px;text-align:center;border:1px solid rgba(251,191,36,.28);border-radius:16px;background:rgba(15,23,42,.98);box-shadow:0 16px 36px rgba(2,6,23,.35)}
 .backend-loading-retry-fallback p{margin:0 0 12px;color:var(--text);font-size:14px;line-height:1.45}
 .backend-loading-retry-button{width:100%;min-height:44px}
-@keyframes backend-forklift-trip{0%,10%{transform:translateX(0)}40%,58%{transform:translateX(42px)}88%,100%{transform:translateX(0)}}
-@keyframes backend-carried-crate{0%,46%{opacity:1}52%,100%{opacity:0}}
-@keyframes backend-loaded-crate{0%,48%{opacity:0}54%,91%{opacity:1}100%{opacity:0}}
+@keyframes backend-forklift-trip{0%,5%{opacity:0;transform:translateX(-150px)}10%{opacity:1;transform:translateX(-150px)}43%,58%{opacity:1;transform:translateX(102px)}88%{opacity:1;transform:translateX(-150px)}93%,100%{opacity:0;transform:translateX(-150px)}}
+@keyframes backend-carried-crate{0%,50%{opacity:1}56%,100%{opacity:0}}
 @keyframes backend-message-in{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:520px){.backend-loading-overlay{padding:16px}.backend-loading-card{padding:24px 16px;border-radius:20px}.backend-loading-stage{height:158px}.backend-loading-message{min-height:54px;font-size:15px}.backend-loading-retry-fallback{top:auto;bottom:16px;width:calc(100% - 32px);padding:13px 14px 14px}}
-@media(prefers-reduced-motion:reduce){.backend-forklift-trip,.backend-forklift-crate,.backend-loaded-crate,.backend-loading-message{animation:none}.backend-loaded-crate{display:none}}
+@media(prefers-reduced-motion:reduce){.backend-forklift-trip,.backend-forklift-crate,.backend-loading-message{animation:none}.backend-forklift-trip{opacity:1;transform:translateX(102px)}.backend-forklift-crate{opacity:1}}
