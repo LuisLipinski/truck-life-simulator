@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react'
-import truckLoadingGif from '../assets/truckLoadingGif.js'
 import { subscribeBackendActivity } from '../lib/backendActivity.js'
 
 const SHOW_DELAY_MS = 700
 const MESSAGE_INTERVAL_MS = 2400
-const LOADING_GIF_URL = truckLoadingGif
+const LOADING_GIF_URL = `${import.meta.env.BASE_URL}truck-loading.gif`
 
 const LOADING_MESSAGES = [
   'Carregando os reservatórios de ar…',
