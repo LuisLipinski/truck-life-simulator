@@ -4,15 +4,13 @@
 .backend-loading-message{min-height:48px;margin:0;color:var(--text);font-size:16px;line-height:1.5;animation:backend-message-in .28s ease-out}
 .backend-loading-stage{position:relative;height:190px;margin:0 auto 20px;overflow:hidden;border-radius:20px;border:1px solid rgba(100,116,139,.28);background:#111827}
 .backend-loading-scene{display:block;width:100%;height:100%}
-.backend-dock-light{filter:drop-shadow(0 0 5px rgba(74,222,128,.8));animation:backend-dock-light 1.4s ease-in-out infinite alternate}
 .backend-loading-headlight,.backend-forklift-light{filter:drop-shadow(0 0 6px rgba(253,230,138,.8))}
-.backend-forklift-trip{animation:backend-forklift-trip 4.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
-.backend-forklift-crate{animation:backend-carried-crate 4.4s linear infinite}
-.backend-loaded-crate{opacity:0;animation:backend-loaded-crate 4.4s linear infinite}
-@keyframes backend-forklift-trip{0%,9%{transform:translateX(0)}42%,57%{transform:translateX(-112px)}90%,100%{transform:translateX(0)}}
-@keyframes backend-carried-crate{0%,46%{opacity:1}51%,100%{opacity:0}}
-@keyframes backend-loaded-crate{0%,47%{opacity:0}53%,92%{opacity:1}100%{opacity:0}}
-@keyframes backend-dock-light{from{opacity:.45}to{opacity:1}}
+.backend-forklift-trip{animation:backend-forklift-trip 4.8s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.backend-forklift-crate{animation:backend-carried-crate 4.8s linear infinite}
+.backend-loaded-crate{opacity:0;animation:backend-loaded-crate 4.8s linear infinite}
+@keyframes backend-forklift-trip{0%,10%{transform:translateX(0)}40%,58%{transform:translateX(42px)}88%,100%{transform:translateX(0)}}
+@keyframes backend-carried-crate{0%,46%{opacity:1}52%,100%{opacity:0}}
+@keyframes backend-loaded-crate{0%,48%{opacity:0}54%,91%{opacity:1}100%{opacity:0}}
 @keyframes backend-message-in{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:520px){.backend-loading-overlay{padding:16px}.backend-loading-card{padding:24px 16px;border-radius:20px}.backend-loading-stage{height:158px}.backend-loading-message{min-height:54px;font-size:15px}}
-@media(prefers-reduced-motion:reduce){.backend-forklift-trip,.backend-forklift-crate,.backend-loaded-crate,.backend-dock-light,.backend-loading-message{animation:none}.backend-loaded-crate{display:none}}
+@media(prefers-reduced-motion:reduce){.backend-forklift-trip,.backend-forklift-crate,.backend-loaded-crate,.backend-loading-message{animation:none}.backend-loaded-crate{display:none}}
