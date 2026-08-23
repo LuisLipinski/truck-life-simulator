@@ -7,9 +7,12 @@
 .backend-loading-headlight,.backend-forklift-light{filter:drop-shadow(0 0 6px rgba(253,230,138,.8))}
 .backend-forklift-trip{opacity:0;animation:backend-forklift-trip 6.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
 .backend-forklift-crate{animation:backend-carried-crate 6.4s linear infinite}
-.backend-loading-retry-fallback{position:fixed;z-index:2002;left:50%;top:calc(50% + 196px);width:min(440px,calc(100% - 40px));transform:translateX(-50%);padding:14px 16px 16px;text-align:center;border:1px solid rgba(251,191,36,.28);border-radius:16px;background:rgba(15,23,42,.98);box-shadow:0 16px 36px rgba(2,6,23,.35)}
+.backend-loading-retry-fallback{position:fixed;z-index:2002;left:50%;top:calc(50% + 196px);width:min(440px,calc(100% - 40px));transform:translateX(-50%);padding:14px 16px 16px;text-align:center;border:1px solid rgba(56,189,248,.32);border-radius:16px;background:rgba(15,23,42,.98);box-shadow:0 16px 36px rgba(2,6,23,.35)}
 .backend-loading-retry-fallback p{margin:0 0 12px;color:var(--text);font-size:14px;line-height:1.45}
-.backend-loading-retry-button{width:100%;min-height:44px}
+.backend-loading-retry-button{width:100%;min-height:46px;border:1px solid #38bdf8!important;background:linear-gradient(180deg,#0ea5e9,#0284c7)!important;color:#fff!important;font-weight:800;box-shadow:0 8px 20px rgba(14,165,233,.28);cursor:pointer;opacity:1!important;transition:transform .15s ease,box-shadow .15s ease,filter .15s ease}
+.backend-loading-retry-button:hover{filter:brightness(1.08);box-shadow:0 10px 24px rgba(14,165,233,.36)}
+.backend-loading-retry-button:active{transform:translateY(1px);filter:brightness(.96)}
+.backend-loading-retry-button:focus-visible{outline:3px solid rgba(125,211,252,.55);outline-offset:3px}
 @keyframes backend-forklift-trip{0%,5%{opacity:0;transform:translateX(-150px)}10%{opacity:1;transform:translateX(-150px)}43%,58%{opacity:1;transform:translateX(102px)}88%{opacity:1;transform:translateX(-150px)}93%,100%{opacity:0;transform:translateX(-150px)}}
 @keyframes backend-carried-crate{0%,50%{opacity:1}56%,100%{opacity:0}}
 @keyframes backend-message-in{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
