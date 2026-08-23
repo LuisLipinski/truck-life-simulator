@@ -93,9 +93,9 @@ export const authApi = {
     body: { email },
     signal: options.signal,
   }),
-  resetPassword: (token, password, options = {}) => apiRequest('/api/v1/auth/reset-password', {
+  resetPassword: (token, newPassword, options = {}) => apiRequest('/api/v1/auth/reset-password', {
     method: 'POST',
-    body: { token, password },
+    body: { token, newPassword },
     signal: options.signal,
   }),
 }
