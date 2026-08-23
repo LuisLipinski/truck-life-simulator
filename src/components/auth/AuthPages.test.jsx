@@ -61,6 +61,7 @@ beforeEach(() => {
   container = document.createElement('div')
   document.body.appendChild(container)
   root = createRoot(container)
+  window.location.hash = '#/'
   localStorage.clear()
   sessionStorage.clear()
   clearAccessSession()
@@ -72,6 +73,7 @@ afterEach(() => {
   clearAccessSession()
   localStorage.clear()
   sessionStorage.clear()
+  window.location.hash = '#/'
   vi.restoreAllMocks()
   delete globalThis.fetch
   root = null
@@ -79,7 +81,7 @@ afterEach(() => {
 })
 
 describe('public authentication pages', () => {
-  it('logs in using the API contract and keeps the access token only in memory', async () => {
+  it('logs in using the API contract, keeps the token in memory and redirects to My Account', async () => {
     globalThis.fetch = vi.fn(async () => response(200, {
       accessToken: 'access-token-only-in-memory',
       tokenType: 'Bearer',
@@ -100,7 +102,23 @@ describe('public authentication pages', () => {
     expect(getAccessSession()).toMatchObject({ accessToken: 'access-token-only-in-memory', tokenType: 'Bearer' })
     expect(localStorage.length).toBe(0)
     expect(sessionStorage.length).toBe(0)
+    expect(window.location.hash).toBe('#/account')
     expect(container.textContent).toContain('Login realizado')
+  })
+
+  it('returns to the protected destination after a successful login', async () => {
+    globalThis.fetch = vi.fn(async () => response(200, {
+      accessToken: 'return-token',
+      tokenType: 'Bearer',
+      expiresIn: 900,
+    }))
+    render(<LoginPage params={new URLSearchParams({ returnTo: '/account' })} />)
+    setInput('#login-email', 'driver@example.com')
+    setInput('#login-password', 'uma senha segura')
+
+    await submit()
+
+    expect(window.location.hash).toBe('#/account')
   })
 
   it('maps Problem Details to safe login copy without exposing backend detail', async () => {
@@ -135,7 +153,7 @@ describe('public authentication pages', () => {
     expect(container.querySelector('a[href="#/verify-email?email=pending%40example.com"]')).not.toBeNull()
   })
 
-  it('registers with displayName, email and password and shows a neutral response', async () => {
+  it('registers with displayName, email and password and redirects to login', async () => {
     globalThis.fetch = vi.fn(async () => response(202))
     render(<RegisterPage />)
     setInput('#register-name', ' Maria Estrada ')
@@ -151,8 +169,16 @@ describe('public authentication pages', () => {
       email: 'maria@example.com',
       password: 'senha com 12+',
     })
+    expect(window.location.hash).toBe('#/login?registered=1&email=maria%40example.com')
     expect(container.textContent).toContain('Solicitação recebida')
-    expect(container.textContent).toContain('Se o cadastro puder ser concluído')
+  })
+
+  it('shows the post-registration guidance on the login screen', () => {
+    render(<LoginPage params={new URLSearchParams({ registered: '1', email: 'maria@example.com' })} />)
+
+    expect(container.textContent).toContain('Conta criada')
+    expect(container.textContent).toContain('Verifique seu e-mail antes de entrar')
+    expect(container.querySelector('#login-email').value).toBe('maria@example.com')
   })
 
   it('verifies the 43-character token and supports a neutral resend request', async () => {

@@ -36,7 +36,7 @@ export default function AccountPage() {
   }
 
   return (
-    <main className="page-shell form-shell">
+    <main className="page-shell form-shell account-shell">
       <a className="back-link" href="#/">← Voltar ao simulador</a>
       <section className="page-heading centered">
         <span className="eyebrow">Conta Truck Life Simulator</span>
@@ -46,7 +46,7 @@ export default function AccountPage() {
 
       {feedback && <div className="auth-feedback auth-feedback-error" role="alert"><span className="auth-feedback-icon">!</span><div><strong>Logout não confirmado</strong><p>{feedback}</p></div></div>}
 
-      <section className="panel">
+      <section className="panel account-panel account-details-panel">
         <div className="summary-grid">
           <div><span>Nome</span><strong>{user?.displayName || 'Não informado'}</strong></div>
           <div><span>E-mail</span><strong>{user?.email || 'Não informado'}</strong></div>
@@ -58,7 +58,7 @@ export default function AccountPage() {
         </div>
       </section>
 
-      <section className="panel">
+      <section className="panel account-panel account-security-panel">
         <span className="eyebrow">Sessão</span>
         <h2>Segurança da conta</h2>
         <p>O token de acesso fica somente na memória do aplicativo. O refresh token permanece protegido em cookie seguro e não é salvo no armazenamento local.</p>
