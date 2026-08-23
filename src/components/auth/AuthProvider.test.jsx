@@ -73,12 +73,10 @@ describe('AuthProvider', () => {
       throw new Error(`Unexpected URL: ${url}`)
     })
 
-    act(() => {
+    await act(async () => {
       root.render(<AuthProvider><Probe /></AuthProvider>)
     })
-    await act(async () => {
-      await vi.waitFor(() => expect(container.textContent).toContain('authenticated:restored@example.com'))
-    })
+    await vi.waitFor(() => expect(container.textContent).toContain('authenticated:restored@example.com'))
 
     expect(globalThis.fetch).toHaveBeenCalledTimes(3)
     expect(globalThis.fetch.mock.calls[2][1].headers.Authorization).toBe('Bearer restored-token')
@@ -99,16 +97,14 @@ describe('AuthProvider', () => {
       throw new Error(`Unexpected URL: ${url}`)
     })
 
-    act(() => {
+    await act(async () => {
       root.render(
         <AuthProvider>
           <ProtectedRoute returnTo="/account"><div>private account</div></ProtectedRoute>
         </AuthProvider>,
       )
     })
-    await act(async () => {
-      await vi.waitFor(() => expect(window.location.hash).toBe('#/login?returnTo=%2Faccount'))
-    })
+    await vi.waitFor(() => expect(window.location.hash).toBe('#/login?returnTo=%2Faccount'))
 
     expect(container.textContent).not.toContain('private account')
   })
