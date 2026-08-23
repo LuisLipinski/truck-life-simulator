@@ -53,7 +53,18 @@ afterEach(() => {
 
 describe('AuthProvider', () => {
   it('keeps authentication unresolved while the refresh cookie is still being checked', async () => {
-    globalThis.fetch = vi.fn(() => new Promise(() => {}))
+    const csrfToken = 'd'.repeat(43)
+    let resolveCsrf
+
+    globalThis.fetch = vi.fn((url) => {
+      if (url === `${API_BASE_URL}/api/v1/auth/csrf`) {
+        return new Promise((resolve) => { resolveCsrf = resolve })
+      }
+      if (url === `${API_BASE_URL}/api/v1/auth/refresh`) {
+        return Promise.resolve(response(401, { code: 'REFRESH_TOKEN_INVALID', detail: 'missing' }, { 'content-type': 'application/problem+json' }))
+      }
+      throw new Error(`Unexpected URL: ${url}`)
+    })
 
     await act(async () => {
       root.render(<AuthProvider><Probe /></AuthProvider>)
@@ -61,6 +72,16 @@ describe('AuthProvider', () => {
 
     expect(container.textContent).toContain('loading:none')
     expect(document.documentElement.dataset.authResolved).toBeUndefined()
+    expect(document.documentElement.dataset.authenticated).toBeUndefined()
+
+    await act(async () => {
+      resolveCsrf(response(200, { token: csrfToken, headerName: 'X-CSRF-TOKEN' }))
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await vi.waitFor(() => expect(container.textContent).toContain('anonymous:none'))
+
+    expect(document.documentElement.dataset.authResolved).toBe('true')
     expect(document.documentElement.dataset.authenticated).toBeUndefined()
   })
 
