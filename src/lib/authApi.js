@@ -1,4 +1,7 @@
+import { clearAccessSession, getAccessSession, setAccessSession } from './authSession.js'
+
 const DEFAULT_API_BASE_URL = 'https://truck-life-simulator-api.onrender.com'
+const DEFAULT_CSRF_HEADER = 'X-CSRF-TOKEN'
 
 export const API_BASE_URL = String(
   import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL,
@@ -16,6 +19,8 @@ export class ApiProblemError extends Error {
   }
 }
 
+let refreshPromise = null
+
 async function readPayload(response) {
   if (response.status === 204) return null
   const contentType = response.headers.get('content-type') || ''
@@ -27,7 +32,7 @@ async function readPayload(response) {
   }
 }
 
-export async function apiRequest(path, options = {}) {
+async function requestOnce(path, options = {}) {
   const method = options.method || 'GET'
   const hasBody = options.body !== undefined
   let response
@@ -67,6 +72,78 @@ export async function apiRequest(path, options = {}) {
   return payload
 }
 
+async function csrfProtectedPost(path, options = {}) {
+  const csrf = await requestOnce('/api/v1/auth/csrf', { signal: options.signal })
+  const headerName = csrf?.headerName || DEFAULT_CSRF_HEADER
+  if (!csrf?.token) {
+    throw new ApiProblemError('A proteção da sessão não pôde ser preparada.', {
+      status: 0,
+      code: 'CSRF_TOKEN_MISSING',
+    })
+  }
+  return requestOnce(path, {
+    method: 'POST',
+    signal: options.signal,
+    headers: { [headerName]: csrf.token },
+  })
+}
+
+export function refreshAccessSession(options = {}) {
+  if (refreshPromise) return refreshPromise
+
+  refreshPromise = (async () => {
+    try {
+      const response = await csrfProtectedPost('/api/v1/auth/refresh', options)
+      const session = setAccessSession(response)
+      if (!session) {
+        throw new ApiProblemError('A API não retornou uma sessão válida.', {
+          status: 0,
+          code: 'ACCESS_TOKEN_MISSING',
+        })
+      }
+      return session
+    } catch (error) {
+      clearAccessSession()
+      throw error
+    } finally {
+      refreshPromise = null
+    }
+  })()
+
+  return refreshPromise
+}
+
+async function authenticatedRequest(path, options = {}) {
+  let session = getAccessSession()
+  if (!session) session = await refreshAccessSession()
+
+  const execute = (activeSession) => requestOnce(path, {
+    ...options,
+    headers: {
+      ...options.headers,
+      Authorization: `${activeSession.tokenType} ${activeSession.accessToken}`,
+    },
+  })
+
+  try {
+    return await execute(session)
+  } catch (error) {
+    if (!(error instanceof ApiProblemError) || error.status !== 401 || options.retryAuth === false) {
+      throw error
+    }
+    const renewedSession = await refreshAccessSession()
+    return execute(renewedSession)
+  }
+}
+
+export async function apiRequest(path, options = {}) {
+  if (options.auth) {
+    const { auth: _auth, retryAuth, ...requestOptions } = options
+    return authenticatedRequest(path, { ...requestOptions, retryAuth })
+  }
+  return requestOnce(path, options)
+}
+
 export const authApi = {
   register: (data, options = {}) => apiRequest('/api/v1/auth/register', {
     method: 'POST',
@@ -86,6 +163,21 @@ export const authApi = {
   login: (data, options = {}) => apiRequest('/api/v1/auth/login', {
     method: 'POST',
     body: data,
+    signal: options.signal,
+  }),
+  csrf: (options = {}) => apiRequest('/api/v1/auth/csrf', {
+    signal: options.signal,
+  }),
+  refresh: (options = {}) => refreshAccessSession(options),
+  logout: async (options = {}) => {
+    try {
+      return await csrfProtectedPost('/api/v1/auth/logout', options)
+    } finally {
+      clearAccessSession()
+    }
+  },
+  me: (options = {}) => apiRequest('/api/v1/me', {
+    auth: true,
     signal: options.signal,
   }),
   forgotPassword: (email, options = {}) => apiRequest('/api/v1/auth/forgot-password', {
