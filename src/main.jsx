@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 import BackendLoadingOverlay from './components/BackendLoadingOverlay.jsx'
+import BackendLoadingRetryFallback from './components/BackendLoadingRetryFallback.jsx'
 import MobileHelp from './components/MobileHelp.jsx'
 import { AuthProvider } from './components/auth/AuthProvider.jsx'
 import SessionNavigation from './components/auth/SessionNavigation.jsx'
@@ -26,6 +27,7 @@ createRoot(document.getElementById('root')).render(
         <ConfirmProvider>
           <TutorialProvider>
             <BackendLoadingOverlay />
+            <BackendLoadingRetryFallback />
             <SessionNavigation />
             <SessionRouter>
               <App />
