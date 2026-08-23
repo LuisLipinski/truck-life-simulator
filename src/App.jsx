@@ -14,6 +14,7 @@ import { convertAtsCurrency } from './config/atsCurrencies.js'
 import { convertEts2Currency, roundCurrency } from './config/ets2Currencies.js'
 import Phase1Page from './components/Phase1Page.jsx'
 import CityAutocomplete from './components/CityAutocomplete.jsx'
+import PublicAuthPage, { PUBLIC_AUTH_PATHS } from './components/auth/AuthPages.jsx'
 import { GameProvider, useGame } from './components/GameContext.jsx'
 import { useConfirm } from './components/ConfirmProvider.jsx'
 import { useTutorial } from './components/GuidedTutorial.jsx'
@@ -53,6 +54,11 @@ function HomePage() {
         <span className="eyebrow">Career companion</span>
         <h1>Truck Life Simulator</h1>
         <p>Escolha o jogo para acessar uma carreira com dados, economia e regras próprias.</p>
+        <div className="home-auth-actions" aria-label="Acesso à conta">
+          <AppLink className="button primary" to="/login">Entrar</AppLink>
+          <AppLink className="button secondary" to="/register">Criar conta</AppLink>
+        </div>
+        <small className="home-auth-note">O simulador local continua disponível sem login.</small>
       </section>
       <section className="game-grid">
         {Object.values(GAMES).map((game) => (
@@ -480,6 +486,7 @@ function PhasesPage({ careerId }) {
 
 export default function App() {
   const { path, params } = useHashRoute()
+  if (PUBLIC_AUTH_PATHS.has(path)) return <PublicAuthPage path={path} params={params} />
   if (path === '/') return <HomePage />
 
   const gameId = gameIdFromPath(path)

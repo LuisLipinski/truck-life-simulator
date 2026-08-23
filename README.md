@@ -18,6 +18,12 @@ Companion de carreira para American Truck Simulator e Euro Truck Simulator 2. Ca
 
 As chaves de `localStorage` de ATS e ETS2 são separadas. A importação também recusa arquivos do jogo errado.
 
+## Autenticação pública
+
+As telas públicas ficam nas rotas `#/login`, `#/register`, `#/verify-email`, `#/forgot-password` e `#/reset-password`. O endereço da API pode ser definido em `VITE_API_BASE_URL`; na ausência da variável, o frontend usa `https://truck-life-simulator-api.onrender.com`.
+
+O token de acesso permanece somente em memória. O frontend envia cookies de renovação com `credentials: include` e não grava credenciais ou tokens no `localStorage` nem no `sessionStorage`. Os fluxos de recuperação de senha já possuem interface e tratamento de indisponibilidade, mas dependem da publicação dos endpoints correspondentes no backend.
+
 ## Modelo financeiro do ATS
 
 O estado-sede é escolhido antes da cidade-base. Ele filtra as cidades disponíveis, define retenções e fornece a referência financeira estadual. A cidade-base aplica um multiplicador municipal diferente para custo de vida e para mercado salarial; cruzar a divisa durante uma viagem não muda a folha da carreira.
