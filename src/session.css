@@ -1,0 +1,4 @@
+.session-account-bar{position:fixed;top:14px;right:14px;z-index:1200;display:flex;align-items:center;gap:8px;padding:10px;border:1px solid var(--line);border-radius:14px;background:rgba(15,23,42,.94);box-shadow:var(--shadow);backdrop-filter:blur(12px)}
+.session-account-bar>div{min-width:0;padding:0 4px}.session-account-bar span,.session-account-bar strong{display:block}.session-account-bar span{color:var(--muted);font-size:11px}.session-account-bar strong{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+html[data-authenticated="true"] .home-auth-actions,html[data-authenticated="true"] .home-auth-note{display:none}
+@media(max-width:680px){.session-account-bar{top:auto;right:12px;bottom:12px;left:12px;justify-content:space-between}.session-account-bar>div{flex:1}.session-account-bar strong{max-width:130px}.session-account-bar .button{min-height:40px;padding:8px 10px;font-size:12px}}
