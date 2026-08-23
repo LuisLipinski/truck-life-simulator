@@ -41,64 +41,80 @@ function randomMessageIndex() {
   return Math.floor(Math.random() * LOADING_MESSAGES.length)
 }
 
-function TruckAnimation() {
+function LoadingDockAnimation() {
   return (
-    <div className="backend-truck-stage" aria-hidden="true">
-      <div className="backend-road">
-        <div className="backend-road-line" />
-      </div>
-      <svg className="backend-truck-svg" viewBox="0 0 360 140" focusable="false">
+    <div className="backend-loading-stage" aria-hidden="true">
+      <svg className="backend-loading-scene" viewBox="0 0 460 190" focusable="false">
         <defs>
-          <linearGradient id="trailerBody" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#334155" />
+          <linearGradient id="dockWall" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#243247" />
+            <stop offset="1" stopColor="#111827" />
+          </linearGradient>
+          <linearGradient id="trailerSide" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#475569" />
             <stop offset="1" stopColor="#1e293b" />
           </linearGradient>
-          <linearGradient id="cabBody" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#38bdf8" />
-            <stop offset="1" stopColor="#0369a1" />
-          </linearGradient>
-          <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#e0f2fe" />
-            <stop offset="1" stopColor="#7dd3fc" />
+          <linearGradient id="forkliftBody" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#fbbf24" />
+            <stop offset="1" stopColor="#d97706" />
           </linearGradient>
         </defs>
 
-        <g className="backend-truck-vehicle">
-          <g className="backend-smoke">
-            <circle cx="245" cy="35" r="5" />
-            <circle cx="233" cy="27" r="7" />
-            <circle cx="218" cy="20" r="9" />
+        <rect x="0" y="0" width="460" height="190" rx="20" fill="url(#dockWall)" />
+        <rect x="0" y="144" width="460" height="46" fill="#0b1220" />
+        <path d="M0 145h460" stroke="#475569" strokeWidth="2" opacity="0.55" />
+        <path d="M18 170h90M176 170h90M334 170h90" stroke="#cbd5e1" strokeWidth="4" strokeLinecap="round" opacity="0.28" />
+
+        <g className="backend-dock">
+          <rect x="14" y="18" width="46" height="126" rx="3" fill="#0f172a" stroke="#475569" strokeWidth="2" />
+          <rect x="25" y="31" width="24" height="82" rx="2" fill="#020617" />
+          <rect x="19" y="118" width="36" height="9" rx="3" fill="#334155" />
+          <circle cx="37" cy="25" r="4" fill="#4ade80" className="backend-dock-light" />
+        </g>
+
+        <g className="backend-parked-truck">
+          <rect x="47" y="47" width="172" height="86" rx="5" fill="url(#trailerSide)" stroke="#64748b" strokeWidth="2" />
+          <rect x="54" y="55" width="154" height="67" rx="2" fill="#0f172a" />
+          <rect x="60" y="61" width="142" height="55" rx="2" fill="#111827" stroke="#334155" />
+          <path d="M75 111V69M101 111V69M127 111V69M153 111V69" stroke="#1e293b" strokeWidth="2" />
+          <rect x="50" y="126" width="174" height="10" rx="4" fill="#020617" />
+          <circle cx="91" cy="140" r="15" fill="#020617" stroke="#475569" strokeWidth="3" />
+          <circle cx="178" cy="140" r="15" fill="#020617" stroke="#475569" strokeWidth="3" />
+          <circle cx="91" cy="140" r="6" fill="#64748b" />
+          <circle cx="178" cy="140" r="6" fill="#64748b" />
+          <path d="M219 83h44l25 22v29h-69z" fill="#0369a1" stroke="#64748b" strokeWidth="2" />
+          <path d="M235 89h24l17 15h-41z" fill="#bae6fd" opacity="0.78" />
+          <rect x="278" y="119" width="8" height="7" rx="2" fill="#fde68a" className="backend-loading-headlight" />
+          <circle cx="247" cy="140" r="15" fill="#020617" stroke="#475569" strokeWidth="3" />
+          <circle cx="247" cy="140" r="6" fill="#64748b" />
+        </g>
+
+        <g className="backend-forklift-trip">
+          <g className="backend-forklift-crate">
+            <rect x="314" y="98" width="37" height="34" rx="2" fill="#b77936" stroke="#f3c77c" strokeWidth="2" />
+            <path d="M314 112h37M332.5 98v34M317 101l31 28M348 101l-31 28" stroke="#7c4a1f" strokeWidth="1.5" opacity="0.75" />
           </g>
 
-          <rect x="28" y="40" width="202" height="66" rx="8" fill="url(#trailerBody)" stroke="#64748b" strokeWidth="2" />
-          <rect x="37" y="49" width="184" height="7" rx="3.5" fill="#475569" opacity="0.75" />
-          <rect x="28" y="96" width="205" height="10" rx="4" fill="#0f172a" />
-          <rect x="82" y="106" width="112" height="7" rx="3" fill="#64748b" opacity="0.65" />
+          <g className="backend-forklift">
+            <path d="M350 91h7v47h-7z" fill="#475569" />
+            <path d="M349 128h-42v5h42z" fill="#64748b" />
+            <path d="M349 117h-31v5h31z" fill="#64748b" />
+            <path d="M360 106h48l15 19v16h-63z" fill="url(#forkliftBody)" stroke="#92400e" strokeWidth="2" />
+            <path d="M370 81h35v33h-35z" fill="none" stroke="#94a3b8" strokeWidth="4" />
+            <path d="M374 86h26" stroke="#64748b" strokeWidth="3" />
+            <circle cx="374" cy="143" r="14" fill="#020617" stroke="#475569" strokeWidth="3" />
+            <circle cx="411" cy="143" r="12" fill="#020617" stroke="#475569" strokeWidth="3" />
+            <circle cx="374" cy="143" r="5" fill="#64748b" />
+            <circle cx="411" cy="143" r="5" fill="#64748b" />
+            <circle cx="393" cy="99" r="7" fill="#0f172a" />
+            <path d="M390 106l-9 13h21l-7-13z" fill="#1e293b" />
+            <rect x="414" y="112" width="7" height="7" rx="2" fill="#fef3c7" className="backend-forklift-light" />
+          </g>
+        </g>
 
-          <rect x="244" y="42" width="7" height="42" rx="3" fill="#475569" />
-          <path d="M232 56h58l31 25v25h-89z" fill="url(#cabBody)" stroke="#64748b" strokeWidth="2" />
-          <path d="M257 62h29l21 18h-50z" fill="url(#glass)" stroke="#bae6fd" strokeWidth="1.5" />
-          <path d="M252 85h60v16h-60z" fill="#075985" opacity="0.78" />
-          <rect x="318" y="91" width="15" height="11" rx="3" fill="#0f172a" />
-          <rect x="325" y="79" width="7" height="8" rx="3" fill="#fde68a" className="backend-headlight" />
-          <rect x="225" y="101" width="106" height="7" rx="3.5" fill="#111827" />
-          <rect x="235" y="91" width="13" height="8" rx="2" fill="#94a3b8" />
-
-          <g className="backend-wheel backend-wheel-rear" transform="translate(82 108)">
-            <circle r="19" fill="#020617" stroke="#475569" strokeWidth="3" />
-            <circle r="9" fill="#64748b" />
-            <path d="M0-8V8M-8 0H8M-6-6L6 6M6-6L-6 6" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" />
-          </g>
-          <g className="backend-wheel backend-wheel-mid" transform="translate(184 108)">
-            <circle r="19" fill="#020617" stroke="#475569" strokeWidth="3" />
-            <circle r="9" fill="#64748b" />
-            <path d="M0-8V8M-8 0H8M-6-6L6 6M6-6L-6 6" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" />
-          </g>
-          <g className="backend-wheel backend-wheel-front" transform="translate(292 108)">
-            <circle r="19" fill="#020617" stroke="#475569" strokeWidth="3" />
-            <circle r="9" fill="#64748b" />
-            <path d="M0-8V8M-8 0H8M-6-6L6 6M6-6L-6 6" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" />
-          </g>
+        <g className="backend-loaded-crate">
+          <rect x="69" y="79" width="37" height="34" rx="2" fill="#b77936" stroke="#f3c77c" strokeWidth="2" />
+          <path d="M69 93h37M87.5 79v34M72 82l31 28M103 82l-31 28" stroke="#7c4a1f" strokeWidth="1.5" opacity="0.75" />
         </g>
       </svg>
     </div>
@@ -138,7 +154,7 @@ export default function BackendLoadingOverlay() {
   return (
     <div className="backend-loading-overlay" role="status" aria-live="polite" aria-label="Carregando">
       <div className="backend-loading-card">
-        <TruckAnimation />
+        <LoadingDockAnimation />
         <span className="eyebrow">Preparando a viagem</span>
         <h2>Carregando, aguarde…</h2>
         <p key={messageIndex} className="backend-loading-message">{LOADING_MESSAGES[messageIndex]}</p>
