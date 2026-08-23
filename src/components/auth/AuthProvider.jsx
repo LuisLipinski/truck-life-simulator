@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { ApiProblemError, authApi, refreshAccessSession } from '../../lib/authApi.js'
+import { beginBackendActivity } from '../../lib/backendActivity.js'
+import { retryTransientBackend } from '../../lib/backendRetry.js'
 import {
   clearAccessSession,
   setAccessSession,
@@ -49,8 +51,12 @@ export function AuthProvider({ children }) {
     let active = true
 
     async function syncAuthenticatedUser() {
+      const endBackendActivity = beginBackendActivity()
       try {
-        const user = await authApi.me()
+        const user = await retryTransientBackend(
+          () => authApi.me(),
+          { isActive: () => active },
+        )
         if (!active) return
         setState({ status: 'authenticated', user, error: null })
         const destination = savedLoginDestination()
@@ -63,6 +69,8 @@ export function AuthProvider({ children }) {
         } else {
           setState({ status: 'error', user: null, error })
         }
+      } finally {
+        endBackendActivity()
       }
     }
 
@@ -72,12 +80,17 @@ export function AuthProvider({ children }) {
         setState({ status: 'anonymous', user: null, error: null })
         return
       }
+      setState((current) => ({ ...current, status: 'loading', error: null }))
       syncAuthenticatedUser()
     })
 
     async function restore() {
+      const endBackendActivity = beginBackendActivity()
       try {
-        await refreshAccessSession()
+        await retryTransientBackend(
+          () => refreshAccessSession(),
+          { isActive: () => active },
+        )
       } catch (error) {
         clearAccessSession()
         if (!active) return
@@ -86,6 +99,8 @@ export function AuthProvider({ children }) {
         } else {
           setState({ status: 'error', user: null, error })
         }
+      } finally {
+        endBackendActivity()
       }
     }
 
