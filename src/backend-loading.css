@@ -1,20 +1,18 @@
 .backend-loading-overlay{position:fixed;inset:0;z-index:2000;display:grid;place-items:center;padding:24px;background:rgba(2,6,23,.86);backdrop-filter:blur(10px)}
-.backend-loading-card{width:min(500px,100%);padding:30px 26px 28px;text-align:center;border:1px solid var(--line);border-radius:24px;background:rgba(15,23,42,.98);box-shadow:var(--shadow)}
+.backend-loading-card{width:min(520px,100%);padding:30px 26px 28px;text-align:center;border:1px solid var(--line);border-radius:24px;background:rgba(15,23,42,.98);box-shadow:var(--shadow)}
 .backend-loading-card h2{margin:8px 0 10px;font-size:clamp(22px,4vw,30px)}
 .backend-loading-message{min-height:48px;margin:0;color:var(--text);font-size:16px;line-height:1.5;animation:backend-message-in .28s ease-out}
-.backend-truck-stage{position:relative;height:154px;margin:0 auto 20px;overflow:hidden;border-radius:20px;background:radial-gradient(circle at 78% 20%,rgba(56,189,248,.18),transparent 32%),linear-gradient(to bottom,rgba(30,41,59,.72) 0 68%,rgba(2,6,23,.92) 68%)}
-.backend-road{position:absolute;left:0;right:0;bottom:0;height:48px;background:linear-gradient(to bottom,#111827,#020617)}
-.backend-road::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:rgba(148,163,184,.22)}
-.backend-road-line{position:absolute;left:-60%;right:-60%;top:23px;height:4px;background:repeating-linear-gradient(90deg,transparent 0 30px,rgba(226,232,240,.62) 30px 72px);animation:backend-road-move .82s linear infinite}
-.backend-truck-svg{position:absolute;left:50%;bottom:19px;width:min(360px,94%);height:auto;transform:translateX(-50%);overflow:visible}
-.backend-truck-vehicle{animation:backend-truck-bounce .72s ease-in-out infinite alternate;transform-origin:center bottom}
-.backend-wheel path{transform-box:fill-box;transform-origin:center;animation:backend-wheel-spin .62s linear infinite}
-.backend-headlight{filter:drop-shadow(0 0 6px rgba(253,230,138,.85))}
-.backend-smoke{fill:rgba(148,163,184,.25);animation:backend-smoke-drift 2.2s ease-out infinite;transform-origin:245px 35px}
-@keyframes backend-road-move{to{transform:translateX(-72px)}}
-@keyframes backend-wheel-spin{to{transform:rotate(360deg)}}
-@keyframes backend-truck-bounce{from{transform:translateY(0)}to{transform:translateY(-2px)}}
-@keyframes backend-smoke-drift{0%{opacity:.05;transform:translate(0,3px) scale(.8)}55%{opacity:.45}100%{opacity:0;transform:translate(-24px,-16px) scale(1.35)}}
+.backend-loading-stage{position:relative;height:190px;margin:0 auto 20px;overflow:hidden;border-radius:20px;border:1px solid rgba(100,116,139,.28);background:#111827}
+.backend-loading-scene{display:block;width:100%;height:100%}
+.backend-dock-light{filter:drop-shadow(0 0 5px rgba(74,222,128,.8));animation:backend-dock-light 1.4s ease-in-out infinite alternate}
+.backend-loading-headlight,.backend-forklift-light{filter:drop-shadow(0 0 6px rgba(253,230,138,.8))}
+.backend-forklift-trip{animation:backend-forklift-trip 4.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.backend-forklift-crate{animation:backend-carried-crate 4.4s linear infinite}
+.backend-loaded-crate{opacity:0;animation:backend-loaded-crate 4.4s linear infinite}
+@keyframes backend-forklift-trip{0%,9%{transform:translateX(0)}42%,57%{transform:translateX(-112px)}90%,100%{transform:translateX(0)}}
+@keyframes backend-carried-crate{0%,46%{opacity:1}51%,100%{opacity:0}}
+@keyframes backend-loaded-crate{0%,47%{opacity:0}53%,92%{opacity:1}100%{opacity:0}}
+@keyframes backend-dock-light{from{opacity:.45}to{opacity:1}}
 @keyframes backend-message-in{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
-@media(max-width:520px){.backend-loading-overlay{padding:16px}.backend-loading-card{padding:24px 16px;border-radius:20px}.backend-truck-stage{height:132px}.backend-truck-svg{width:320px;max-width:96%;bottom:15px}.backend-loading-message{min-height:54px;font-size:15px}}
-@media(prefers-reduced-motion:reduce){.backend-road-line,.backend-truck-vehicle,.backend-wheel path,.backend-smoke,.backend-loading-message{animation:none}}
+@media(max-width:520px){.backend-loading-overlay{padding:16px}.backend-loading-card{padding:24px 16px;border-radius:20px}.backend-loading-stage{height:158px}.backend-loading-message{min-height:54px;font-size:15px}}
+@media(prefers-reduced-motion:reduce){.backend-forklift-trip,.backend-forklift-crate,.backend-loaded-crate,.backend-dock-light,.backend-loading-message{animation:none}.backend-loaded-crate{display:none}}
