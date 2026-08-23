@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 import MobileHelp from './components/MobileHelp.jsx'
+import { AuthProvider } from './components/auth/AuthProvider.jsx'
 import { ConfirmProvider } from './components/ConfirmProvider.jsx'
 import { TutorialProvider } from './components/GuidedTutorial.jsx'
 import { ToastProvider } from './components/ToastProvider.jsx'
@@ -15,13 +16,15 @@ import './react-tools.css'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <ToastProvider>
-      <ConfirmProvider>
-        <TutorialProvider>
-          <App />
-          <MobileHelp />
-        </TutorialProvider>
-      </ConfirmProvider>
-    </ToastProvider>
+    <AuthProvider>
+      <ToastProvider>
+        <ConfirmProvider>
+          <TutorialProvider>
+            <App />
+            <MobileHelp />
+          </TutorialProvider>
+        </ConfirmProvider>
+      </ToastProvider>
+    </AuthProvider>
   </StrictMode>,
 )
