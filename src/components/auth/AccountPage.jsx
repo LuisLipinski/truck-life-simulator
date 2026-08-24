@@ -56,12 +56,6 @@ export default function AccountPage() {
           <div><span>Conta criada</span><strong>{formatInstant(user?.createdAt)}</strong></div>
           <div><span>Último login</span><strong>{formatInstant(user?.lastLoginAt)}</strong></div>
         </div>
-      </section>
-
-      <section className="panel account-panel account-security-panel">
-        <span className="eyebrow">Sessão</span>
-        <h2>Segurança da conta</h2>
-        <p>O token de acesso fica somente na memória do aplicativo. O refresh token permanece protegido em cookie seguro e não é salvo no armazenamento local.</p>
         <div className="action-row">
           <button className="button secondary" type="button" onClick={signOut} disabled={signingOut}>
             {signingOut ? 'Saindo…' : 'Sair da conta'}
