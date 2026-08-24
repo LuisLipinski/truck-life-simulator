@@ -1,0 +1,1 @@
+Loading frames are decoded to Blob URLs at runtime so the browser does not load large data: URLs directly.
