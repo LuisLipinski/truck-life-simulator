@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { FRAME_INTERVAL_MS, LOADING_FRAMES } from '../assets/loadingFrames.js'
 import { subscribeBackendActivity } from '../lib/backendActivity.js'
 
 const SHOW_DELAY_MS = 700
@@ -43,21 +42,11 @@ function randomMessageIndex() {
 }
 
 function LoadingAnimation() {
-  const [frameIndex, setFrameIndex] = useState(0)
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setFrameIndex((current) => (current + 1) % LOADING_FRAMES.length)
-    }, FRAME_INTERVAL_MS)
-
-    return () => window.clearInterval(timer)
-  }, [])
-
   return (
     <div className="backend-loading-stage" aria-hidden="true">
       <img
         className="backend-loading-gif"
-        src={LOADING_FRAMES[frameIndex]}
+        src={`${import.meta.env.BASE_URL}loading/truck-loading.gif`}
         alt=""
         draggable="false"
       />

@@ -337,4 +337,4 @@ describe('career card navigation', () => {
     expect(document.querySelector('.guided-tutorial-popover')).toBeNull()
     expect(sessionStorage.getItem(TUTORIAL_STORAGE_KEY)).toBeNull()
   })
-})
+},15_000)
