@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { FRAME_INTERVAL_MS, LOADING_FRAMES } from '../assets/loadingFrames.js'
+import { useEffect, useMemo, useState } from 'react'
+import { LOADING_FRAME_INTERVAL_MS, LOADING_FRAMES } from '../assets/loadingFrames.js'
 import { subscribeBackendActivity } from '../lib/backendActivity.js'
 
 const SHOW_DELAY_MS = 700
@@ -42,22 +42,45 @@ function randomMessageIndex() {
   return Math.floor(Math.random() * LOADING_MESSAGES.length)
 }
 
+function dataUriToBlobUrl(dataUri) {
+  const separator = dataUri.indexOf(',')
+  if (separator < 0) throw new Error('Invalid loading frame data URI')
+
+  const metadata = dataUri.slice(0, separator)
+  const payload = dataUri.slice(separator + 1)
+  const mimeMatch = metadata.match(/^data:([^;]+);base64$/)
+  if (!mimeMatch) throw new Error('Invalid loading frame metadata')
+
+  const binary = window.atob(payload)
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index)
+  }
+
+  return URL.createObjectURL(new Blob([bytes], { type: mimeMatch[1] }))
+}
+
 function LoadingAnimation() {
   const [frameIndex, setFrameIndex] = useState(0)
+  const frameUrls = useMemo(() => LOADING_FRAMES.map(dataUriToBlobUrl), [])
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      setFrameIndex((current) => (current + 1) % LOADING_FRAMES.length)
-    }, FRAME_INTERVAL_MS)
+      setFrameIndex((current) => (current + 1) % frameUrls.length)
+    }, LOADING_FRAME_INTERVAL_MS)
 
     return () => window.clearInterval(timer)
-  }, [])
+  }, [frameUrls.length])
+
+  useEffect(() => () => {
+    frameUrls.forEach((url) => URL.revokeObjectURL(url))
+  }, [frameUrls])
 
   return (
     <div className="backend-loading-stage" aria-hidden="true">
       <img
         className="backend-loading-gif"
-        src={LOADING_FRAMES[frameIndex]}
+        src={frameUrls[frameIndex]}
         alt=""
         draggable="false"
       />
@@ -107,4 +130,4 @@ export default function BackendLoadingOverlay() {
   )
 }
 
-export { LOADING_MESSAGES, MESSAGE_INTERVAL_MS, SHOW_DELAY_MS }
+export { LOADING_MESSAGES, MESSAGE_INTERVAL_MS, SHOW_DELAY_MS, dataUriToBlobUrl }
