@@ -15,7 +15,7 @@ function validRows() {
     ['TRIP','id','week','departureAt','arrivalAt','origin','originCompany','destination','destinationCompany','cargo','type','payCategory','miles'],
     ['TRIP','',1,'2026-08-20T07:00','2026-08-20T10:00','Los Angeles, CA','Filial LA','Bakersfield, CA','Cliente','Alimentos','Loaded','normal',115.5],
     ['EXPENSE','id','name','value','monthly'],
-    ['EXPENSE',1,'Lavanderia',25.5,1],
+    ['EXPENSE','exp_1','Lavanderia',25.5,1],
     ['INCIDENT','id','type','date','time','route','description','amount','chargeMethod','status','remaining','createdAt'],
     ['INCIDENT',1,'Infração','2026-08-20','10:00','I-5','Teste',75.25,'payslip','Pendente',75.25,''],
   ]
@@ -64,6 +64,7 @@ describe('backup numeric validation and Excel formats', () => {
     expect(result.state.emergencyReserve).toBeCloseTo(1602.63)
     expect(result.state.trips[0].miles).toBeCloseTo(115.5)
     expect(result.state.customExpenses[0].value).toBeCloseTo(25.5)
+    expect(result.state.customExpenses[0].id).toBe('exp_1')
   })
 
   it('imports legacy XLS numeric cells too', () => {

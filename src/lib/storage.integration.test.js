@@ -10,6 +10,7 @@ import {
   getCareer,
   loadCareers,
   setActiveCareer,
+  updateCareer,
 } from './storage.js'
 import {
   loadPhase1State,
@@ -45,6 +46,27 @@ describe('career and Phase 1 storage integration', () => {
     expect(state.currentLevel).toBe(1)
     expect(state.currentWeek).toBe(1)
     expect(state.trips).toEqual([])
+  })
+
+  it('migrates an older ATS career to the state inferred from its city', () => {
+    localStorage.setItem(CAREERS_KEY, JSON.stringify([{
+      id: 'legacy_texas', driverName: 'Texas Driver', city: 'Dallas, TX', company: 'Lone Star Logistics', initialBalance: 900,
+    }]))
+
+    const [career] = loadCareers('ats')
+    expect(career).toMatchObject({ gameId: 'ats', stateCode: 'TX', stateName: 'Texas', currency: 'USD', baseCurrency: 'USD', exchangeRate: 1, cityMarketLabel: 'Metrópole principal', cityCostFactor: 1.10, citySalaryFactor: 1.05 })
+    expect(career.exchangeRateAsOf).toBe('2026-08-20')
+  })
+
+  it('preserves a previously stored city market snapshot', () => {
+    localStorage.setItem(CAREERS_KEY, JSON.stringify([{
+      id: 'snapshot_ca', driverName: 'Snapshot Driver', city: 'San Francisco, CA', company: 'Historic Logistics',
+      stateCode: 'CA', currency: 'USD', initialBalance: 900,
+      cityMarketLabel: 'Mercado histórico', cityCostFactor: 1.11, citySalaryFactor: 1.03,
+    }]))
+
+    const [career] = loadCareers('ats')
+    expect(career).toMatchObject({ cityMarketLabel: 'Mercado histórico', cityCostFactor: 1.11, citySalaryFactor: 1.03 })
   })
 
   it('persists Phase 1 state and synchronizes balance and level back to the career record', () => {
@@ -119,6 +141,19 @@ describe('career and Phase 1 storage integration', () => {
     }))
 
     expect(loadPhase1State(career.id).emergencyReserve).toBe(0)
+  })
+
+  it('updates a career while preserving its identity and normalizing legacy events', () => {
+    const career = createCareer({ driverName: 'Old Driver', city: 'Los Angeles, CA', company: 'Old Logistics', initialBalance: 793 })
+    expect(getCareer(career.id).events).toEqual([])
+
+    const updated = updateCareer(career.id, {
+      driverName: 'Corrected Driver',
+      events: [{ id: 'event_1', type: 'PROFILE_UPDATED', effectiveDate: '2026-08-22' }],
+    })
+
+    expect(updated).toMatchObject({ id: career.id, driverName: 'Corrected Driver' })
+    expect(getCareer(career.id).events).toEqual([{ id: 'event_1', type: 'PROFILE_UPDATED', effectiveDate: '2026-08-22' }])
   })
 
   it('removes the active career pointer when that career is deleted', () => {

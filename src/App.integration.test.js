@@ -7,7 +7,7 @@ import App from './App.jsx'
 import { ConfirmProvider } from './components/ConfirmProvider.jsx'
 import { TUTORIAL_STEPS, TUTORIAL_STORAGE_KEY, TutorialProvider } from './components/GuidedTutorial.jsx'
 import { ToastProvider } from './components/ToastProvider.jsx'
-import { ACTIVE_CAREER_KEY, CAREERS_KEY } from './lib/storage.js'
+import { ACTIVE_CAREER_KEY, CAREERS_KEY, createCareer, ETS2_CAREERS_KEY } from './lib/storage.js'
 
 let root
 
@@ -39,6 +39,14 @@ function setInputValue(input, value) {
     setter.call(input, String(value))
     input.dispatchEvent(new Event('input', { bubbles: true }))
     input.dispatchEvent(new Event('change', { bubbles: true }))
+  })
+}
+
+function setSelectValue(select, value) {
+  const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set
+  act(() => {
+    setter.call(select, String(value))
+    select.dispatchEvent(new Event('change', { bubbles: true }))
   })
 }
 
@@ -114,12 +122,31 @@ describe('career card navigation', () => {
     expect(document.querySelector(`[aria-label="Abrir carreira ${career.driverName}"]`)).toBeNull()
   })
 
+  it('selects multiple careers for a single export from the careers page', async () => {
+    const first = seedCareer()
+    const second = { ...first, id: 'career_test_2', driverName: 'Second Driver', city: 'Dallas, TX' }
+    localStorage.setItem(CAREERS_KEY, JSON.stringify([first, second]))
+    await renderCareers()
+
+    const exportButton = [...document.querySelectorAll('button')].find((button) => button.textContent === 'Exportar carreiras')
+    await act(async () => exportButton.click())
+
+    expect(document.querySelector('.career-export-bar')?.textContent).toContain('0 de 2 carreiras selecionadas')
+    const selectAllButton = [...document.querySelectorAll('button')].find((button) => button.textContent === 'Selecionar todas')
+    await act(async () => selectAllButton.click())
+
+    expect(document.querySelector('.career-export-bar')?.textContent).toContain('2 de 2 carreiras selecionadas')
+    expect(document.querySelectorAll('.career-card-selected')).toHaveLength(2)
+    expect(document.querySelectorAll('.career-select-checkbox:checked')).toHaveLength(2)
+  })
+
   it('starts the guided tutorial when the option is checked during career creation', async () => {
     window.location.hash = '#/new'
     await act(async () => {
       root.render(createElement(ToastProvider, null, createElement(ConfirmProvider, null, createElement(TutorialProvider, null, createElement(App)))))
     })
 
+    setSelectValue(document.querySelector('#career-state'), 'CA')
     setInputValue(document.querySelector('input[placeholder="Ex.: Rafael Silva"]'), 'Tutorial Driver')
     setInputValue(document.querySelector('.react-city-autocomplete input'), 'Los Angeles, CA')
     setInputValue(document.querySelector('input[placeholder="Ex.: Pacific Horizon Logistics"]'), 'Tour Logistics')
@@ -134,6 +161,150 @@ describe('career card navigation', () => {
     expect(document.querySelector('.guided-tutorial-popover')?.textContent).toContain('As fases da sua carreira')
     expect(JSON.parse(sessionStorage.getItem(TUTORIAL_STORAGE_KEY))).toMatchObject({ index: 0 })
     expect(JSON.parse(localStorage.getItem(CAREERS_KEY))).toHaveLength(1)
+  })
+
+  it('creates an ATS career with state-filtered city and euro display currency', async () => {
+    window.location.hash = '#/new'
+    await act(async () => {
+      root.render(createElement(ToastProvider, null, createElement(ConfirmProvider, null, createElement(TutorialProvider, null, createElement(App)))))
+    })
+
+    expect(document.querySelectorAll('#career-state option')).toHaveLength(21)
+    setSelectValue(document.querySelector('#career-state'), 'TX')
+    expect(document.querySelector('#career-currency').value).toBe('USD')
+    expect(document.querySelector('.city-field')?.textContent).toContain('Texas (TX)')
+    setSelectValue(document.querySelector('#career-currency'), 'EUR')
+    setInputValue(document.querySelector('input[placeholder="Ex.: Rafael Silva"]'), 'Euro Texas Driver')
+    setInputValue(document.querySelector('.react-city-autocomplete input'), 'Dallas, TX')
+    setInputValue(document.querySelector('input[placeholder="Ex.: Pacific Horizon Logistics"]'), 'Lone Star Logistics')
+
+    await act(async () => {
+      document.querySelector('.form-panel').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+      await Promise.resolve()
+    })
+
+    const [career] = JSON.parse(localStorage.getItem(CAREERS_KEY) || '[]')
+    expect(career).toMatchObject({ stateCode: 'TX', stateName: 'Texas', currency: 'EUR', baseCurrency: 'USD', city: 'Dallas, TX', cityMarketLabel: 'Metrópole principal', cityCostFactor: 1.10, citySalaryFactor: 1.05 })
+    expect(career.exchangeRate).toBeCloseTo(1 / 1.1681)
+  })
+
+  it('creates an independent ETS2 career with European city, euro and kilometer copy', async () => {
+    window.location.hash = '#/ets2/new'
+    await act(async () => {
+      root.render(createElement(ToastProvider, null, createElement(ConfirmProvider, null, createElement(TutorialProvider, null, createElement(App)))))
+    })
+
+    expect(document.querySelector('.form-panel')?.textContent).toContain('quilômetros')
+    expect(document.querySelector('.form-panel')?.textContent).toContain('€')
+    setSelectValue(document.querySelector('#career-country'), 'DE')
+    setInputValue(document.querySelector('input[placeholder="Ex.: Rafael Silva"]'), 'Euro Driver')
+    setInputValue(document.querySelector('.react-city-autocomplete input'), 'Berlin, Alemanha')
+    setInputValue(document.querySelector('input[placeholder="Ex.: Euro Horizon Logistics"]'), 'Euro Logistics')
+
+    await act(async () => {
+      document.querySelector('.form-panel').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+      await Promise.resolve()
+    })
+
+    expect(window.location.hash).toContain('#/ets2/phases?career=')
+    expect(JSON.parse(localStorage.getItem(ETS2_CAREERS_KEY) || '[]')).toMatchObject([{ driverName: 'Euro Driver', city: 'Berlin, Alemanha', gameId: 'ets2', countryCode: 'DE', countryName: 'Alemanha', currency: 'EUR', cityMarketLabel: 'Capital ou metrópole principal', cityCostFactor: 1.10, citySalaryFactor: 1.05 }])
+    expect(localStorage.getItem(CAREERS_KEY)).toBeNull()
+  })
+
+  it('creates a London career with British fiscal rules displayed in euro', async () => {
+    window.location.hash = '#/ets2/new'
+    await act(async () => {
+      root.render(createElement(ToastProvider, null, createElement(ConfirmProvider, null, createElement(TutorialProvider, null, createElement(App)))))
+    })
+
+    setSelectValue(document.querySelector('#career-country'), 'GB')
+    expect(document.querySelector('#career-currency').value).toBe('GBP')
+    setSelectValue(document.querySelector('#career-currency'), 'EUR')
+    expect(document.querySelector('[data-tour="career-currency"]')?.textContent).toContain('calculadas em GBP e convertidas para EUR')
+    setInputValue(document.querySelector('input[placeholder="Ex.: Rafael Silva"]'), 'London Euro Driver')
+    setInputValue(document.querySelector('.react-city-autocomplete input'), 'Londres, Reino Unido')
+    setInputValue(document.querySelector('input[placeholder="Ex.: Euro Horizon Logistics"]'), 'Euro Logistics')
+
+    await act(async () => {
+      document.querySelector('.form-panel').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+      await Promise.resolve()
+    })
+
+    const [career] = JSON.parse(localStorage.getItem(ETS2_CAREERS_KEY) || '[]')
+    expect(career).toMatchObject({ countryCode: 'GB', countryName: 'Reino Unido', currency: 'EUR', baseCurrency: 'GBP', exchangeRateAsOf: '2026-08-20', cityMarketLabel: 'Capital de custo excepcional', cityCostFactor: 1.28, citySalaryFactor: 1.10 })
+    expect(career.exchangeRate).toBeGreaterThan(1)
+    expect(career.setupCosts.rent).toBeCloseTo(1493.15)
+  })
+
+  it('shows ETS2 qualifications and a European payslip without ATS fiscal copy', async () => {
+    const career = createCareer({
+      driverName: 'European Driver', city: 'Berlin, Alemanha', company: 'Euro Logistics', initialBalance: 1200, currentBalance: 1200,
+    }, 'ets2')
+    window.location.hash = `#/ets2/phase1?career=${career.id}`
+    await act(async () => {
+      root.render(createElement(ToastProvider, null, createElement(ConfirmProvider, null, createElement(TutorialProvider, null, createElement(App)))))
+    })
+
+    expect(document.querySelector('.phase1-header')?.textContent).toContain('ETS2')
+    expect(document.querySelector('.phase1-header')?.textContent).toContain('km')
+    const journal = [...document.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Diário de Bordo')
+    await act(async () => journal.click())
+    const qualifications = [...document.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Qualificações')
+    await act(async () => qualifications.click())
+    expect(document.body.textContent).toContain('ADR')
+    expect(document.body.textContent).toContain('Euro Combi')
+    expect(document.body.textContent).toContain('16.000 km')
+
+    const financial = [...document.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Financeiro')
+    await act(async () => financial.click())
+    const payslip = [...document.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Holerite')
+    await act(async () => payslip.click())
+    expect(document.body.textContent).toContain('Imposto de renda (estimado)')
+    expect(document.body.textContent).toContain('Gerar holerite mensal')
+    expect(document.body.textContent).not.toContain('California Income Tax')
+    expect(document.body.textContent).not.toContain('Social Security')
+  })
+
+  it('refreshes the active career immediately after a profile correction', async () => {
+    const career = seedCareer()
+    window.location.hash = `#/phase1?career=${career.id}`
+    await act(async () => {
+      root.render(createElement(ToastProvider, null, createElement(ConfirmProvider, null, createElement(TutorialProvider, null, createElement(App)))))
+    })
+
+    setInputValue(document.querySelector('#career-edit-driver'), 'Corrected Driver')
+    await act(async () => {
+      document.querySelector('#career-profile-editor').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+      await Promise.resolve()
+    })
+
+    expect(document.querySelector('.phase1-driver-block h1')?.textContent).toBe('Corrected Driver')
+    expect(JSON.parse(localStorage.getItem(CAREERS_KEY))[0].events[0]).toMatchObject({ type: 'PROFILE_UPDATED' })
+  })
+
+  it('remounts the financial context immediately after a confirmed base change', async () => {
+    const career = seedCareer()
+    window.location.hash = `#/phase1?career=${career.id}`
+    await act(async () => {
+      root.render(createElement(ToastProvider, null, createElement(ConfirmProvider, null, createElement(TutorialProvider, null, createElement(App)))))
+    })
+
+    const baseTab = [...document.querySelectorAll('.career-management-tabs button')].find((button) => button.textContent === 'Base')
+    await act(async () => baseTab.click())
+    setSelectValue(document.querySelector('#career-new-location'), 'TX')
+    setInputValue(document.querySelector('#career-base-editor .react-city-autocomplete input'), 'Dallas, TX')
+    await act(async () => {
+      document.querySelector('#career-base-editor').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+      await Promise.resolve()
+    })
+    await act(async () => {
+      document.querySelector('.react-confirm-confirm').click()
+      await Promise.resolve()
+    })
+
+    expect(document.querySelector('.phase1-driver-block')?.textContent).toContain('Dallas, TX')
+    expect(document.querySelector('[data-tour="career-profile"]')?.textContent).toContain('Texas (TX)')
+    expect(JSON.parse(localStorage.getItem(CAREERS_KEY))[0]).toMatchObject({ city: 'Dallas, TX', stateCode: 'TX' })
   })
 
   it('walks through every tutorial step and reaches each screen target', async () => {
@@ -166,4 +337,4 @@ describe('career card navigation', () => {
     expect(document.querySelector('.guided-tutorial-popover')).toBeNull()
     expect(sessionStorage.getItem(TUTORIAL_STORAGE_KEY)).toBeNull()
   })
-})
+},15_000)

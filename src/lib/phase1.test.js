@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { getGame } from '../config/games.js'
 import {
   EMERGENCY_RESERVE_ANNUAL_YIELD,
   applyPendingIncidentDeductions,
@@ -8,11 +9,17 @@ import {
   getPromotionStatus,
   mileagePaySummary,
   monthlyExpenseTotal,
+  normalizeTrip,
+  normalizeTripSource,
   perDiemDaysForTrips,
   pendingIncidentTotal,
   routeOverrunSummary,
+  suggestedTripBreakMinutes,
   totalMiles,
+  tripBreakMinutes,
+  tripOdometerDistance,
   tripPayCategory,
+  tripVehicleLabel,
   validPayCategories,
   weeklyEmergencyReserveYield,
 } from './phase1.js'
@@ -45,6 +52,30 @@ describe('Phase 1 mileage and weekly filters', () => {
     expect(totalMiles(state)).toBe(400)
     expect(currentWeekTrips(state)).toHaveLength(2)
     expect(currentWeekMiles(state)).toBe(300)
+  })
+})
+
+describe('telemetry-ready trip data', () => {
+  it('derives an auxiliary odometer distance without changing the official distance', () => {
+    const trip = { miles: 115, odometerStart: 48200.4, odometerEnd: 48320.9 }
+
+    expect(tripOdometerDistance(trip)).toBe(120.5)
+    expect(totalMiles(makeState({ trips: [trip] }))).toBe(115)
+  })
+
+  it('requires a complete, non-decreasing odometer pair for the derived distance', () => {
+    expect(tripOdometerDistance({ odometerStart: 100 })).toBeNull()
+    expect(tripOdometerDistance({ odometerStart: 100, odometerEnd: 99 })).toBeNull()
+    expect(tripOdometerDistance({ odometerStart: -1, odometerEnd: 10 })).toBeNull()
+  })
+
+  it('normalizes supported sources and keeps legacy trips compatible', () => {
+    expect(normalizeTripSource('telemetry')).toBe('TELEMETRY')
+    expect(normalizeTripSource('unknown')).toBe('MANUAL')
+    expect(normalizeTrip({ truckMake: '  Volvo ', truckModel: ' FH16 ', odometerStart: '10.5', odometerEnd: '20' })).toEqual({
+      source: 'MANUAL', truckMake: 'Volvo', truckModel: 'FH16', odometerStart: 10.5, odometerEnd: 20,
+    })
+    expect(tripVehicleLabel({ truckMake: 'Volvo', truckModel: 'FH16' })).toBe('Volvo FH16')
   })
 })
 
@@ -104,6 +135,75 @@ describe('Phase 1 Level 1 route overrun', () => {
     expect(summary.days.map((day) => day.hours)).toEqual([4, 6])
     expect(summary.overrunHours).toBe(0)
   })
+
+  it('suggests ETS2 driving breaks after each continued 4h30 block', () => {
+    const firstBlock = { departureAt: '2026-08-20T07:00:00', arrivalAt: '2026-08-20T11:30:00' }
+    const continuedFirstBlock = { ...firstBlock, arrivalAt: '2026-08-20T11:31:00' }
+    const continuedSecondBlock = { ...firstBlock, arrivalAt: '2026-08-20T16:46:00' }
+
+    expect(suggestedTripBreakMinutes(firstBlock, 'ets2')).toBe(0)
+    expect(suggestedTripBreakMinutes(continuedFirstBlock, 'ets2')).toBe(45)
+    expect(suggestedTripBreakMinutes(continuedSecondBlock, 'ets2')).toBe(90)
+    expect(suggestedTripBreakMinutes(continuedSecondBlock, 'ats')).toBe(0)
+  })
+
+  it('deducts an ETS2 trip break before calculating the daily overtime balance', () => {
+    const trip = {
+      departureAt: '2026-08-20T07:00:00',
+      arrivalAt: '2026-08-20T16:00:00',
+      breakMinutes: 45,
+    }
+    const summary = routeOverrunSummary([trip], undefined, 20, 'ets2')
+
+    expect(tripBreakMinutes(trip, 'ets2')).toBe(45)
+    expect(summary.totalElapsedHours).toBe(9)
+    expect(summary.totalBreakHours).toBe(0.75)
+    expect(summary.totalHours).toBe(8.25)
+    expect(summary.overrunHours).toBe(0.25)
+    expect(summary.pay).toBe(5)
+  })
+
+  it('uses the ETS2 suggestion for legacy trips and lets an explicit pause override it', () => {
+    const legacyTrip = { departureAt: '2026-08-20T07:00:00', arrivalAt: '2026-08-20T16:00:00' }
+    const explicitTrip = { ...legacyTrip, breakMinutes: 30 }
+
+    expect(tripBreakMinutes(legacyTrip, 'ets2')).toBe(45)
+    expect(routeOverrunSummary([legacyTrip], undefined, 20, 'ets2').overrunHours).toBe(0.25)
+    expect(routeOverrunSummary([explicitTrip], undefined, 20, 'ets2').overrunHours).toBe(0.5)
+  })
+
+  it('normalizes negative or invalid recorded pauses safely', () => {
+    const trip = { departureAt: '2026-08-20T07:00:00', arrivalAt: '2026-08-20T16:00:00' }
+
+    expect(tripBreakMinutes({ ...trip, breakMinutes: -30 }, 'ets2')).toBe(0)
+    expect(tripBreakMinutes({ ...trip, breakMinutes: 'inválida' }, 'ets2')).toBe(45)
+  })
+
+  it('distributes a recorded break across both days when a trip crosses midnight', () => {
+    const trip = {
+      departureAt: '2026-08-20T20:00:00',
+      arrivalAt: '2026-08-21T06:00:00',
+      breakMinutes: 60,
+    }
+    const summary = routeOverrunSummary([trip], undefined, 20, 'ets2')
+
+    expect(summary.days.map((day) => day.breakHours)).toEqual([0.4, 0.6])
+    expect(summary.days.map((day) => day.hours)).toEqual([3.6, 5.4])
+    expect(summary.totalBreakHours).toBe(1)
+  })
+
+  it('combines pauses from multiple trips on the same day before calculating overtime', () => {
+    const summary = routeOverrunSummary([
+      { departureAt: '2026-08-20T07:00:00', arrivalAt: '2026-08-20T12:00:00', breakMinutes: 30 },
+      { departureAt: '2026-08-20T13:00:00', arrivalAt: '2026-08-20T18:30:00', breakMinutes: 30 },
+    ], undefined, 20, 'ets2')
+
+    expect(summary.days).toHaveLength(1)
+    expect(summary.totalElapsedHours).toBe(10.5)
+    expect(summary.totalBreakHours).toBe(1)
+    expect(summary.totalHours).toBe(9.5)
+    expect(summary.overrunHours).toBe(1.5)
+  })
 })
 
 describe('Phase 1 per diem', () => {
@@ -149,13 +249,20 @@ describe('Phase 1 expenses, reserve, taxes and incidents', () => {
     expect(weeklyEmergencyReserveYield(-10)).toBe(0)
   })
 
-  it('preserves the legacy weekly tax formula', () => {
-    const taxes = estimateTaxes(850)
-    expect(taxes.federal).toBeCloseTo(59)
-    expect(taxes.ss).toBeCloseTo(52.7)
-    expect(taxes.medicare).toBeCloseTo(12.325)
-    expect(taxes.sdi).toBeCloseTo(11.05)
-    expect(taxes.ca).toBeCloseTo(18.445)
+  it('uses the 2026 federal and state profile selected for the ATS career', () => {
+    const california = estimateTaxes(1080, getGame('ats', 'CA'))
+    const texas = estimateTaxes(1080, getGame('ats', 'TX'))
+    const washington = estimateTaxes(1080, getGame('ats', 'WA'))
+
+    expect(california.federal).toBeCloseTo(87.6769)
+    expect(california.ss).toBeCloseTo(66.96)
+    expect(california.medicare).toBeCloseTo(15.66)
+    expect(california.stateIncomeTax).toBeGreaterThan(0)
+    expect(california.statePayroll).toBeCloseTo(14.04)
+    expect(texas.stateIncomeTax).toBeUndefined()
+    expect(texas.statePayroll).toBeUndefined()
+    expect(washington.stateIncomeTax).toBeUndefined()
+    expect(washington.statePayroll).toBeCloseTo(6.264)
   })
 
   it('applies incident deductions in order and carries the remainder', () => {

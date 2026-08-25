@@ -1,21 +1,34 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getCareer, setActiveCareer } from '../lib/storage.js'
+import { getCareer, setActiveCareer, updateCareer } from '../lib/storage.js'
 import { exportCareerCSV } from '../lib/csv.js'
+import { formatDistance, formatMoney, formatNumber } from '../config/games.js'
 import {
   currentWeekMiles,
   currentWeekTrips,
   getPromotionStatus,
+  isTripWeekLocked,
   loadPhase1State,
   mileagePaySummary,
   monthlyExpenseTotal,
-  PAY_LABELS,
-  PAY_RATES,
+  payrollWeeks,
   perDiemDaysForTrips,
   savePhase1State,
+  suggestedTripBreakMinutes,
+  tripBreakMinutes,
+  tripDistance,
+  tripOdometerDistance,
+  tripVehicleLabel,
   totalMiles,
   validPayCategories,
 } from '../lib/phase1.js'
+import {
+  CAREER_EVENT_TYPES,
+  careerBaseSnapshot,
+  createCareerEvent,
+  preserveHistoricalCareerContext,
+} from '../lib/careerEvents.js'
 import CityAutocomplete from './CityAutocomplete.jsx'
+import { useGame } from './GameContext.jsx'
 import { useConfirm } from './ConfirmProvider.jsx'
 import { useTutorial } from './GuidedTutorial.jsx'
 import { useToast } from './ToastProvider.jsx'
@@ -28,6 +41,7 @@ import ModsTab from './phase1/ModsTab.jsx'
 import HistoryTab from './phase1/HistoryTab.jsx'
 import AcademyGuideTab from './phase1/AcademyGuideTab.jsx'
 import MileageChart from './phase1/MileageChart.jsx'
+import CareerManagementPanel from './phase1/CareerManagementPanel.jsx'
 
 const TAB_HELP = {
   overview: {
@@ -82,25 +96,28 @@ const TAB_HELP = {
   },
 }
 
-const PROMOTION_MILESTONES = {
-  2: {
-    level: 2,
-    miles: 10000,
-    module: 'Truck Driving Proficiency',
-    subtitle: 'Seu próximo passo é provar que está pronto para a operação OTR.',
-    image: 'https://img.youtube.com/vi/jXEfpl0jWM0/maxresdefault.jpg',
-  },
-  3: {
-    level: 3,
-    miles: 50000,
-    module: 'Double Trailer Handling',
-    subtitle: 'Você chegou à etapa avançada da carreira. Agora é hora de treinar Doubles.',
-    image: 'https://img.youtube.com/vi/WS_aCxiCdgM/maxresdefault.jpg',
-  },
+function gameText(text, game) {
+  if (game.id === 'ats') return text
+  return text
+    .replaceAll('American Truck Simulator', 'Euro Truck Simulator 2')
+    .replaceAll('ATS', 'ETS2')
+    .replaceAll('10.000 ou 50.000 milhas', '16.000 ou 80.000 quilômetros')
+    .replaceAll('milhas', 'quilômetros')
+    .replaceAll('HazMat', 'ADR')
+    .replaceAll('Loaded e Deadhead', 'Com carga e reposicionamento vazio')
+    .replaceAll('per diem', 'diária internacional')
+    .replaceAll('OTR', 'internacional')
+    .replaceAll('pagamento semanal', 'pagamento mensal')
+    .replaceAll('semanas fechadas', 'meses fechados')
+    .replaceAll('semana é fechada, o depósito entra no saldo e uma nova semana começa', 'mês é fechado, o depósito entra no saldo e um novo período começa')
+    .replaceAll('semanas já fechadas', 'semanas operacionais já encerradas')
 }
 
-function money(value) {
-  return Number(value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+function promotionMilestones(game) {
+  return {
+    2: { level: 2, distance: game.promotionGoals[0], module: game.promotionModules[0], subtitle: game.promotionSubtitles[0], image: game.image },
+    3: { level: 3, distance: game.promotionGoals[1], module: game.promotionModules[1], subtitle: game.promotionSubtitles[1], image: game.image },
+  }
 }
 
 function formatDateTime(value) {
@@ -108,6 +125,10 @@ function formatDateTime(value) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+}
+
+function tripSourceLabel(source) {
+  return ({ MANUAL: 'Manual', TELEMETRY: 'Telemetria', IMPORT: 'Importação' })[source] || 'Manual'
 }
 
 function InfoTip({ text }) {
@@ -119,20 +140,22 @@ function InfoTip({ text }) {
 }
 
 function TabIntro({ tabId }) {
+  const game = useGame()
   const help = TAB_HELP[tabId] || TAB_HELP.overview
   return (
     <section className="react-tab-intro" aria-label={`Descrição: ${help.label}`} data-tour="tab-intro">
       <div className="react-tab-intro-heading">
         <span className="eyebrow">Para que serve</span>
-        <InfoTip text={help.tip} />
+        <InfoTip text={gameText(help.tip, game)} />
       </div>
       <strong>{help.label}</strong>
-      <p>{help.description}</p>
+      <p>{gameText(help.description, game)}</p>
     </section>
   )
 }
 
 function PromotionMilestoneModal({ milestone, onClose, onPromotion, onGuide }) {
+  const game = useGame()
   if (!milestone) return null
   return (
     <div className="promotion-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
@@ -142,12 +165,12 @@ function PromotionMilestoneModal({ milestone, onClose, onPromotion, onGuide }) {
           <div className="promotion-confetti" aria-hidden="true"><span>◆</span><span>◆</span><span>◆</span><span>◆</span><span>◆</span></div>
           <div className="promotion-modal-copy">
             <span className="promotion-kicker">Marco alcançado</span>
-            <h2 id="promotion-modal-title">Parabéns! Você alcançou as milhas necessárias para o Nível {milestone.level}.</h2>
+            <h2 id="promotion-modal-title">Parabéns! Você alcançou os {game.distanceName} necessários para o Nível {milestone.level}.</h2>
             <p>{milestone.subtitle}</p>
             <div className="promotion-academy-callout">
               <span>Faça agora no Driving Academy</span>
               <strong>{milestone.module}</strong>
-              <small>Meta atingida: {milestone.miles.toLocaleString('en-US')} milhas.</small>
+              <small>Meta atingida: {formatDistance(milestone.distance, game, true)}.</small>
             </div>
             <div className="promotion-modal-actions">
               <button className="button primary" type="button" onClick={onPromotion}>Ir para a promoção</button>
@@ -161,19 +184,20 @@ function PromotionMilestoneModal({ milestone, onClose, onPromotion, onGuide }) {
 }
 
 function HeaderSummary({ state }) {
-  const miles = totalMiles(state)
-  const weekMiles = currentWeekMiles(state)
-  const promotion = getPromotionStatus(state)
+  const game = useGame()
+  const distance = totalMiles(state)
+  const weekDistance = currentWeekMiles(state)
+  const promotion = getPromotionStatus(state, game)
   const progressText = state.currentLevel >= 3
-    ? `${miles.toLocaleString('en-US')} mi`
-    : `${miles.toLocaleString('en-US')} / ${promotion.goal.toLocaleString('en-US')} mi`
+    ? formatDistance(distance, game)
+    : `${formatNumber(distance, game)} / ${formatDistance(promotion.goal, game)}`
 
   return (
     <div className="phase1-header-summary" aria-label="Resumo da carreira" data-tour="career-summary">
-      <div><span>Saldo</span><strong>{money(state.balance)}</strong></div>
+      <div><span>Saldo</span><strong>{formatMoney(state.balance, game)}</strong></div>
       <div><span>Nível atual</span><strong>Nível {state.currentLevel}</strong></div>
       <div><span>Progressão</span><strong>{progressText}</strong></div>
-      <div><span>Semana atual</span><strong>Semana {state.currentWeek} • {weekMiles.toLocaleString('en-US')} mi</strong></div>
+      <div><span>{game.payrollPeriod === 'monthly' ? 'Período atual' : 'Semana atual'}</span><strong>{game.payrollPeriod === 'monthly' ? `Mês ${state.currentPayrollMonth || 1} • ` : ''}Semana {state.currentWeek} • {formatDistance(weekDistance, game)}</strong></div>
     </div>
   )
 }
@@ -191,10 +215,12 @@ function MetricCard({ label, value, detail, onClick, children }) {
   )
 }
 
-function OverviewTab({ career, state, setActiveTab }) {
+function OverviewTab({ career, state, setActiveTab, onUpdateProfile, onChangeEmployer, onChangeBase }) {
+  const game = useGame()
   const weekTrips = currentWeekTrips(state)
-  const promotion = getPromotionStatus(state)
+  const promotion = getPromotionStatus(state, game)
   const monthly = monthlyExpenseTotal(state)
+  const completedPayrollWeeks = game.payrollPeriod === 'monthly' ? payrollWeeks(state, game).length : 0
 
   return (
     <>
@@ -209,35 +235,47 @@ function OverviewTab({ career, state, setActiveTab }) {
       <section className="phase1-status-grid" data-tour="overview-shortcuts">
         <button className="panel status-card" onClick={() => setActiveTab('finances')}>
           <span className="metric-label">Despesas mensais</span>
-          <strong>{money(monthly)}</strong>
+          <strong>{formatMoney(monthly, game)}</strong>
           <span>Padrão + personalizadas mensais.</span>
         </button>
         <button className="panel status-card" onClick={() => setActiveTab('payslip')}>
-          <span className="metric-label">Resumo semanal</span>
-          <strong>{weekTrips.length ? 'Pronto para conferir' : 'Semana em andamento'}</strong>
-          <span>Abra o holerite para visualizar bruto, impostos, per diem e ocorrências.</span>
+          <span className="metric-label">Resumo {game.payrollPeriod === 'monthly' ? 'mensal' : 'semanal'}</span>
+          <strong>{game.payrollPeriod === 'monthly' ? `${completedPayrollWeeks} / ${game.minWeeksPerPayroll} semanas encerradas` : weekTrips.length ? 'Pronto para conferir' : 'Semana em andamento'}</strong>
+          <span>{game.payrollPeriod === 'monthly' ? 'Encerre as semanas operacionais e gere um único holerite ao fim do mês.' : `Abra o holerite para visualizar bruto, impostos, ${game.perDiemLabel.toLowerCase()} e ocorrências.`}</span>
         </button>
       </section>
 
-      <section className="panel profile-panel">
+      <section className="panel profile-panel" data-tour="career-profile">
         <div><span className="metric-label">Motorista</span><strong>{career.driverName}</strong></div>
         <div><span className="metric-label">Base</span><strong>{career.city || '—'}</strong></div>
         <div><span className="metric-label">Empresa</span><strong>{career.company || '—'}</strong></div>
+        {game.id === 'ets2' && <div><span className="metric-label">País-sede</span><strong>{game.countryFlag} {game.countryName}</strong></div>}
+        {game.id === 'ats' && <div><span className="metric-label">Estado-sede</span><strong>{game.stateName} ({game.stateCode})</strong></div>}
+        <div><span className="metric-label">Mercado da cidade</span><strong>{game.cityMarketLabel}</strong></div>
+        <div><span className="metric-label">Moeda da carreira</span><strong>{game.currency} {game.currency !== game.baseCurrency ? `• base fiscal ${game.baseCurrency}` : '• moeda fiscal local'}</strong></div>
       </section>
+
+      <CareerManagementPanel
+        career={career}
+        onUpdateProfile={onUpdateProfile}
+        onChangeEmployer={onChangeEmployer}
+        onChangeBase={onChangeBase}
+      />
 
       <section className="panel legacy-bridge" data-tour="career-backup">
         <div>
           <span className="eyebrow">Backup da carreira</span>
-          <h2>Exportação CSV já está em React</h2>
-          <p>O backup inclui perfil, estado, viagens, histórico, gastos personalizados, ocorrências e semanas fechadas. A importação fica na tela de Carreiras.</p>
+          <h2>Exportar somente esta carreira</h2>
+          <p>O arquivo tabular inclui esta carreira em uma única linha e preserva perfil, sede fiscal, moeda, viagens, histórico, gastos, ocorrências, holerites e reserva. A importação e a exportação de várias carreiras ficam na tela de Carreiras.</p>
         </div>
-        <button className="button success compact" type="button" onClick={() => exportCareerCSV(career, state)}>Exportar carreira CSV</button>
+        <button className="button success compact" type="button" onClick={() => exportCareerCSV(career, state, game.id)}>Exportar carreira CSV</button>
       </section>
     </>
   )
 }
 
 function TripForm({ state, onAdd }) {
+  const game = useGame()
   const toast = useToast()
   const [departureAt, setDepartureAt] = useState('')
   const [arrivalAt, setArrivalAt] = useState('')
@@ -248,14 +286,25 @@ function TripForm({ state, onAdd }) {
   const [cargo, setCargo] = useState('')
   const [type, setType] = useState('Loaded')
   const [payCategory, setPayCategory] = useState('normal')
-  const [miles, setMiles] = useState('')
+  const [distance, setDistance] = useState('')
+  const [breakMinutes, setBreakMinutes] = useState('')
+  const [truckMake, setTruckMake] = useState('')
+  const [truckModel, setTruckModel] = useState('')
+  const [odometerStart, setOdometerStart] = useState('')
+  const [odometerEnd, setOdometerEnd] = useState('')
 
-  const categories = validPayCategories(state)
+  const categories = validPayCategories(state, game.id)
   const effectiveCategory = type === 'Deadhead' ? 'deadhead' : (categories.includes(payCategory) ? payCategory : 'normal')
+  const breakSuggestion = suggestedTripBreakMinutes({ departureAt, arrivalAt }, game)
+  const odometerDistance = tripOdometerDistance({ odometerStart, odometerEnd })
+  const officialDistance = Number(distance)
+  const odometerDifference = odometerDistance == null || !Number.isFinite(officialDistance) || officialDistance <= 0
+    ? null
+    : Math.round((odometerDistance - officialDistance) * 100) / 100
 
   function submit(event) {
     event.preventDefault()
-    const distance = Number(miles)
+    const distanceValue = Number(distance)
     const start = new Date(departureAt)
     const end = new Date(arrivalAt)
     if (!departureAt || !arrivalAt || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
@@ -266,8 +315,34 @@ function TripForm({ state, onAdd }) {
       toast.error('Informe cidade de origem e destino.')
       return
     }
-    if (!Number.isFinite(distance) || distance <= 0) {
-      toast.error('Informe uma quilometragem válida.')
+    if (!Number.isFinite(distanceValue) || distanceValue <= 0) {
+      toast.error(`Informe uma distância válida em ${game.distanceName}.`)
+      return
+    }
+    const hasOdometerStart = String(odometerStart).trim() !== ''
+    const hasOdometerEnd = String(odometerEnd).trim() !== ''
+    if (hasOdometerStart !== hasOdometerEnd) {
+      toast.error('Para comparar o odômetro, informe as leituras inicial e final.')
+      return
+    }
+    if (hasOdometerStart) {
+      const startValue = Number(odometerStart)
+      const endValue = Number(odometerEnd)
+      if (!Number.isFinite(startValue) || !Number.isFinite(endValue) || startValue < 0 || endValue < 0) {
+        toast.error('As leituras do odômetro precisam ser números maiores ou iguais a zero.')
+        return
+      }
+      if (endValue < startValue) {
+        toast.error('A leitura final do odômetro não pode ser menor que a inicial.')
+        return
+      }
+    }
+    const elapsedMinutes = Math.round((end - start) / 60000)
+    const pauseValue = game.id === 'ets2' && breakMinutes === ''
+      ? breakSuggestion
+      : Math.max(0, Number(breakMinutes) || 0)
+    if (!Number.isFinite(pauseValue) || pauseValue >= elapsedMinutes) {
+      toast.error('A pausa precisa ser menor que o tempo total entre a saída e a chegada.')
       return
     }
 
@@ -283,7 +358,12 @@ function TripForm({ state, onAdd }) {
       cargo: type === 'Deadhead' ? '' : cargo.trim(),
       type,
       payCategory: effectiveCategory,
-      miles: distance,
+      source: 'MANUAL',
+      ...(truckMake.trim() ? { truckMake: truckMake.trim() } : {}),
+      ...(truckModel.trim() ? { truckModel: truckModel.trim() } : {}),
+      ...(hasOdometerStart ? { odometerStart: Number(odometerStart), odometerEnd: Number(odometerEnd) } : {}),
+      ...(game.id === 'ets2' ? { breakMinutes: Math.round(pauseValue) } : {}),
+      [game.distanceField]: distanceValue,
       createdAt: new Date().toISOString(),
     })
 
@@ -292,7 +372,12 @@ function TripForm({ state, onAdd }) {
     setDestination('')
     setDestinationCompany('')
     setCargo('')
-    setMiles('')
+    setDistance('')
+    setBreakMinutes('')
+    setTruckMake('')
+    setTruckModel('')
+    setOdometerStart('')
+    setOdometerEnd('')
   }
 
   return (
@@ -304,39 +389,62 @@ function TripForm({ state, onAdd }) {
       </div>
       <div className="two-columns">
         <CityAutocomplete value={origin} onChange={setOrigin} label="Cidade de origem" required />
-        <div><label>Filial / empresa de origem</label><input value={originCompany} onChange={(e) => setOriginCompany(e.target.value)} placeholder="Ex.: Pacific Horizon Logistics" /></div>
+        <div><label>Filial / empresa de origem</label><input value={originCompany} onChange={(e) => setOriginCompany(e.target.value)} placeholder={`Ex.: ${game.companyPlaceholder}`} /></div>
       </div>
       <div className="two-columns">
         <CityAutocomplete value={destination} onChange={setDestination} label="Cidade de destino" required />
         <div><label>Empresa de destino</label><input value={destinationCompany} onChange={(e) => setDestinationCompany(e.target.value)} placeholder="Cliente ou filial" /></div>
       </div>
       <div className="two-columns">
-        <div><label>Tipo</label><select value={type} onChange={(e) => setType(e.target.value)}><option value="Loaded">Loaded</option><option value="Deadhead">Deadhead</option></select></div>
-        <div><label>Categoria de pagamento</label><select value={effectiveCategory} disabled={type === 'Deadhead' || state.currentLevel <= 1} onChange={(e) => setPayCategory(e.target.value)}>{(type === 'Deadhead' ? ['deadhead'] : categories).map((category) => <option value={category} key={category}>{PAY_LABELS[category]} — {money(PAY_RATES[category])}/mi</option>)}</select></div>
+        <div><label>Tipo</label><select value={type} onChange={(e) => setType(e.target.value)}><option value="Loaded">{game.tripTypes.loaded}</option><option value="Deadhead">{game.tripTypes.deadhead}</option></select></div>
+        <div><label>Categoria de pagamento</label><select value={effectiveCategory} disabled={type === 'Deadhead' || state.currentLevel <= 1} onChange={(e) => setPayCategory(e.target.value)}>{(type === 'Deadhead' ? ['deadhead'] : categories).map((category) => <option value={category} key={category}>{game.payLabels[category]} — {formatMoney(game.payRates[category], game)}/{game.distanceUnit}</option>)}</select></div>
       </div>
       <div className="two-columns">
         <div><label>Carga</label><input value={cargo} disabled={type === 'Deadhead'} onChange={(e) => setCargo(e.target.value)} placeholder={type === 'Deadhead' ? 'Viagem vazia' : 'Ex.: alimentos, equipamentos'} /></div>
-        <div><label>Milhas</label><input type="number" min="1" step="1" value={miles} onChange={(e) => setMiles(e.target.value)} required /></div>
+        <div><label>{game.distanceName[0].toUpperCase() + game.distanceName.slice(1)}</label><input type="number" min="1" step="1" value={distance} onChange={(e) => setDistance(e.target.value)} required /></div>
       </div>
+      <div className="two-columns">
+        <div><label htmlFor="trip-truck-make">Marca do caminhão (opcional)</label><input id="trip-truck-make" name="truckMake" value={truckMake} onChange={(e) => setTruckMake(e.target.value)} placeholder="Ex.: Volvo, Scania, Kenworth" /></div>
+        <div><label htmlFor="trip-truck-model">Modelo do caminhão (opcional)</label><input id="trip-truck-model" name="truckModel" value={truckModel} onChange={(e) => setTruckModel(e.target.value)} placeholder="Aceita modelos e caminhões de mods" /></div>
+      </div>
+      <div className="two-columns">
+        <div><label htmlFor="trip-odometer-start">Odômetro inicial ({game.distanceUnit}, opcional)</label><input id="trip-odometer-start" name="odometerStart" type="number" min="0" step="0.1" value={odometerStart} onChange={(e) => setOdometerStart(e.target.value)} /></div>
+        <div><label htmlFor="trip-odometer-end">Odômetro final ({game.distanceUnit}, opcional)</label><input id="trip-odometer-end" name="odometerEnd" type="number" min="0" step="0.1" value={odometerEnd} onChange={(e) => setOdometerEnd(e.target.value)} /></div>
+      </div>
+      <small className="trip-field-help">As duas leituras são usadas somente para conferência e futura telemetria. A distância informada acima continua sendo o valor oficial da viagem.</small>
+      {odometerDistance != null && <div className={`odometer-comparison${odometerDifference ? ' has-difference' : ''}`} role="status">
+        <strong>Odômetro: {formatDistance(odometerDistance, game)}</strong>
+        <span>{odometerDifference == null
+          ? 'Preencha a distância oficial para concluir a comparação.'
+          : odometerDifference === 0
+            ? 'A leitura coincide com a distância oficial informada.'
+            : `${formatDistance(Math.abs(odometerDifference), game)} ${odometerDifference > 0 ? 'acima' : 'abaixo'} da distância oficial. Nenhum valor foi substituído.`}</span>
+      </div>}
+      {game.id === 'ets2' && <div>
+        <label>Pausa não trabalhada dentro da viagem (minutos)</label>
+        <input type="number" min="0" step="15" value={breakMinutes} onChange={(e) => setBreakMinutes(e.target.value)} placeholder={String(breakSuggestion)} />
+        <small>Deixe vazio para aplicar a sugestão de {breakSuggestion} min conforme a duração registrada. Ajuste se a pausa real foi diferente. Intervalos entre duas viagens já ficam fora das horas trabalhadas.</small>
+      </div>}
       <button className="button primary submit-button" type="submit">Registrar viagem</button>
     </form>
   )
 }
 
 function TripsTab({ state, onAddTrip, onDeleteTrip }) {
+  const game = useGame()
   const weekTrips = currentWeekTrips(state)
   const allMiles = totalMiles(state)
   const weekMiles = currentWeekMiles(state)
-  const pay = mileagePaySummary(weekTrips)
+  const pay = mileagePaySummary(weekTrips, game)
   const perDiem = perDiemDaysForTrips(weekTrips)
 
   return (
     <>
       <section className="phase1-status-grid progress-summary-grid" data-tour="trip-summary">
-        <MetricCard label="Milhas da semana" value={`${weekMiles.toLocaleString('en-US')} mi`} detail={`Semana ${state.currentWeek}`} />
-        <MetricCard label="Milhas na carreira" value={`${allMiles.toLocaleString('en-US')} mi`} detail={`Nível ${state.currentLevel}`} />
-        <MetricCard label="Bruto por milhas" value={state.currentLevel <= 1 ? 'Salário semanal' : money(pay.gross)} detail={state.currentLevel <= 1 ? 'Nível 1 não é pago por milha' : 'Antes de impostos e per diem'} />
-        <MetricCard label="Per diem potencial" value={state.currentLevel <= 1 ? 'Não se aplica' : `${perDiem.days} dia(s)`} detail={state.currentLevel <= 1 ? 'Disponível a partir do Nível 2' : `${money(perDiem.days * 80)} a US$ 80/dia`} />
+        <MetricCard label={`${game.distanceName[0].toUpperCase() + game.distanceName.slice(1)} da semana`} value={formatDistance(weekMiles, game)} detail={`Semana ${state.currentWeek}`} />
+        <MetricCard label={`${game.distanceName[0].toUpperCase() + game.distanceName.slice(1)} na carreira`} value={formatDistance(allMiles, game)} detail={`Nível ${state.currentLevel}`} />
+        <MetricCard label={`Bruto por ${game.distanceUnit}`} value={state.currentLevel <= 1 ? `Salário ${game.payrollPeriodLabel}` : formatMoney(pay.gross, game)} detail={state.currentLevel <= 1 ? `Nível 1 não é pago por ${game.distanceUnit}` : `Antes de impostos e ${game.perDiemLabel.toLowerCase()}`} />
+        <MetricCard label={`${game.perDiemLabel} potencial`} value={state.currentLevel <= 1 ? 'Não se aplica' : `${perDiem.days} dia(s)`} detail={state.currentLevel <= 1 ? 'Disponível a partir do Nível 2' : `${formatMoney(perDiem.days * game.perDiemRate, game)} a ${formatMoney(game.perDiemRate, game)}/dia`} />
       </section>
 
       <MileageChart trips={state.trips} />
@@ -346,22 +454,23 @@ function TripsTab({ state, onAddTrip, onDeleteTrip }) {
         <section className="panel pay-breakdown-panel">
           <span className="eyebrow">Resumo semanal</span>
           <h2>Pagamento por categoria</h2>
-          {state.currentLevel <= 1 ? <p className="muted-copy">No Nível 1, as milhas contam para progressão, mas o salário base continua em US$ 850 por semana.</p> : (
+          {state.currentLevel <= 1 ? <p className="muted-copy">No Nível 1, os {game.distanceName} contam para progressão, mas o salário base continua em {formatMoney(game.level1Gross, game)} por {game.payrollPeriodLabel === 'mensal' ? 'mês' : 'semana'}.</p> : (
             <div className="breakdown-list">
-              {Object.entries(pay.totals).filter(([, value]) => value > 0).map(([category, value]) => <div key={category}><span>{PAY_LABELS[category]}</span><strong>{value.toLocaleString('en-US')} mi × {money(PAY_RATES[category])} = {money(value * PAY_RATES[category])}</strong></div>)}
-              <div className="breakdown-total"><span>Total bruto por milhas</span><strong>{money(pay.gross)}</strong></div>
+              {Object.entries(pay.totals).filter(([, value]) => value > 0).map(([category, value]) => <div key={category}><span>{game.payLabels[category]}</span><strong>{formatDistance(value, game)} × {formatMoney(game.payRates[category], game)} = {formatMoney(value * game.payRates[category], game)}</strong></div>)}
+              <div className="breakdown-total"><span>Total bruto por {game.distanceUnit}</span><strong>{formatMoney(pay.gross, game)}</strong></div>
             </div>
           )}
-          <div className="notice-box"><strong>Per diem</strong><span>{state.currentLevel <= 1 ? 'Não se aplica ao motorista local do Nível 1.' : perDiem.days ? `${perDiem.days} dia(s) qualificável(is): ${perDiem.dates.join(', ')}` : 'Nenhuma viagem com pernoite qualificável nesta semana.'}</span></div>
+          <div className="notice-box"><strong>{game.perDiemLabel}</strong><span>{state.currentLevel <= 1 ? 'Não se aplica ao motorista local do Nível 1.' : perDiem.days ? `${perDiem.days} dia(s) qualificável(is): ${perDiem.dates.join(', ')}` : 'Nenhuma viagem com pernoite qualificável nesta semana.'}</span></div>
         </section>
       </div>
 
       <section className="panel trips-panel" data-tour="trip-history">
         <div className="section-heading compact-heading"><span className="eyebrow">Histórico de viagens</span><h2>Trechos registrados</h2><p>Mostrando todas as viagens da carreira, com a semana de cada trecho.</p></div>
         {state.trips.length === 0 ? <div className="empty-inline">Nenhuma viagem registrada.</div> : (
-          <div className="responsive-table"><table><thead><tr><th>Semana</th><th>Saída</th><th>Chegada</th><th>Rota</th><th>Tipo</th><th>Categoria</th><th>Milhas</th><th></th></tr></thead><tbody>{[...state.trips].reverse().map((trip) => (
-            <tr key={trip.id}><td>{trip.week || 1}</td><td>{formatDateTime(trip.departureAt)}</td><td>{formatDateTime(trip.arrivalAt)}</td><td><strong>{trip.origin || '—'} → {trip.destination || '—'}</strong><small>{trip.cargo ? `Carga: ${trip.cargo}` : trip.type === 'Deadhead' ? 'Viagem vazia' : ''}</small></td><td>{trip.type || 'Loaded'}</td><td>{PAY_LABELS[trip.type === 'Deadhead' ? 'deadhead' : (trip.payCategory || 'normal')]}</td><td>{Number(trip.miles || 0).toLocaleString('en-US')}</td><td><button className="table-delete" onClick={() => onDeleteTrip(trip)}>Excluir</button></td></tr>
-          ))}</tbody></table></div>
+          <div className="responsive-table"><table><thead><tr><th>Semana</th><th>Saída</th><th>Chegada</th><th>Rota</th><th>Caminhão / odômetro</th><th>Tipo</th><th>Categoria</th><th>{game.distanceName}</th>{game.id === 'ets2' && <th>Pausa</th>}<th></th></tr></thead><tbody>{[...state.trips].reverse().map((trip) => {
+            const recordedOdometerDistance = tripOdometerDistance(trip)
+            return <tr key={trip.id}><td>{trip.week || 1}</td><td>{formatDateTime(trip.departureAt)}</td><td>{formatDateTime(trip.arrivalAt)}</td><td><strong>{trip.origin || '—'} → {trip.destination || '—'}</strong><small>{trip.cargo ? `Carga: ${trip.cargo}` : trip.type === 'Deadhead' ? 'Viagem vazia' : ''}</small>{trip.employer && <small>Empregador: {trip.employer}</small>}{trip.baseSnapshot?.city && <small>Base: {trip.baseSnapshot.city}</small>}</td><td><strong>{tripVehicleLabel(trip) || 'Não informado'}</strong>{recordedOdometerDistance == null ? <small>Odômetro não informado</small> : <small>{formatNumber(trip.odometerStart, game)} → {formatNumber(trip.odometerEnd, game)} {game.distanceUnit} · percorrido: {formatDistance(recordedOdometerDistance, game)}</small>}<small>Origem: {tripSourceLabel(trip.source)}</small></td><td>{trip.type === 'Deadhead' ? game.tripTypes.deadhead : game.tripTypes.loaded}</td><td>{game.payLabels[trip.type === 'Deadhead' ? 'deadhead' : (trip.payCategory || 'normal')]}</td><td>{formatDistance(tripDistance(trip), game)}</td>{game.id === 'ets2' && <td>{tripBreakMinutes(trip, game)} min</td>}<td><button className="table-delete" onClick={() => onDeleteTrip(trip)}>Excluir</button></td></tr>
+          } )}</tbody></table></div>
         )}
       </section>
     </>
@@ -369,11 +478,12 @@ function TripsTab({ state, onAddTrip, onDeleteTrip }) {
 }
 
 export default function Phase1Page({ careerId, onBack }) {
+  const game = useGame()
   const confirm = useConfirm()
   const { activeStep } = useTutorial()
   const toast = useToast()
-  const career = getCareer(careerId)
-  const [state, setState] = useState(() => loadPhase1State(careerId))
+  const career = getCareer(careerId, game.id)
+  const [state, setState] = useState(() => loadPhase1State(careerId, game.id))
   const [activeTab, setActiveTab] = useState('overview')
   const [promotionMilestone, setPromotionMilestone] = useState(null)
 
@@ -423,8 +533,8 @@ export default function Phase1Page({ careerId, onBack }) {
   }
 
   useEffect(() => {
-    if (career?.id) setActiveCareer(career.id)
-  }, [career?.id])
+    if (career?.id) setActiveCareer(career.id, game.id)
+  }, [career?.id, game.id])
 
   useEffect(() => {
     if (activeStep?.route === '/phase1' && activeStep.tab) setActiveTab(activeStep.tab)
@@ -435,24 +545,86 @@ export default function Phase1Page({ careerId, onBack }) {
   function commit(nextState) {
     const normalized = { ...nextState, currentLevel: Number(nextState.currentLevel || nextState.careerLevel || 1), careerLevel: Number(nextState.currentLevel || nextState.careerLevel || 1) }
     setState(normalized)
-    savePhase1State(career.id, normalized)
+    savePhase1State(career.id, normalized, game.id)
   }
 
   function addTrip(trip) {
-    const beforeMiles = totalMiles(state)
-    const afterMiles = beforeMiles + Number(trip.miles || 0)
-    commit({ ...state, trips: [...state.trips, trip] })
-    toast.success(`Viagem registrada: ${Number(trip.miles || 0).toLocaleString('en-US')} mi adicionadas à carreira.`)
+    const beforeDistance = totalMiles(state)
+    const addedDistance = tripDistance(trip)
+    const afterDistance = beforeDistance + addedDistance
+    const contextualTrip = {
+      ...trip,
+      employer: career.company || '',
+      baseSnapshot: careerBaseSnapshot(career),
+    }
+    commit({ ...state, trips: [...state.trips, contextualTrip] })
+    toast.success(`Viagem registrada: ${formatDistance(addedDistance, game)} adicionados à carreira.`)
 
-    if (state.currentLevel === 1 && beforeMiles < 10000 && afterMiles >= 10000) {
-      setPromotionMilestone(PROMOTION_MILESTONES[2])
-    } else if (state.currentLevel === 2 && beforeMiles < 50000 && afterMiles >= 50000) {
-      setPromotionMilestone(PROMOTION_MILESTONES[3])
+    const milestones = promotionMilestones(game)
+    if (state.currentLevel === 1 && beforeDistance < game.promotionGoals[0] && afterDistance >= game.promotionGoals[0]) {
+      setPromotionMilestone(milestones[2])
+    } else if (state.currentLevel === 2 && beforeDistance < game.promotionGoals[1] && afterDistance >= game.promotionGoals[1]) {
+      setPromotionMilestone(milestones[3])
     }
   }
 
+  function updateProfile({ driverName, bio, effectiveDate }) {
+    const changes = {
+      driverName: { previous: career.driverName || '', next: driverName },
+      bio: { previous: career.bio || career.biography || '', next: bio },
+    }
+    const event = createCareerEvent({ type: CAREER_EVENT_TYPES.PROFILE_UPDATED, effectiveDate, changes })
+    updateCareer(career.id, {
+      driverName,
+      bio,
+      biography: undefined,
+      events: [...(career.events || []), event],
+    }, game.id)
+    toast.success('Perfil atualizado e registrado no histórico da carreira.')
+  }
+
+  function changeEmployer({ company, effectiveDate }) {
+    const historicalState = preserveHistoricalCareerContext(state, career)
+    commit(historicalState)
+    const event = createCareerEvent({
+      type: CAREER_EVENT_TYPES.EMPLOYER_CHANGED,
+      effectiveDate,
+      changes: { company: { previous: career.company || '', next: company } },
+    })
+    updateCareer(career.id, { company, events: [...(career.events || []), event] }, game.id)
+    toast.success(`Empresa alterada para ${company}. Os registros anteriores foram preservados.`)
+  }
+
+  function changeBase({ city, effectiveDate, profile }) {
+    const previousBase = careerBaseSnapshot(career)
+    const nextCareerFields = {
+      city,
+      countryCode: game.id === 'ets2' ? profile.countryCode : '',
+      countryName: game.id === 'ets2' ? profile.countryName : '',
+      stateCode: game.id === 'ats' ? profile.stateCode : '',
+      stateName: game.id === 'ats' ? profile.stateName : '',
+      currency: profile.currency,
+      baseCurrency: profile.baseCurrency,
+      exchangeRate: profile.exchangeRate,
+      exchangeRateAsOf: profile.exchangeRateAsOf,
+      cityMarketVersion: profile.cityMarketVersion,
+      cityMarketLabel: profile.cityMarketLabel,
+      cityCostFactor: profile.cityCostFactor,
+      citySalaryFactor: profile.citySalaryFactor,
+    }
+    const historicalState = preserveHistoricalCareerContext(state, career)
+    commit({ ...historicalState, expenses: { ...profile.expenses } })
+    const event = createCareerEvent({
+      type: CAREER_EVENT_TYPES.BASE_CHANGED,
+      effectiveDate,
+      changes: { base: { previous: previousBase, next: careerBaseSnapshot({ ...career, ...nextCareerFields }) } },
+    })
+    updateCareer(career.id, { ...nextCareerFields, events: [...(career.events || []), event] }, game.id)
+    toast.success(`Base alterada para ${city}. As novas regras financeiras passam a valer nos próximos cálculos.`)
+  }
+
   async function deleteTrip(trip) {
-    const weekClosed = (state.closedWeeks || []).some((week) => Number(week.week) === Number(trip.week || 1))
+    const weekClosed = isTripWeekLocked(state, trip.week, game)
     if (weekClosed) {
       toast.error('Esta viagem pertence a uma semana já fechada e não pode ser excluída.')
       return
@@ -481,7 +653,7 @@ export default function Phase1Page({ careerId, onBack }) {
           <button className="back-button" onClick={onBack}>← Voltar</button>
           <div className="phase1-header-main">
             <div className="phase1-driver-block">
-              <span className="eyebrow">Fase 1 • Company Driver</span>
+              <span className="eyebrow">Fase 1 • {game.shortName} • {game.levelRoles[state.currentLevel - 1]}</span>
               <h1>{career.driverName}</h1>
               <p>{career.city} • {career.company}</p>
             </div>
@@ -499,16 +671,16 @@ export default function Phase1Page({ careerId, onBack }) {
           </nav>
         )}
         <TabIntro tabId={activeTab} />
-        {activeTab === 'overview' && <OverviewTab career={career} state={state} setActiveTab={setActiveTab} />}
+        {activeTab === 'overview' && <OverviewTab career={career} state={state} setActiveTab={setActiveTab} onUpdateProfile={updateProfile} onChangeEmployer={changeEmployer} onChangeBase={changeBase} />}
         {activeTab === 'finances' && <FinancesTab state={state} commit={commit} />}
-        {activeTab === 'payslip' && <PayslipTab state={state} commit={commit} />}
+        {activeTab === 'payslip' && <PayslipTab career={career} state={state} commit={commit} />}
         {activeTab === 'progress' && <TripsTab state={state} onAddTrip={addTrip} onDeleteTrip={deleteTrip} />}
         {activeTab === 'incidents' && <IncidentsTab state={state} commit={commit} />}
         {activeTab === 'qualifications' && <QualificationsTab state={state} commit={commit} />}
         {activeTab === 'academy' && <AcademyGuideTab onOpenQualifications={() => goToTab('qualifications')} />}
         {activeTab === 'rules' && <RulesTab />}
         {activeTab === 'mods' && <ModsTab />}
-        {activeTab === 'history' && <HistoryTab state={state} />}
+        {activeTab === 'history' && <HistoryTab career={career} state={state} />}
       </main>
     </div>
   )
