@@ -187,6 +187,12 @@ export const authApi = {
     auth: true,
     signal: options.signal,
   }),
+  changePassword: (currentPassword, newPassword, options = {}) => apiRequest('/api/v1/me/change-password', {
+    auth: true,
+    method: 'POST',
+    body: { currentPassword, newPassword },
+    signal: options.signal,
+  }),
   forgotPassword: (email, options = {}) => apiRequest('/api/v1/auth/forgot-password', {
     method: 'POST',
     body: { email },
