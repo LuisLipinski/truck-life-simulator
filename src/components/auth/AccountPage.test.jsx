@@ -7,19 +7,21 @@ import { API_BASE_URL } from '../../lib/authApi.js'
 import { clearAccessSession, getAccessSession, setAccessSession } from '../../lib/authSession.js'
 import AccountPage from './AccountPage.jsx'
 
-const authState = {
-  user: {
-    id: 'user-1',
-    displayName: 'Road Driver',
-    email: 'driver@example.com',
-    role: 'USER',
-    status: 'ACTIVE',
-    emailVerified: true,
-    createdAt: '2026-08-24T12:00:00Z',
-    lastLoginAt: '2026-08-24T13:00:00Z',
+const { authState } = vi.hoisted(() => ({
+  authState: {
+    user: {
+      id: 'user-1',
+      displayName: 'Road Driver',
+      email: 'driver@example.com',
+      role: 'USER',
+      status: 'ACTIVE',
+      emailVerified: true,
+      createdAt: '2026-08-24T12:00:00Z',
+      lastLoginAt: '2026-08-24T13:00:00Z',
+    },
+    logout: vi.fn(async () => {}),
   },
-  logout: vi.fn(async () => {}),
-}
+}))
 
 vi.mock('./AuthProvider.jsx', () => ({
   useAuth: () => authState,
