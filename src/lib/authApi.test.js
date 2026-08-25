@@ -38,6 +38,30 @@ describe('authApi', () => {
     )
   })
 
+  it('changes password with the in-memory Bearer session and keeps the access session', async () => {
+    setAccessSession({ accessToken: 'current-access-token', tokenType: 'Bearer', expiresIn: 600 })
+    globalThis.fetch = vi.fn(async () => response(204))
+
+    await authApi.changePassword('senha atual segura', 'nova senha segura 2026')
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      `${API_BASE_URL}/api/v1/me/change-password`,
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+        cache: 'no-store',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer current-access-token',
+          'Content-Type': 'application/json',
+        }),
+        body: JSON.stringify({
+          currentPassword: 'senha atual segura',
+          newPassword: 'nova senha segura 2026',
+        }),
+      }),
+    )
+  })
+
   it('deduplicates concurrent refresh requests and sends the CSRF token', async () => {
     const csrfToken = 'c'.repeat(43)
     globalThis.fetch = vi.fn(async (url) => {
