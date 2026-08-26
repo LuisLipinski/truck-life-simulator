@@ -20,8 +20,6 @@ export default function IncidentsTab({ state, commit }) {
   const confirm = useConfirm()
   const [type, setType] = useState('Infração')
   const [amount, setAmount] = useState('')
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
-  const [time, setTime] = useState('')
   const [routeMode, setRouteMode] = useState('manual')
   const [manualRoute, setManualRoute] = useState('')
   const [description, setDescription] = useState('')
@@ -49,7 +47,7 @@ export default function IncidentsTab({ state, commit }) {
 
     const route = resolveRoute()
     const incident = {
-      id: Date.now(), type, amount: value, date, time, route: route.label, week: route.week, description: description.trim(), chargeMethod,
+      id: Date.now(), type, amount: value, route: route.label, week: route.week, description: description.trim(), chargeMethod,
       status: chargeMethod === 'balance' ? 'Pago pelo saldo' : 'Pendente no holerite',
       remaining: chargeMethod === 'payslip' ? value : 0,
       createdAt: new Date().toLocaleString('pt-BR'),
@@ -101,7 +99,6 @@ export default function IncidentsTab({ state, commit }) {
             <div><Label tip="Classifica a ocorrência para facilitar o histórico. Não altera as regras de promoção.">Tipo</Label><select value={type} onChange={(e) => setType(e.target.value)}><option>Infração</option><option>Acidente</option><option>Pedágio / cobrança</option><option>Outra ocorrência</option></select></div>
             <div><Label tip="Valor financeiro da multa, dano ou cobrança que será abatido do saldo ou holerite.">Valor</Label><input type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
           </div>
-          <div className="two-columns"><div><Label tip="Data em que a ocorrência aconteceu na sua simulação.">Data</Label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div><div><Label tip="Horário aproximado da ocorrência. Pode ser deixado em branco se não souber.">Hora</Label><input type="time" value={time} onChange={(e) => setTime(e.target.value)} /></div></div>
           <Label tip="Você pode vincular a ocorrência a uma viagem já registrada ou informar a rota manualmente.">Rota relacionada</Label>
           <select value={routeMode} onChange={(e) => setRouteMode(e.target.value)}><option value="manual">Outra / informar manualmente</option>{trips.map((trip) => <option key={trip.id} value={`trip:${trip.id}`}>Semana {trip.week || 1} — {trip.origin} → {trip.destination}</option>)}</select>
           {routeMode === 'manual' && <><Label tip="Informe rodovia, cidades ou uma referência suficiente para lembrar onde ocorreu.">Rota</Label><input value={manualRoute} onChange={(e) => setManualRoute(e.target.value)} placeholder={game.id === 'ats' ? 'Ex.: I-5, Los Angeles → Bakersfield' : 'Ex.: A2, Berlin → Hannover'} /></>}
@@ -114,7 +111,7 @@ export default function IncidentsTab({ state, commit }) {
 
       <section className="panel incidents-list-card" data-tour="incident-history">
         <div className="section-heading compact-heading"><span className="eyebrow">Histórico</span><h2>Infrações e acidentes</h2></div>
-        {(state.incidents || []).length === 0 ? <div className="empty-inline">Nenhuma ocorrência registrada.</div> : <div className="responsive-table"><table><thead><tr><th>Semana</th><th>Data</th><th>Hora</th><th>Tipo</th><th>Rota</th><th>Descrição</th><th>Valor</th><th>Cobrança</th><th>Status</th><th></th></tr></thead><tbody>{[...state.incidents].reverse().map((incident) => <tr key={incident.id}><td>{incident.week || '—'}</td><td>{incident.date || '—'}</td><td>{incident.time || '—'}</td><td>{incident.type || '—'}</td><td>{incident.route || '—'}</td><td>{incident.description || '—'}</td><td>{money(incident.amount)}</td><td>{incident.chargeMethod === 'payslip' ? 'Próximo holerite' : 'Saldo imediato'}</td><td>{Number(incident.remaining || 0) > 0 ? `Pendente ${money(incident.remaining)}` : incident.status || 'Pago'}</td><td><button className="table-delete" type="button" onClick={() => removeIncident(incident)}>Excluir</button></td></tr>)}</tbody></table></div>}
+        {(state.incidents || []).length === 0 ? <div className="empty-inline">Nenhuma ocorrência registrada.</div> : <div className="responsive-table"><table><thead><tr><th>Semana</th><th>Tipo</th><th>Rota</th><th>Descrição</th><th>Valor</th><th>Cobrança</th><th>Status</th><th></th></tr></thead><tbody>{[...state.incidents].reverse().map((incident) => <tr key={incident.id}><td>{incident.week || '—'}</td><td>{incident.type || '—'}</td><td>{incident.route || '—'}</td><td>{incident.description || '—'}</td><td>{money(incident.amount)}</td><td>{incident.chargeMethod === 'payslip' ? 'Próximo holerite' : 'Saldo imediato'}</td><td>{Number(incident.remaining || 0) > 0 ? `Pendente ${money(incident.remaining)}` : incident.status || 'Pago'}</td><td><button className="table-delete" type="button" onClick={() => removeIncident(incident)}>Excluir</button></td></tr>)}</tbody></table></div>}
       </section>
     </>
   )
