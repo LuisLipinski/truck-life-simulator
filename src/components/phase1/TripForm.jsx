@@ -43,7 +43,7 @@ export default function TripForm({ career, state, onAdd, onSaveDraft, onSaveDefa
   const [truckModel, setTruckModel] = useState(() => draftValue(draft, 'truckModel', savedTruckModel))
   const [keepTruckSaved, setKeepTruckSaved] = useState(() => draft.keepTruckSaved != null
     ? Boolean(draft.keepTruckSaved)
-    : Boolean(savedTruckMake || savedTruckModel))
+    : Boolean(savedTruckMake && savedTruckModel))
   const [odometerStart, setOdometerStart] = useState(() => draftValue(draft, 'odometerStart', lastOdometerEnd))
   const [odometerEnd, setOdometerEnd] = useState(() => draftValue(draft, 'odometerEnd'))
 
@@ -197,7 +197,7 @@ export default function TripForm({ career, state, onAdd, onSaveDraft, onSaveDefa
     setBreakMinutes('')
     setTruckMake(keepTruckSaved ? truckMakeValue : savedTruckMake)
     setTruckModel(keepTruckSaved ? truckModelValue : savedTruckModel)
-    setKeepTruckSaved(keepTruckSaved || Boolean(savedTruckMake || savedTruckModel))
+    setKeepTruckSaved(keepTruckSaved || Boolean(savedTruckMake && savedTruckModel))
     setOdometerStart(hasOdometerEnd ? String(Number(odometerEnd)) : '')
     setOdometerEnd('')
   }
