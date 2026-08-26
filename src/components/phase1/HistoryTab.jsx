@@ -2,14 +2,25 @@ import { BarChart, LineChart } from './Charts.jsx'
 import { formatMoney } from '../../config/games.js'
 import { useGame } from '../GameContext.jsx'
 import { careerEventDescription, careerEventLabel } from '../../lib/careerEvents.js'
+import { WEEKDAY_OPTIONS, weekdayLabel } from '../../lib/tripWeek.js'
 
 function Tip({ text }) {
   return <button className="react-info-tip" type="button" aria-label="Mais informações" data-tip={text}>i</button>
 }
 
-function formatEffectiveDate(value) {
-  const [year, month, day] = String(value || '').split('-')
-  return year && month && day ? `${day}/${month}/${year}` : value || '—'
+function formatEffectiveDay(value) {
+  const directLabel = weekdayLabel(value)
+  if (directLabel) return directLabel
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) {
+    const date = new Date(`${value}T00:00:00Z`)
+    if (!Number.isNaN(date.getTime())) {
+      const mondayIndex = (date.getUTCDay() + 6) % 7
+      return WEEKDAY_OPTIONS[mondayIndex]?.label || '—'
+    }
+  }
+
+  return '—'
 }
 
 export default function HistoryTab({ career, state }) {
@@ -28,7 +39,7 @@ export default function HistoryTab({ career, state }) {
     .filter((item) => Number.isFinite(Number(item.balance)))
     .slice(-12)
     .map((item, index) => ({
-      label: item.date || `Mov. ${index + 1}`,
+      label: `Mov. ${index + 1}`,
       value: Number(item.balance),
     }))
 
@@ -68,17 +79,17 @@ export default function HistoryTab({ career, state }) {
       <section className="panel history-panel" data-tour="history-records">
         <div className="section-heading compact-heading"><span className="eyebrow">Financeiro</span><h2 className="line-label-with-tip">Movimentações de saldo <Tip text="Use esta tabela para conferir por que o saldo aumentou ou diminuiu ao longo da carreira." /></h2><p>Mais recentes primeiro.</p></div>
         {history.length === 0 ? <div className="empty-inline">Nenhuma movimentação registrada.</div> : (
-          <div className="responsive-table"><table><thead><tr><th>Data</th><th>Descrição</th><th>Valor</th><th>Saldo</th></tr></thead><tbody>
-            {history.map((item, index) => <tr key={`${item.date || 'history'}-${index}`}><td>{item.date || '—'}</td><td>{item.desc || item.description || '—'}</td><td className={Number(item.amount ?? item.value ?? 0) < 0 ? 'negative' : 'positive'}>{money(item.amount ?? item.value ?? 0)}</td><td>{money(item.balance)}</td></tr>)}
+          <div className="responsive-table"><table><thead><tr><th>Descrição</th><th>Valor</th><th>Saldo</th></tr></thead><tbody>
+            {history.map((item, index) => <tr key={`${item.desc || item.description || 'history'}-${index}`}><td>{item.desc || item.description || '—'}</td><td className={Number(item.amount ?? item.value ?? 0) < 0 ? 'negative' : 'positive'}>{money(item.amount ?? item.value ?? 0)}</td><td>{money(item.balance)}</td></tr>)}
           </tbody></table></div>
         )}
       </section>
 
       <section className="panel history-panel" data-tour="career-events">
-        <div className="section-heading compact-heading"><span className="eyebrow">Linha do tempo</span><h2>Eventos da carreira</h2><p>Perfil, empregadora e base com data efetiva. O histórico anterior não é recalculado.</p></div>
+        <div className="section-heading compact-heading"><span className="eyebrow">Linha do tempo</span><h2>Eventos da carreira</h2><p>Perfil, empregadora e base sem calendário: quando houver referência temporal, usamos apenas o dia da semana.</p></div>
         {careerEvents.length === 0 ? <div className="empty-inline">Nenhuma alteração estrutural registrada.</div> : (
-          <div className="responsive-table"><table><thead><tr><th>Data efetiva</th><th>Evento</th><th>Alteração</th></tr></thead><tbody>
-            {[...careerEvents].reverse().map((event, index) => <tr key={event.id || `${event.type}-${index}`}><td>{formatEffectiveDate(event.effectiveDate)}</td><td><strong>{careerEventLabel(event.type)}</strong></td><td>{careerEventDescription(event)}</td></tr>)}
+          <div className="responsive-table"><table><thead><tr><th>Dia efetivo</th><th>Evento</th><th>Alteração</th></tr></thead><tbody>
+            {[...careerEvents].reverse().map((event, index) => <tr key={event.id || `${event.type}-${index}`}><td>{formatEffectiveDay(event.effectiveDate)}</td><td><strong>{careerEventLabel(event.type)}</strong></td><td>{careerEventDescription(event)}</td></tr>)}
           </tbody></table></div>
         )}
       </section>
