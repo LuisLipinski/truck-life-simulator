@@ -36,6 +36,7 @@ afterEach(() => {
 })
 
 function setInputValue(input, value) {
+  if (!input) throw new Error(`Test control not found for value: ${value}`)
   const prototype = input instanceof HTMLSelectElement
     ? HTMLSelectElement.prototype
     : input instanceof HTMLTextAreaElement
@@ -111,12 +112,27 @@ function seedEts2Career({ distance = 0 } = {}) {
     emergencyReserve: 0,
     history: [],
     trips: distance > 0 ? [{
-      id: 1, week: 1, departureAt: '2026-08-19T07:00', arrivalAt: '2026-08-19T08:00',
-      origin: 'Berlin, Alemanha', destination: 'Hannover, Alemanha', type: 'Loaded', payCategory: 'normal', distance,
+      id: 1,
+      week: 1,
+      departureAt: '2026-08-19T07:00',
+      arrivalAt: '2026-08-19T08:00',
+      origin: 'Berlin, Alemanha',
+      destination: 'Hannover, Alemanha',
+      type: 'Loaded',
+      payCategory: 'normal',
+      distance,
     }] : [],
-    closedWeeks: [], customExpenses: [], incidents: [], currentLevel: 1, careerLevel: 1,
-    dangerousGoodsQualified: false, academy: { level2: false, level3: false }, currentWeek: 1,
-    currentPayrollMonth: 1, payPeriodStartWeek: 1, closedOperationalWeeks: [],
+    closedWeeks: [],
+    customExpenses: [],
+    incidents: [],
+    currentLevel: 1,
+    careerLevel: 1,
+    dangerousGoodsQualified: false,
+    academy: { level2: false, level3: false },
+    currentWeek: 1,
+    currentPayrollMonth: 1,
+    payPeriodStartWeek: 1,
+    closedOperationalWeeks: [],
   }))
   return id
 }
@@ -163,33 +179,29 @@ function remountCareer(careerId, options) {
   renderCareer(careerId, options)
 }
 
-function registerOneMileTrip() {
-  const form = container.querySelector('.trip-form')
-  const dateInputs = form.querySelectorAll('input[type="datetime-local"]')
-  setInputValue(dateInputs[0], '2026-08-20T07:00')
-  setInputValue(dateInputs[1], '2026-08-20T08:00')
-
-  const cityInputs = form.querySelectorAll('.react-city-autocomplete input')
-  setInputValue(cityInputs[0], 'Los Angeles, CA')
-  setInputValue(cityInputs[1], 'Bakersfield, CA')
-
-  const milesInput = form.querySelector('input[type="number"][min="1"]')
-  setInputValue(milesInput, '1')
-
-  const submit = [...form.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Registrar viagem')
-  act(() => submit.click())
+function fillTripSchedule(form, { departureDay = 'thursday', departureTime = '07:00', arrivalDay = 'thursday', arrivalTime = '10:00' } = {}) {
+  const weekdaySelects = form.querySelectorAll('select')
+  const timeInputs = form.querySelectorAll('input[type="time"]')
+  setInputValue(weekdaySelects[0], departureDay)
+  setInputValue(timeInputs[0], departureTime)
+  setInputValue(weekdaySelects[1], arrivalDay)
+  setInputValue(timeInputs[1], arrivalTime)
 }
 
 function fillRequiredTrip({ distance = 100 } = {}) {
   const form = container.querySelector('.trip-form')
-  const dateInputs = form.querySelectorAll('input[type="datetime-local"]')
-  setInputValue(dateInputs[0], '2026-08-20T07:00')
-  setInputValue(dateInputs[1], '2026-08-20T10:00')
+  fillTripSchedule(form)
   const cityInputs = form.querySelectorAll('.react-city-autocomplete input')
   setInputValue(cityInputs[0], 'Los Angeles, CA')
   setInputValue(cityInputs[1], 'Bakersfield, CA')
   setInputValue(form.querySelector('input[type="number"][min="1"]'), distance)
   return form
+}
+
+function registerOneMileTrip() {
+  const form = fillRequiredTrip({ distance: 1 })
+  const submit = [...form.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Enviar viagem')
+  act(() => submit.click())
 }
 
 describe('promotion milestone integration', () => {
@@ -243,6 +255,53 @@ describe('promotion milestone integration', () => {
     renderCareer(seedCareer({ level: 1, miles: 10000 }))
     registerOneMileTrip()
     expect(document.querySelector('[role="dialog"]')).toBeNull()
+  })
+})
+
+describe('weekday trip draft integration', () => {
+  it('persists an incomplete trip draft across a remount without creating a trip', () => {
+    const careerId = seedCareer({ level: 1, miles: 0 })
+    renderCareer(careerId)
+    const form = container.querySelector('.trip-form')
+    const weekdaySelects = form.querySelectorAll('select')
+    const timeInputs = form.querySelectorAll('input[type="time"]')
+    setInputValue(weekdaySelects[0], 'monday')
+    setInputValue(timeInputs[0], '08:15')
+    setInputValue(form.querySelector('.react-city-autocomplete input'), 'Los Angeles, CA')
+
+    const save = [...form.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Salvar rascunho')
+    act(() => save.click())
+
+    const stored = loadPhase1State(careerId)
+    expect(stored.trips).toEqual([])
+    expect(stored.tripDraft).toMatchObject({ departureDay: 'monday', departureTime: '08:15', origin: 'Los Angeles, CA' })
+
+    remountCareer(careerId)
+    const restoredForm = container.querySelector('.trip-form')
+    expect(restoredForm.querySelectorAll('select')[0].value).toBe('monday')
+    expect(restoredForm.querySelectorAll('input[type="time"]')[0].value).toBe('08:15')
+    expect(restoredForm.querySelector('.react-city-autocomplete input').value).toBe('Los Angeles, CA')
+  })
+
+  it('clears the saved draft only after the trip is sent successfully', () => {
+    const careerId = seedCareer({ level: 1, miles: 0 })
+    renderCareer(careerId)
+    const form = fillRequiredTrip({ distance: 25 })
+    const save = [...form.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Salvar rascunho')
+    act(() => save.click())
+    expect(loadPhase1State(careerId).tripDraft).not.toBeNull()
+
+    act(() => form.querySelector('[type="submit"]').click())
+    const stored = loadPhase1State(careerId)
+    expect(stored.trips).toHaveLength(1)
+    expect(stored.tripDraft).toBeNull()
+    expect(stored.trips[0]).toMatchObject({
+      departureDay: 'thursday',
+      departureTime: '07:00',
+      arrivalDay: 'thursday',
+      arrivalTime: '10:00',
+      miles: 25,
+    })
   })
 })
 
