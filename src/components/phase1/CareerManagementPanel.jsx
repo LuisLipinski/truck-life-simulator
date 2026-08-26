@@ -1,14 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { formatMoney, getGame } from '../../config/games.js'
+import { WEEKDAY_OPTIONS, weekdayLabel } from '../../lib/tripWeek.js'
 import CityAutocomplete from '../CityAutocomplete.jsx'
 import { useConfirm } from '../ConfirmProvider.jsx'
 import { useGame } from '../GameContext.jsx'
 import { useToast } from '../ToastProvider.jsx'
-
-function localDateValue() {
-  const date = new Date()
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-}
 
 function marketFactorText(factor) {
   const percentage = Math.round((Number(factor || 1) - 1) * 100)
@@ -16,20 +12,28 @@ function marketFactorText(factor) {
   return `${Math.abs(percentage)}% ${percentage > 0 ? 'acima' : 'abaixo'} da referência da sede`
 }
 
+function WeekdaySelect({ id, value, onChange }) {
+  return (
+    <select id={id} value={value} onChange={onChange} required>
+      <option value="">Selecione</option>
+      {WEEKDAY_OPTIONS.map((day) => <option key={day.value} value={day.value}>{day.label}</option>)}
+    </select>
+  )
+}
+
 export default function CareerManagementPanel({ career, onUpdateProfile, onChangeEmployer, onChangeBase }) {
   const game = useGame()
   const confirm = useConfirm()
   const toast = useToast()
-  const today = localDateValue()
   const currentLocationCode = game.id === 'ets2' ? career.countryCode : career.stateCode
   const [mode, setMode] = useState('profile')
   const [driverName, setDriverName] = useState(career.driverName || '')
   const [bio, setBio] = useState(career.bio || career.biography || '')
   const [company, setCompany] = useState('')
-  const [companyEffectiveDate, setCompanyEffectiveDate] = useState(today)
+  const [companyEffectiveDay, setCompanyEffectiveDay] = useState('')
   const [baseLocationCode, setBaseLocationCode] = useState(currentLocationCode || '')
   const [baseCity, setBaseCity] = useState(career.city || '')
-  const [baseEffectiveDate, setBaseEffectiveDate] = useState(today)
+  const [baseEffectiveDay, setBaseEffectiveDay] = useState('')
 
   useEffect(() => {
     setDriverName(career.driverName || '')
@@ -45,10 +49,6 @@ export default function CareerManagementPanel({ career, onUpdateProfile, onChang
     [baseCity, baseLocationCode, career.currency, game],
   )
 
-  function validEffectiveDate(value) {
-    return Boolean(value && value <= today)
-  }
-
   function submitProfile(event) {
     event.preventDefault()
     const nextName = driverName.trim()
@@ -61,7 +61,7 @@ export default function CareerManagementPanel({ career, onUpdateProfile, onChang
       toast.info('Nenhuma alteração de perfil para salvar.')
       return
     }
-    onUpdateProfile({ driverName: nextName, bio: nextBio, effectiveDate: today })
+    onUpdateProfile({ driverName: nextName, bio: nextBio, effectiveDate: '' })
   }
 
   async function submitEmployer(event) {
@@ -75,19 +75,21 @@ export default function CareerManagementPanel({ career, onUpdateProfile, onChang
       toast.info('A empresa informada já é a empregadora atual.')
       return
     }
-    if (!validEffectiveDate(companyEffectiveDate)) {
-      toast.error('Informe uma data efetiva válida, igual ou anterior a hoje.')
+    if (!companyEffectiveDay) {
+      toast.error('Informe o dia da semana em que a troca de empresa passa a valer.')
       return
     }
+    const effectiveDayLabel = weekdayLabel(companyEffectiveDay)
     const confirmed = await confirm({
       title: 'Confirmar troca de empresa?',
-      message: `A partir de ${companyEffectiveDate}, a empregadora atual será “${nextCompany}”. “${career.company || 'Não informada'}” continuará preservada nas viagens e nos holerites anteriores.`,
+      message: `A partir de ${effectiveDayLabel}, a empregadora atual será “${nextCompany}”. “${career.company || 'Não informada'}” continuará preservada nas viagens e nos holerites anteriores.`,
       confirmLabel: 'Trocar empresa',
       tone: 'warning',
     })
     if (!confirmed) return
-    onChangeEmployer({ company: nextCompany, effectiveDate: companyEffectiveDate })
+    onChangeEmployer({ company: nextCompany, effectiveDate: companyEffectiveDay })
     setCompany('')
+    setCompanyEffectiveDay('')
   }
 
   async function submitBase(event) {
@@ -106,18 +108,20 @@ export default function CareerManagementPanel({ career, onUpdateProfile, onChang
       toast.info('A sede e a cidade informadas já formam a base atual.')
       return
     }
-    if (!validEffectiveDate(baseEffectiveDate)) {
-      toast.error('Informe uma data efetiva válida, igual ou anterior a hoje.')
+    if (!baseEffectiveDay) {
+      toast.error('Informe o dia da semana em que a mudança de base passa a valer.')
       return
     }
+    const effectiveDayLabel = weekdayLabel(baseEffectiveDay)
     const confirmed = await confirm({
       title: 'Confirmar mudança de base?',
-      message: `A base mudará de “${career.city}” para “${nextCity}” em ${baseEffectiveDate}. Impostos, salários e despesas padrão novos valerão para os próximos cálculos; períodos já fechados manterão seus snapshots.`,
+      message: `A base mudará de “${career.city}” para “${nextCity}” a partir de ${effectiveDayLabel}. Impostos, salários e despesas padrão novos valerão para os próximos cálculos; períodos já fechados manterão seus snapshots.`,
       confirmLabel: 'Mudar base',
       tone: 'warning',
     })
     if (!confirmed) return
-    onChangeBase({ locationCode: baseLocationCode, city: nextCity, effectiveDate: baseEffectiveDate, profile: baseGame })
+    onChangeBase({ locationCode: baseLocationCode, city: nextCity, effectiveDate: baseEffectiveDay, profile: baseGame })
+    setBaseEffectiveDay('')
   }
 
   return (
@@ -145,8 +149,8 @@ export default function CareerManagementPanel({ career, onUpdateProfile, onChang
         <div className="career-current-value"><span>Empresa atual</span><strong>{career.company || '—'}</strong></div>
         <label htmlFor="career-new-company">Nova empresa</label>
         <input id="career-new-company" value={company} maxLength="140" onChange={(event) => setCompany(event.target.value)} placeholder={`Ex.: ${game.companyPlaceholder}`} required />
-        <label htmlFor="career-company-date">Data efetiva</label>
-        <input id="career-company-date" type="date" max={today} value={companyEffectiveDate} onChange={(event) => setCompanyEffectiveDate(event.target.value)} required />
+        <label htmlFor="career-company-day">Dia da semana efetivo</label>
+        <WeekdaySelect id="career-company-day" value={companyEffectiveDay} onChange={(event) => setCompanyEffectiveDay(event.target.value)} />
         <small>Registros existentes recebem um snapshot da empregadora anterior; somente os próximos usarão a nova empresa.</small>
         <button className="button primary compact" type="submit">Trocar empresa</button>
       </form>}
@@ -162,8 +166,8 @@ export default function CareerManagementPanel({ career, onUpdateProfile, onChang
           </div>
           <CityAutocomplete value={baseCity} onChange={setBaseCity} label="Nova cidade-base" required cities={baseGame.baseCities || []} disabled={!baseLocationCode} placeholder={baseGame.cityPlaceholder} />
         </div>
-        <label htmlFor="career-base-date">Data efetiva</label>
-        <input id="career-base-date" type="date" max={today} value={baseEffectiveDate} onChange={(event) => setBaseEffectiveDate(event.target.value)} required />
+        <label htmlFor="career-base-day">Dia da semana efetivo</label>
+        <WeekdaySelect id="career-base-day" value={baseEffectiveDay} onChange={(event) => setBaseEffectiveDay(event.target.value)} />
         {baseLocationCode && <div className="career-base-preview">
           <strong>{baseGame.cityMarketLabel}</strong>
           <span>Custos: {marketFactorText(baseGame.cityCostFactor)} • salários: {marketFactorText(baseGame.citySalaryFactor)}</span>
