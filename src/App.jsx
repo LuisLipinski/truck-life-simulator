@@ -277,6 +277,8 @@ function NewCareerPage() {
   const [currencyCode, setCurrencyCode] = useState('')
   const [city, setCity] = useState('')
   const [company, setCompany] = useState('')
+  const [defaultTruckMake, setDefaultTruckMake] = useState('')
+  const [defaultTruckModel, setDefaultTruckModel] = useState('')
   const [arrivalBalance, setArrivalBalance] = useState(0)
   const [bio, setBio] = useState('')
   const [costs, setCosts] = useState({})
@@ -372,6 +374,8 @@ function NewCareerPage() {
       cityMarketLabel: selectedGame.cityMarketLabel,
       cityCostFactor: selectedGame.cityCostFactor,
       citySalaryFactor: selectedGame.citySalaryFactor,
+      defaultTruckMake: defaultTruckMake.trim(),
+      defaultTruckModel: defaultTruckModel.trim(),
       arrivalBalance: Number(arrivalBalance) || 0, setupCosts: costs, setupCostsTotal: totalCosts,
       initialBalance: remaining, currentBalance: remaining, bio: bio.trim(),
     }, game.id)
@@ -419,6 +423,12 @@ function NewCareerPage() {
           <CityAutocomplete value={city} onChange={changeCity} label="Cidade-base" required cities={selectedGame.baseCities || []} disabled={!financialProfileReady} placeholder={selectedGame.cityPlaceholder} hint={financialProfileReady ? `${selectedGame.baseCities.length} cidades disponíveis em ${isEts2 ? selectedGame.countryName : `${selectedGame.stateName} (${selectedGame.stateCode})`}. ${cityMarketReady ? `${selectedGame.cityMarketLabel}: custos urbanos ${marketFactorText(selectedGame.cityCostFactor)} e salários ${marketFactorText(selectedGame.citySalaryFactor)}.` : 'Selecione uma cidade da lista para aplicar o mercado local; cidades de mod usam a referência da sede.'} As viagens continuam abrangendo todo o mapa.` : `Selecione o ${isEts2 ? 'país' : 'estado'}-sede para liberar as cidades-base.`} />
           <div><label>Nome da empresa</label><input value={company} onChange={(e) => setCompany(e.target.value)} placeholder={`Ex.: ${selectedGame.companyPlaceholder}`} required /></div>
         </div>
+
+        <div className="two-columns">
+          <div><label htmlFor="career-default-truck-make">Marca do caminhão padrão (opcional)</label><input id="career-default-truck-make" name="defaultTruckMake" value={defaultTruckMake} onChange={(event) => setDefaultTruckMake(event.target.value)} placeholder="Ex.: Volvo, Scania, Kenworth" /></div>
+          <div><label htmlFor="career-default-truck-model">Modelo do caminhão padrão (opcional)</label><input id="career-default-truck-model" name="defaultTruckModel" value={defaultTruckModel} onChange={(event) => setDefaultTruckModel(event.target.value)} placeholder="Ex.: VNL 860, S 770, T680" /></div>
+        </div>
+        <small>Se informar o caminhão agora, marca e modelo já aparecerão preenchidos em cada novo registro de viagem. Você ainda poderá usar outro caminhão em uma viagem específica.</small>
 
         <label>{selectedGame.arrivalLabel} ({selectedGame.currency})</label>
         <input type="number" min="0" step="0.01" value={arrivalBalance} disabled={!financialProfileReady} onChange={(e) => setArrivalBalance(e.target.value)} />
