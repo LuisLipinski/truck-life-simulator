@@ -14,10 +14,18 @@ function draftValue(draft, key, fallback = '') {
   return draft && draft[key] != null ? String(draft[key]) : fallback
 }
 
-export default function TripForm({ state, onAdd, onSaveDraft }) {
+function latestRecordedOdometerEnd(trips) {
+  const trip = [...(trips || [])].reverse().find((item) => item?.odometerEnd != null && String(item.odometerEnd).trim() !== '')
+  return trip ? String(trip.odometerEnd) : ''
+}
+
+export default function TripForm({ career, state, onAdd, onSaveDraft, onSaveDefaultTruck }) {
   const game = useGame()
   const toast = useToast()
   const draft = state.tripDraft || {}
+  const savedTruckMake = String(career?.defaultTruckMake || '')
+  const savedTruckModel = String(career?.defaultTruckModel || '')
+  const lastOdometerEnd = latestRecordedOdometerEnd(state.trips)
   const [departureDay, setDepartureDay] = useState(() => draftValue(draft, 'departureDay'))
   const [departureTime, setDepartureTime] = useState(() => draftValue(draft, 'departureTime'))
   const [arrivalDay, setArrivalDay] = useState(() => draftValue(draft, 'arrivalDay'))
@@ -31,9 +39,12 @@ export default function TripForm({ state, onAdd, onSaveDraft }) {
   const [payCategory, setPayCategory] = useState(() => draftValue(draft, 'payCategory', 'normal'))
   const [distance, setDistance] = useState(() => draftValue(draft, 'distance'))
   const [breakMinutes, setBreakMinutes] = useState(() => draftValue(draft, 'breakMinutes'))
-  const [truckMake, setTruckMake] = useState(() => draftValue(draft, 'truckMake'))
-  const [truckModel, setTruckModel] = useState(() => draftValue(draft, 'truckModel'))
-  const [odometerStart, setOdometerStart] = useState(() => draftValue(draft, 'odometerStart'))
+  const [truckMake, setTruckMake] = useState(() => draftValue(draft, 'truckMake', savedTruckMake))
+  const [truckModel, setTruckModel] = useState(() => draftValue(draft, 'truckModel', savedTruckModel))
+  const [keepTruckSaved, setKeepTruckSaved] = useState(() => draft.keepTruckSaved != null
+    ? Boolean(draft.keepTruckSaved)
+    : Boolean(savedTruckMake && savedTruckModel))
+  const [odometerStart, setOdometerStart] = useState(() => draftValue(draft, 'odometerStart', lastOdometerEnd))
   const [odometerEnd, setOdometerEnd] = useState(() => draftValue(draft, 'odometerEnd'))
 
   const categories = validPayCategories(state, game.id)
@@ -71,6 +82,7 @@ export default function TripForm({ state, onAdd, onSaveDraft }) {
       breakMinutes,
       truckMake,
       truckModel,
+      keepTruckSaved,
       odometerStart,
       odometerEnd,
       savedAt: new Date().toISOString(),
@@ -110,6 +122,13 @@ export default function TripForm({ state, onAdd, onSaveDraft }) {
       return
     }
 
+    const truckMakeValue = truckMake.trim()
+    const truckModelValue = truckModel.trim()
+    if (keepTruckSaved && (!truckMakeValue || !truckModelValue)) {
+      toast.error('Para manter o caminhão salvo, informe a marca e o modelo.')
+      return
+    }
+
     const hasOdometerStart = String(odometerStart).trim() !== ''
     const hasOdometerEnd = String(odometerEnd).trim() !== ''
     if (hasOdometerStart !== hasOdometerEnd) {
@@ -138,6 +157,8 @@ export default function TripForm({ state, onAdd, onSaveDraft }) {
       return
     }
 
+    if (keepTruckSaved) onSaveDefaultTruck({ truckMake: truckMakeValue, truckModel: truckModelValue })
+
     onAdd({
       id: Date.now(),
       week: state.currentWeek,
@@ -155,8 +176,8 @@ export default function TripForm({ state, onAdd, onSaveDraft }) {
       type,
       payCategory: effectiveCategory,
       source: 'MANUAL',
-      ...(truckMake.trim() ? { truckMake: truckMake.trim() } : {}),
-      ...(truckModel.trim() ? { truckModel: truckModel.trim() } : {}),
+      ...(truckMakeValue ? { truckMake: truckMakeValue } : {}),
+      ...(truckModelValue ? { truckModel: truckModelValue } : {}),
       ...(hasOdometerStart ? { odometerStart: Number(odometerStart), odometerEnd: Number(odometerEnd) } : {}),
       ...(game.id === 'ets2' ? { breakMinutes: Math.round(pauseValue) } : {}),
       [game.distanceField]: distanceValue,
@@ -174,9 +195,10 @@ export default function TripForm({ state, onAdd, onSaveDraft }) {
     setCargo('')
     setDistance('')
     setBreakMinutes('')
-    setTruckMake('')
-    setTruckModel('')
-    setOdometerStart('')
+    setTruckMake(keepTruckSaved ? truckMakeValue : savedTruckMake)
+    setTruckModel(keepTruckSaved ? truckModelValue : savedTruckModel)
+    setKeepTruckSaved(keepTruckSaved || Boolean(savedTruckMake && savedTruckModel))
+    setOdometerStart(hasOdometerEnd ? String(Number(odometerEnd)) : '')
     setOdometerEnd('')
   }
 
@@ -234,11 +256,15 @@ export default function TripForm({ state, onAdd, onSaveDraft }) {
         <div><label htmlFor="trip-truck-make">Marca do caminhão (opcional)</label><input id="trip-truck-make" name="truckMake" value={truckMake} onChange={(event) => setTruckMake(event.target.value)} placeholder="Ex.: Volvo, Scania, Kenworth" /></div>
         <div><label htmlFor="trip-truck-model">Modelo do caminhão (opcional)</label><input id="trip-truck-model" name="truckModel" value={truckModel} onChange={(event) => setTruckModel(event.target.value)} placeholder="Aceita modelos e caminhões de mods" /></div>
       </div>
+      <label className="tutorial-opt-in">
+        <input name="keepTruckSaved" type="checkbox" checked={keepTruckSaved} onChange={(event) => setKeepTruckSaved(event.target.checked)} />
+        <span><strong>Manter este caminhão salvo para as próximas viagens</strong><small>{savedTruckMake || savedTruckModel ? 'Desmarque se estiver usando outro caminhão apenas nesta viagem; o caminhão padrão atual continuará salvo.' : 'Ao enviar a viagem, marca e modelo passam a ser preenchidos automaticamente nos próximos registros.'}</small></span>
+      </label>
       <div className="two-columns">
         <div><label htmlFor="trip-odometer-start">Odômetro inicial ({game.distanceUnit}, opcional)</label><input id="trip-odometer-start" name="odometerStart" type="number" min="0" step="0.1" value={odometerStart} onChange={(event) => setOdometerStart(event.target.value)} /></div>
         <div><label htmlFor="trip-odometer-end">Odômetro final ({game.distanceUnit}, opcional)</label><input id="trip-odometer-end" name="odometerEnd" type="number" min="0" step="0.1" value={odometerEnd} onChange={(event) => setOdometerEnd(event.target.value)} /></div>
       </div>
-      <small className="trip-field-help">As duas leituras são usadas somente para conferência e futura telemetria. A distância informada acima continua sendo o valor oficial da viagem.</small>
+      <small className="trip-field-help">Quando você informar o odômetro final, essa leitura será usada automaticamente como odômetro inicial da próxima viagem. As leituras servem para conferência; a distância informada acima continua sendo o valor oficial da viagem.</small>
       {odometerDistance != null && <div className={`odometer-comparison${odometerDifference ? ' has-difference' : ''}`} role="status">
         <strong>Odômetro: {formatDistance(odometerDistance, game)}</strong>
         <span>{odometerDifference == null

@@ -273,7 +273,7 @@ function OverviewTab({ career, state, setActiveTab, onUpdateProfile, onChangeEmp
   )
 }
 
-function TripsTab({ state, onAddTrip, onSaveTripDraft, onDeleteTrip }) {
+function TripsTab({ career, state, onAddTrip, onSaveTripDraft, onSaveDefaultTruck, onDeleteTrip }) {
   const game = useGame()
   const weekTrips = currentWeekTrips(state)
   const allMiles = totalMiles(state)
@@ -293,7 +293,7 @@ function TripsTab({ state, onAddTrip, onSaveTripDraft, onDeleteTrip }) {
       <MileageChart trips={state.trips} />
 
       <div className="phase1-two-panel">
-        <TripForm state={state} onAdd={onAddTrip} onSaveDraft={onSaveTripDraft} />
+        <TripForm career={career} state={state} onAdd={onAddTrip} onSaveDraft={onSaveTripDraft} onSaveDefaultTruck={onSaveDefaultTruck} />
         <section className="panel pay-breakdown-panel">
           <span className="eyebrow">Resumo semanal</span>
           <h2>Pagamento por categoria</h2>
@@ -396,6 +396,13 @@ export default function Phase1Page({ careerId, onBack }) {
   function saveTripDraft(draft) {
     commit({ ...state, tripDraft: draft })
     toast.success('Rascunho da viagem salvo. Você pode fechar a aplicação e continuar depois.')
+  }
+
+  function saveDefaultTruck({ truckMake, truckModel }) {
+    updateCareer(career.id, {
+      defaultTruckMake: String(truckMake || '').trim(),
+      defaultTruckModel: String(truckModel || '').trim(),
+    }, game.id)
   }
 
   function addTrip(trip) {
@@ -524,7 +531,7 @@ export default function Phase1Page({ careerId, onBack }) {
         {activeTab === 'overview' && <OverviewTab career={career} state={state} setActiveTab={setActiveTab} onUpdateProfile={updateProfile} onChangeEmployer={changeEmployer} onChangeBase={changeBase} />}
         {activeTab === 'finances' && <FinancesTab state={state} commit={commit} />}
         {activeTab === 'payslip' && <PayslipTab career={career} state={state} commit={commit} />}
-        {activeTab === 'progress' && <TripsTab state={state} onAddTrip={addTrip} onSaveTripDraft={saveTripDraft} onDeleteTrip={deleteTrip} />}
+        {activeTab === 'progress' && <TripsTab career={career} state={state} onAddTrip={addTrip} onSaveTripDraft={saveTripDraft} onSaveDefaultTruck={saveDefaultTruck} onDeleteTrip={deleteTrip} />}
         {activeTab === 'incidents' && <IncidentsTab state={state} commit={commit} />}
         {activeTab === 'qualifications' && <QualificationsTab state={state} commit={commit} />}
         {activeTab === 'academy' && <AcademyGuideTab onOpenQualifications={() => goToTab('qualifications')} />}
