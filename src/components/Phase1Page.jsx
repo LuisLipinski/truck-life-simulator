@@ -13,21 +13,19 @@ import {
   payrollWeeks,
   perDiemDaysForTrips,
   savePhase1State,
-  suggestedTripBreakMinutes,
   tripBreakMinutes,
   tripDistance,
   tripOdometerDistance,
   tripVehicleLabel,
   totalMiles,
-  validPayCategories,
 } from '../lib/phase1.js'
+import { formatTripWeekMoment } from '../lib/tripWeek.js'
 import {
   CAREER_EVENT_TYPES,
   careerBaseSnapshot,
   createCareerEvent,
   preserveHistoricalCareerContext,
 } from '../lib/careerEvents.js'
-import CityAutocomplete from './CityAutocomplete.jsx'
 import { useGame } from './GameContext.jsx'
 import { useConfirm } from './ConfirmProvider.jsx'
 import { useTutorial } from './GuidedTutorial.jsx'
@@ -42,6 +40,7 @@ import HistoryTab from './phase1/HistoryTab.jsx'
 import AcademyGuideTab from './phase1/AcademyGuideTab.jsx'
 import MileageChart from './phase1/MileageChart.jsx'
 import CareerManagementPanel from './phase1/CareerManagementPanel.jsx'
+import TripForm from './phase1/TripForm.jsx'
 
 const TAB_HELP = {
   overview: {
@@ -274,163 +273,7 @@ function OverviewTab({ career, state, setActiveTab, onUpdateProfile, onChangeEmp
   )
 }
 
-function TripForm({ state, onAdd }) {
-  const game = useGame()
-  const toast = useToast()
-  const [departureAt, setDepartureAt] = useState('')
-  const [arrivalAt, setArrivalAt] = useState('')
-  const [origin, setOrigin] = useState('')
-  const [originCompany, setOriginCompany] = useState('')
-  const [destination, setDestination] = useState('')
-  const [destinationCompany, setDestinationCompany] = useState('')
-  const [cargo, setCargo] = useState('')
-  const [type, setType] = useState('Loaded')
-  const [payCategory, setPayCategory] = useState('normal')
-  const [distance, setDistance] = useState('')
-  const [breakMinutes, setBreakMinutes] = useState('')
-  const [truckMake, setTruckMake] = useState('')
-  const [truckModel, setTruckModel] = useState('')
-  const [odometerStart, setOdometerStart] = useState('')
-  const [odometerEnd, setOdometerEnd] = useState('')
-
-  const categories = validPayCategories(state, game.id)
-  const effectiveCategory = type === 'Deadhead' ? 'deadhead' : (categories.includes(payCategory) ? payCategory : 'normal')
-  const breakSuggestion = suggestedTripBreakMinutes({ departureAt, arrivalAt }, game)
-  const odometerDistance = tripOdometerDistance({ odometerStart, odometerEnd })
-  const officialDistance = Number(distance)
-  const odometerDifference = odometerDistance == null || !Number.isFinite(officialDistance) || officialDistance <= 0
-    ? null
-    : Math.round((odometerDistance - officialDistance) * 100) / 100
-
-  function submit(event) {
-    event.preventDefault()
-    const distanceValue = Number(distance)
-    const start = new Date(departureAt)
-    const end = new Date(arrivalAt)
-    if (!departureAt || !arrivalAt || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
-      toast.error('Informe saída e chegada válidas. A chegada precisa ser posterior à saída.')
-      return
-    }
-    if (!origin.trim() || !destination.trim()) {
-      toast.error('Informe cidade de origem e destino.')
-      return
-    }
-    if (!Number.isFinite(distanceValue) || distanceValue <= 0) {
-      toast.error(`Informe uma distância válida em ${game.distanceName}.`)
-      return
-    }
-    const hasOdometerStart = String(odometerStart).trim() !== ''
-    const hasOdometerEnd = String(odometerEnd).trim() !== ''
-    if (hasOdometerStart !== hasOdometerEnd) {
-      toast.error('Para comparar o odômetro, informe as leituras inicial e final.')
-      return
-    }
-    if (hasOdometerStart) {
-      const startValue = Number(odometerStart)
-      const endValue = Number(odometerEnd)
-      if (!Number.isFinite(startValue) || !Number.isFinite(endValue) || startValue < 0 || endValue < 0) {
-        toast.error('As leituras do odômetro precisam ser números maiores ou iguais a zero.')
-        return
-      }
-      if (endValue < startValue) {
-        toast.error('A leitura final do odômetro não pode ser menor que a inicial.')
-        return
-      }
-    }
-    const elapsedMinutes = Math.round((end - start) / 60000)
-    const pauseValue = game.id === 'ets2' && breakMinutes === ''
-      ? breakSuggestion
-      : Math.max(0, Number(breakMinutes) || 0)
-    if (!Number.isFinite(pauseValue) || pauseValue >= elapsedMinutes) {
-      toast.error('A pausa precisa ser menor que o tempo total entre a saída e a chegada.')
-      return
-    }
-
-    onAdd({
-      id: Date.now(),
-      week: state.currentWeek,
-      departureAt,
-      arrivalAt,
-      origin: origin.trim(),
-      originCompany: originCompany.trim(),
-      destination: destination.trim(),
-      destinationCompany: destinationCompany.trim(),
-      cargo: type === 'Deadhead' ? '' : cargo.trim(),
-      type,
-      payCategory: effectiveCategory,
-      source: 'MANUAL',
-      ...(truckMake.trim() ? { truckMake: truckMake.trim() } : {}),
-      ...(truckModel.trim() ? { truckModel: truckModel.trim() } : {}),
-      ...(hasOdometerStart ? { odometerStart: Number(odometerStart), odometerEnd: Number(odometerEnd) } : {}),
-      ...(game.id === 'ets2' ? { breakMinutes: Math.round(pauseValue) } : {}),
-      [game.distanceField]: distanceValue,
-      createdAt: new Date().toISOString(),
-    })
-
-    setOrigin('')
-    setOriginCompany('')
-    setDestination('')
-    setDestinationCompany('')
-    setCargo('')
-    setDistance('')
-    setBreakMinutes('')
-    setTruckMake('')
-    setTruckModel('')
-    setOdometerStart('')
-    setOdometerEnd('')
-  }
-
-  return (
-    <form className="panel trip-form" data-tour="trip-form" onSubmit={submit}>
-      <div className="section-heading compact-heading"><span className="eyebrow">Semana {state.currentWeek}</span><h2>Registrar viagem</h2><p>As viagens usam o mesmo formato dos backups existentes.</p></div>
-      <div className="two-columns">
-        <div><label>Data e horário de saída</label><input type="datetime-local" value={departureAt} onChange={(e) => setDepartureAt(e.target.value)} required /></div>
-        <div><label>Data e horário de chegada</label><input type="datetime-local" value={arrivalAt} onChange={(e) => setArrivalAt(e.target.value)} required /></div>
-      </div>
-      <div className="two-columns">
-        <CityAutocomplete value={origin} onChange={setOrigin} label="Cidade de origem" required />
-        <div><label>Filial / empresa de origem</label><input value={originCompany} onChange={(e) => setOriginCompany(e.target.value)} placeholder={`Ex.: ${game.companyPlaceholder}`} /></div>
-      </div>
-      <div className="two-columns">
-        <CityAutocomplete value={destination} onChange={setDestination} label="Cidade de destino" required />
-        <div><label>Empresa de destino</label><input value={destinationCompany} onChange={(e) => setDestinationCompany(e.target.value)} placeholder="Cliente ou filial" /></div>
-      </div>
-      <div className="two-columns">
-        <div><label>Tipo</label><select value={type} onChange={(e) => setType(e.target.value)}><option value="Loaded">{game.tripTypes.loaded}</option><option value="Deadhead">{game.tripTypes.deadhead}</option></select></div>
-        <div><label>Categoria de pagamento</label><select value={effectiveCategory} disabled={type === 'Deadhead' || state.currentLevel <= 1} onChange={(e) => setPayCategory(e.target.value)}>{(type === 'Deadhead' ? ['deadhead'] : categories).map((category) => <option value={category} key={category}>{game.payLabels[category]} — {formatMoney(game.payRates[category], game)}/{game.distanceUnit}</option>)}</select></div>
-      </div>
-      <div className="two-columns">
-        <div><label>Carga</label><input value={cargo} disabled={type === 'Deadhead'} onChange={(e) => setCargo(e.target.value)} placeholder={type === 'Deadhead' ? 'Viagem vazia' : 'Ex.: alimentos, equipamentos'} /></div>
-        <div><label>{game.distanceName[0].toUpperCase() + game.distanceName.slice(1)}</label><input type="number" min="1" step="1" value={distance} onChange={(e) => setDistance(e.target.value)} required /></div>
-      </div>
-      <div className="two-columns">
-        <div><label htmlFor="trip-truck-make">Marca do caminhão (opcional)</label><input id="trip-truck-make" name="truckMake" value={truckMake} onChange={(e) => setTruckMake(e.target.value)} placeholder="Ex.: Volvo, Scania, Kenworth" /></div>
-        <div><label htmlFor="trip-truck-model">Modelo do caminhão (opcional)</label><input id="trip-truck-model" name="truckModel" value={truckModel} onChange={(e) => setTruckModel(e.target.value)} placeholder="Aceita modelos e caminhões de mods" /></div>
-      </div>
-      <div className="two-columns">
-        <div><label htmlFor="trip-odometer-start">Odômetro inicial ({game.distanceUnit}, opcional)</label><input id="trip-odometer-start" name="odometerStart" type="number" min="0" step="0.1" value={odometerStart} onChange={(e) => setOdometerStart(e.target.value)} /></div>
-        <div><label htmlFor="trip-odometer-end">Odômetro final ({game.distanceUnit}, opcional)</label><input id="trip-odometer-end" name="odometerEnd" type="number" min="0" step="0.1" value={odometerEnd} onChange={(e) => setOdometerEnd(e.target.value)} /></div>
-      </div>
-      <small className="trip-field-help">As duas leituras são usadas somente para conferência e futura telemetria. A distância informada acima continua sendo o valor oficial da viagem.</small>
-      {odometerDistance != null && <div className={`odometer-comparison${odometerDifference ? ' has-difference' : ''}`} role="status">
-        <strong>Odômetro: {formatDistance(odometerDistance, game)}</strong>
-        <span>{odometerDifference == null
-          ? 'Preencha a distância oficial para concluir a comparação.'
-          : odometerDifference === 0
-            ? 'A leitura coincide com a distância oficial informada.'
-            : `${formatDistance(Math.abs(odometerDifference), game)} ${odometerDifference > 0 ? 'acima' : 'abaixo'} da distância oficial. Nenhum valor foi substituído.`}</span>
-      </div>}
-      {game.id === 'ets2' && <div>
-        <label>Pausa não trabalhada dentro da viagem (minutos)</label>
-        <input type="number" min="0" step="15" value={breakMinutes} onChange={(e) => setBreakMinutes(e.target.value)} placeholder={String(breakSuggestion)} />
-        <small>Deixe vazio para aplicar a sugestão de {breakSuggestion} min conforme a duração registrada. Ajuste se a pausa real foi diferente. Intervalos entre duas viagens já ficam fora das horas trabalhadas.</small>
-      </div>}
-      <button className="button primary submit-button" type="submit">Registrar viagem</button>
-    </form>
-  )
-}
-
-function TripsTab({ state, onAddTrip, onDeleteTrip }) {
+function TripsTab({ state, onAddTrip, onSaveTripDraft, onDeleteTrip }) {
   const game = useGame()
   const weekTrips = currentWeekTrips(state)
   const allMiles = totalMiles(state)
@@ -450,7 +293,7 @@ function TripsTab({ state, onAddTrip, onDeleteTrip }) {
       <MileageChart trips={state.trips} />
 
       <div className="phase1-two-panel">
-        <TripForm state={state} onAdd={onAddTrip} />
+        <TripForm state={state} onAdd={onAddTrip} onSaveDraft={onSaveTripDraft} />
         <section className="panel pay-breakdown-panel">
           <span className="eyebrow">Resumo semanal</span>
           <h2>Pagamento por categoria</h2>
@@ -460,7 +303,7 @@ function TripsTab({ state, onAddTrip, onDeleteTrip }) {
               <div className="breakdown-total"><span>Total bruto por {game.distanceUnit}</span><strong>{formatMoney(pay.gross, game)}</strong></div>
             </div>
           )}
-          <div className="notice-box"><strong>{game.perDiemLabel}</strong><span>{state.currentLevel <= 1 ? 'Não se aplica ao motorista local do Nível 1.' : perDiem.days ? `${perDiem.days} dia(s) qualificável(is): ${perDiem.dates.join(', ')}` : 'Nenhuma viagem com pernoite qualificável nesta semana.'}</span></div>
+          <div className="notice-box"><strong>{game.perDiemLabel}</strong><span>{state.currentLevel <= 1 ? 'Não se aplica ao motorista local do Nível 1.' : perDiem.days ? `${perDiem.days} dia(s) qualificável(is) nesta semana.` : 'Nenhuma viagem com pernoite qualificável nesta semana.'}</span></div>
         </section>
       </div>
 
@@ -469,7 +312,9 @@ function TripsTab({ state, onAddTrip, onDeleteTrip }) {
         {state.trips.length === 0 ? <div className="empty-inline">Nenhuma viagem registrada.</div> : (
           <div className="responsive-table"><table><thead><tr><th>Semana</th><th>Saída</th><th>Chegada</th><th>Rota</th><th>Caminhão / odômetro</th><th>Tipo</th><th>Categoria</th><th>{game.distanceName}</th>{game.id === 'ets2' && <th>Pausa</th>}<th></th></tr></thead><tbody>{[...state.trips].reverse().map((trip) => {
             const recordedOdometerDistance = tripOdometerDistance(trip)
-            return <tr key={trip.id}><td>{trip.week || 1}</td><td>{formatDateTime(trip.departureAt)}</td><td>{formatDateTime(trip.arrivalAt)}</td><td><strong>{trip.origin || '—'} → {trip.destination || '—'}</strong><small>{trip.cargo ? `Carga: ${trip.cargo}` : trip.type === 'Deadhead' ? 'Viagem vazia' : ''}</small>{trip.employer && <small>Empregador: {trip.employer}</small>}{trip.baseSnapshot?.city && <small>Base: {trip.baseSnapshot.city}</small>}</td><td><strong>{tripVehicleLabel(trip) || 'Não informado'}</strong>{recordedOdometerDistance == null ? <small>Odômetro não informado</small> : <small>{formatNumber(trip.odometerStart, game)} → {formatNumber(trip.odometerEnd, game)} {game.distanceUnit} · percorrido: {formatDistance(recordedOdometerDistance, game)}</small>}<small>Origem: {tripSourceLabel(trip.source)}</small></td><td>{trip.type === 'Deadhead' ? game.tripTypes.deadhead : game.tripTypes.loaded}</td><td>{game.payLabels[trip.type === 'Deadhead' ? 'deadhead' : (trip.payCategory || 'normal')]}</td><td>{formatDistance(tripDistance(trip), game)}</td>{game.id === 'ets2' && <td>{tripBreakMinutes(trip, game)} min</td>}<td><button className="table-delete" onClick={() => onDeleteTrip(trip)}>Excluir</button></td></tr>
+            const departureMoment = formatTripWeekMoment(trip.departureDay, trip.departureTime) || formatDateTime(trip.departureAt)
+            const arrivalMoment = formatTripWeekMoment(trip.arrivalDay, trip.arrivalTime) || formatDateTime(trip.arrivalAt)
+            return <tr key={trip.id}><td>{trip.week || 1}</td><td>{departureMoment}</td><td>{arrivalMoment}</td><td><strong>{trip.origin || '—'} → {trip.destination || '—'}</strong><small>{trip.cargo ? `Carga: ${trip.cargo}` : trip.type === 'Deadhead' ? 'Viagem vazia' : ''}</small>{trip.employer && <small>Empregador: {trip.employer}</small>}{trip.baseSnapshot?.city && <small>Base: {trip.baseSnapshot.city}</small>}</td><td><strong>{tripVehicleLabel(trip) || 'Não informado'}</strong>{recordedOdometerDistance == null ? <small>Odômetro não informado</small> : <small>{formatNumber(trip.odometerStart, game)} → {formatNumber(trip.odometerEnd, game)} {game.distanceUnit} · percorrido: {formatDistance(recordedOdometerDistance, game)}</small>}<small>Origem: {tripSourceLabel(trip.source)}</small></td><td>{trip.type === 'Deadhead' ? game.tripTypes.deadhead : game.tripTypes.loaded}</td><td>{game.payLabels[trip.type === 'Deadhead' ? 'deadhead' : (trip.payCategory || 'normal')]}</td><td>{formatDistance(tripDistance(trip), game)}</td>{game.id === 'ets2' && <td>{tripBreakMinutes(trip, game)} min</td>}<td><button className="table-delete" onClick={() => onDeleteTrip(trip)}>Excluir</button></td></tr>
           } )}</tbody></table></div>
         )}
       </section>
@@ -548,6 +393,11 @@ export default function Phase1Page({ careerId, onBack }) {
     savePhase1State(career.id, normalized, game.id)
   }
 
+  function saveTripDraft(draft) {
+    commit({ ...state, tripDraft: draft })
+    toast.success('Rascunho da viagem salvo. Você pode fechar a aplicação e continuar depois.')
+  }
+
   function addTrip(trip) {
     const beforeDistance = totalMiles(state)
     const addedDistance = tripDistance(trip)
@@ -557,7 +407,7 @@ export default function Phase1Page({ careerId, onBack }) {
       employer: career.company || '',
       baseSnapshot: careerBaseSnapshot(career),
     }
-    commit({ ...state, trips: [...state.trips, contextualTrip] })
+    commit({ ...state, tripDraft: null, trips: [...state.trips, contextualTrip] })
     toast.success(`Viagem registrada: ${formatDistance(addedDistance, game)} adicionados à carreira.`)
 
     const milestones = promotionMilestones(game)
@@ -674,7 +524,7 @@ export default function Phase1Page({ careerId, onBack }) {
         {activeTab === 'overview' && <OverviewTab career={career} state={state} setActiveTab={setActiveTab} onUpdateProfile={updateProfile} onChangeEmployer={changeEmployer} onChangeBase={changeBase} />}
         {activeTab === 'finances' && <FinancesTab state={state} commit={commit} />}
         {activeTab === 'payslip' && <PayslipTab career={career} state={state} commit={commit} />}
-        {activeTab === 'progress' && <TripsTab state={state} onAddTrip={addTrip} onDeleteTrip={deleteTrip} />}
+        {activeTab === 'progress' && <TripsTab state={state} onAddTrip={addTrip} onSaveTripDraft={saveTripDraft} onDeleteTrip={deleteTrip} />}
         {activeTab === 'incidents' && <IncidentsTab state={state} commit={commit} />}
         {activeTab === 'qualifications' && <QualificationsTab state={state} commit={commit} />}
         {activeTab === 'academy' && <AcademyGuideTab onOpenQualifications={() => goToTab('qualifications')} />}
