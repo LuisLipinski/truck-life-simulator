@@ -20,6 +20,9 @@ import {
   totalMiles,
 } from '../lib/phase1.js'
 import { formatTripWeekMoment } from '../lib/tripWeek.js'
+import { ApiProblemError } from '../lib/authApi.js'
+import { tripApi } from '../lib/tripApi.js'
+import { markServerCareerTripsUnavailable, setServerCareerTrips, serverTripToPhase1Trip } from '../lib/careerServerState.js'
 import {
   CAREER_EVENT_TYPES,
   careerBaseSnapshot,
@@ -283,6 +286,7 @@ function TripsTab({ career, state, onAddTrip, onSaveTripDraft, onSaveDefaultTruc
 
   return (
     <>
+      {career.serverBacked && <section className="notice-box" role="status"><strong>Viagens conectadas ao servidor</strong><span>O histórico abaixo vem da sua carreira server-side. Novas viagens e exclusões da semana aberta são gravadas somente no backend; o backup local anterior não recebe esses writes.</span></section>}
       <section className="phase1-status-grid progress-summary-grid" data-tour="trip-summary">
         <MetricCard label={`${game.distanceName[0].toUpperCase() + game.distanceName.slice(1)} da semana`} value={formatDistance(weekMiles, game)} detail={`Semana ${state.currentWeek}`} />
         <MetricCard label={`${game.distanceName[0].toUpperCase() + game.distanceName.slice(1)} na carreira`} value={formatDistance(allMiles, game)} detail={`Nível ${state.currentLevel}`} />
@@ -386,6 +390,10 @@ export default function Phase1Page({ careerId, onBack }) {
   }, [activeStep?.id, activeStep?.route, activeStep?.tab])
 
   if (!career) return <main className="page-shell"><div className="empty-state"><h2>Carreira não encontrada</h2><button className="button primary compact" onClick={onBack}>Voltar</button></div></main>
+  if (career.serverBacked && career.serverTripsStatus !== 'ready') {
+    const failed = career.serverTripsStatus === 'error'
+    return <main className="page-shell"><div className="empty-state"><h2>{failed ? 'Não foi possível carregar as viagens do servidor' : 'Carregando viagens da carreira'}</h2><p>{failed ? 'Para proteger sua carreira, os dados locais antigos não serão usados como substitutos das viagens server-side. Recarregue a aplicação para tentar novamente.' : 'Aguarde a sincronização da carreira server-side antes de continuar o gameplay.'}</p>{failed && <button className="button primary compact" onClick={() => window.location.reload()}>Tentar novamente</button>}</div></main>
+  }
 
   function commit(nextState) {
     const normalized = { ...nextState, currentLevel: Number(nextState.currentLevel || nextState.careerLevel || 1), careerLevel: Number(nextState.currentLevel || nextState.careerLevel || 1) }
@@ -405,23 +413,62 @@ export default function Phase1Page({ careerId, onBack }) {
     }, game.id)
   }
 
-  function addTrip(trip) {
-    const beforeDistance = totalMiles(state)
-    const addedDistance = tripDistance(trip)
-    const afterDistance = beforeDistance + addedDistance
-    const contextualTrip = {
-      ...trip,
-      employer: career.company || '',
-      baseSnapshot: careerBaseSnapshot(career),
-    }
-    commit({ ...state, tripDraft: null, trips: [...state.trips, contextualTrip] })
-    toast.success(`Viagem registrada: ${formatDistance(addedDistance, game)} adicionados à carreira.`)
-
+  function handleMilestone(beforeDistance, afterDistance) {
     const milestones = promotionMilestones(game)
     if (state.currentLevel === 1 && beforeDistance < game.promotionGoals[0] && afterDistance >= game.promotionGoals[0]) {
       setPromotionMilestone(milestones[2])
     } else if (state.currentLevel === 2 && beforeDistance < game.promotionGoals[1] && afterDistance >= game.promotionGoals[1]) {
       setPromotionMilestone(milestones[3])
+    }
+  }
+
+  async function refreshServerTrips() {
+    const trips = await tripApi.list(game.id, career.serverCareerId)
+    setServerCareerTrips(game.id, career.id, trips)
+    const refreshed = loadPhase1State(career.id, game.id)
+    setState(refreshed)
+    return refreshed
+  }
+
+  async function addTrip(trip) {
+    const beforeDistance = totalMiles(state)
+    const addedDistance = tripDistance(trip)
+
+    if (!career.serverBacked) {
+      const afterDistance = beforeDistance + addedDistance
+      const contextualTrip = {
+        ...trip,
+        employer: career.company || '',
+        baseSnapshot: careerBaseSnapshot(career),
+      }
+      commit({ ...state, tripDraft: null, trips: [...state.trips, contextualTrip] })
+      toast.success(`Viagem registrada: ${formatDistance(addedDistance, game)} adicionados à carreira.`)
+      handleMilestone(beforeDistance, afterDistance)
+      return true
+    }
+
+    try {
+      const created = await tripApi.create(game.id, career.serverCareerId, trip)
+      try {
+        const refreshed = await refreshServerTrips()
+        const withoutDraft = { ...refreshed, tripDraft: null }
+        setState(withoutDraft)
+        savePhase1State(career.id, withoutDraft, game.id)
+        const afterDistance = totalMiles(refreshed)
+        toast.success(`Viagem registrada no servidor: ${formatDistance(tripDistance(serverTripToPhase1Trip(created, game.id)), game)} adicionados à carreira.`)
+        handleMilestone(beforeDistance, afterDistance)
+      } catch {
+        markServerCareerTripsUnavailable(game.id, career.id)
+        const createdTrip = serverTripToPhase1Trip(created, game.id)
+        const visibleState = { ...state, tripDraft: null, trips: [...state.trips, createdTrip] }
+        setState(visibleState)
+        savePhase1State(career.id, visibleState, game.id)
+        toast.info('A viagem foi salva no servidor, mas a lista não pôde ser recarregada agora. Recarregue a aplicação antes de continuar.')
+      }
+      return true
+    } catch (error) {
+      toast.error(error?.message || 'Não foi possível registrar a viagem no servidor.', { title: 'Viagem não registrada' })
+      return false
     }
   }
 
@@ -481,11 +528,17 @@ export default function Phase1Page({ careerId, onBack }) {
   }
 
   async function deleteTrip(trip) {
-    const weekClosed = isTripWeekLocked(state, trip.week, game)
-    if (weekClosed) {
-      toast.error('Esta viagem pertence a uma semana já fechada e não pode ser excluída.')
+    if (!career.serverBacked) {
+      const weekClosed = isTripWeekLocked(state, trip.week, game)
+      if (weekClosed) {
+        toast.error('Esta viagem pertence a uma semana já fechada e não pode ser excluída.')
+        return
+      }
+    } else if (Number(trip.week || 1) !== Number(career.currentOperationalWeek || state.currentWeek || 1)) {
+      toast.error('Esta viagem pertence a uma semana operacional já encerrada e não pode ser excluída.')
       return
     }
+
     const confirmed = await confirm({
       title: 'Excluir viagem?',
       message: `O trecho ${trip.origin || 'Origem não informada'} → ${trip.destination || 'Destino não informado'} será removido do registro da carreira.`,
@@ -493,8 +546,25 @@ export default function Phase1Page({ careerId, onBack }) {
       tone: 'danger',
     })
     if (!confirmed) return
-    commit({ ...state, trips: state.trips.filter((item) => Number(item.id) !== Number(trip.id)) })
-    toast.success('Viagem excluída com sucesso.')
+
+    if (!career.serverBacked) {
+      commit({ ...state, trips: state.trips.filter((item) => Number(item.id) !== Number(trip.id)) })
+      toast.success('Viagem excluída com sucesso.')
+      return
+    }
+
+    try {
+      await tripApi.delete(game.id, career.serverCareerId, trip.serverTripId || trip.id)
+      await refreshServerTrips()
+      toast.success('Viagem excluída do servidor com sucesso.')
+    } catch (error) {
+      if (error instanceof ApiProblemError && error.code === 'TRIP_WEEK_LOCKED') {
+        toast.error('A semana dessa viagem foi encerrada no servidor e não permite mais exclusão.')
+        try { await refreshServerTrips() } catch { /* mantém a mensagem principal */ }
+        return
+      }
+      toast.error(error?.message || 'Não foi possível excluir a viagem no servidor.', { title: 'Exclusão não concluída' })
+    }
   }
 
   return (
@@ -530,7 +600,7 @@ export default function Phase1Page({ careerId, onBack }) {
         <TabIntro tabId={activeTab} />
         {activeTab === 'overview' && <OverviewTab career={career} state={state} setActiveTab={setActiveTab} onUpdateProfile={updateProfile} onChangeEmployer={changeEmployer} onChangeBase={changeBase} />}
         {activeTab === 'finances' && <FinancesTab state={state} commit={commit} />}
-        {activeTab === 'payslip' && <PayslipTab career={career} state={state} commit={commit} />}
+        {activeTab === 'payslip' && <PayslipTab career={career} state={state} commit={commit} serverTripsActive={career.serverBacked && career.serverTripsStatus === 'ready'} />}
         {activeTab === 'progress' && <TripsTab career={career} state={state} onAddTrip={addTrip} onSaveTripDraft={saveTripDraft} onSaveDefaultTruck={saveDefaultTruck} onDeleteTrip={deleteTrip} />}
         {activeTab === 'incidents' && <IncidentsTab state={state} commit={commit} />}
         {activeTab === 'qualifications' && <QualificationsTab state={state} commit={commit} />}
