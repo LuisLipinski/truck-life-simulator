@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react'
+import { Fragment, useCallback, useEffect, useState } from 'react'
 import { careerApi } from '../../lib/careerApi.js'
 import {
   CAREER_IMPORT_ASSOCIATION_UPDATED_EVENT,
@@ -16,10 +16,12 @@ import { useAuth } from './AuthProvider.jsx'
 
 export default function CareerServerProvider({ children }) {
   const auth = useAuth()
+  const [revision, setRevision] = useState(0)
 
   const sync = useCallback(async () => {
     if (!auth.isAuthenticated || !auth.user?.id) {
       clearServerCareerState()
+      setRevision((value) => value + 1)
       return
     }
 
@@ -36,13 +38,14 @@ export default function CareerServerProvider({ children }) {
           const events = await careerApi.events(association.gameId, association.serverCareerId)
           setServerCareerEvents(association.gameId, association.sourceCareerId, events)
         } catch {
-          setServerCareerEvents(association.gameId, association.sourceCareerId, [])
+          // O perfil server-side continua válido; o histórico será tentado novamente no próximo sync.
         }
       } catch {
         markServerCareerUnavailable(association.gameId, association.sourceCareerId)
       }
     }))
 
+    setRevision((value) => value + 1)
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent(CAREER_UPDATED_EVENT, { detail: { source: 'server-sync' } }))
     }
@@ -61,5 +64,5 @@ export default function CareerServerProvider({ children }) {
     return () => window.removeEventListener(CAREER_IMPORT_ASSOCIATION_UPDATED_EVENT, onAssociationUpdated)
   }, [auth.user?.id, sync])
 
-  return children
+  return <Fragment key={revision}>{children}</Fragment>
 }
