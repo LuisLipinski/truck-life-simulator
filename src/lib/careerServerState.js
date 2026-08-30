@@ -41,8 +41,9 @@ export function replaceServerCareerBindings(records = []) {
     }
     next.set(cacheKey(binding.gameId, binding.sourceCareerId), binding)
   }
-  for (const existingKey of bindings.keys()) {
-    if (!next.has(existingKey)) snapshots.delete(existingKey)
+  for (const [existingKey, existingBinding] of bindings) {
+    const nextBinding = next.get(existingKey)
+    if (!nextBinding || nextBinding.serverCareerId !== existingBinding.serverCareerId) snapshots.delete(existingKey)
   }
   bindings.clear()
   for (const [key, value] of next) bindings.set(key, value)
