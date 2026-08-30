@@ -3,20 +3,23 @@
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ApiProblemError } from '../../lib/authApi.js'
 import { phase1StorageKey } from '../../lib/phase1.js'
 import { getCareerImportRecord } from '../../lib/careerMigration.js'
 import { careersStorageKey, saveCareers } from '../../lib/storage.js'
 import CareerMigrationPanel from './CareerMigrationPanel.jsx'
 
-const { validateMock, importMock } = vi.hoisted(() => ({
+const { validateMock, importMock, recoverMock } = vi.hoisted(() => ({
   validateMock: vi.fn(),
   importMock: vi.fn(),
+  recoverMock: vi.fn(),
 }))
 
 vi.mock('../../lib/careerImportApi.js', () => ({
   careerImportApi: {
     validate: validateMock,
     importCareer: importMock,
+    recover: recoverMock,
   },
 }))
 
@@ -52,6 +55,7 @@ beforeEach(() => {
   localStorage.clear()
   validateMock.mockReset()
   importMock.mockReset()
+  recoverMock.mockReset()
   saveCareers([localCareer()], 'ats')
   localStorage.setItem(phase1StorageKey('ats-local-panel', 'ats'), JSON.stringify({
     balance: 2500,
@@ -84,6 +88,7 @@ describe('CareerMigrationPanel', () => {
     expect(container.textContent).toContain('Nenhum dado foi enviado ao backend')
     expect(validateMock).not.toHaveBeenCalled()
     expect(importMock).not.toHaveBeenCalled()
+    expect(recoverMock).not.toHaveBeenCalled()
 
     validateMock.mockResolvedValue({
       valid: true,
@@ -129,5 +134,54 @@ describe('CareerMigrationPanel', () => {
     expect(localStorage.getItem(phase1StorageKey('ats-local-panel', 'ats'))).toContain('2500')
     expect(container.textContent).toContain('Já associadas a esta conta')
     expect(container.textContent).toContain('Backup local preservado')
+  })
+
+  it('recovers a lost local association without validating or importing the snapshot again', async () => {
+    recoverMock.mockResolvedValue({
+      operationId: '33333333-3333-4333-8333-333333333333',
+      sourceCareerId: 'ats-local-panel',
+      game: 'ATS',
+      sourceVersion: 12,
+      careerId: 'server-career-recovered',
+      persisted: true,
+      idempotentReplay: true,
+      summary: { driverName: 'Driver Migration' },
+    })
+
+    await click('.career-migration-recover')
+
+    expect(recoverMock).toHaveBeenCalledTimes(1)
+    expect(recoverMock).toHaveBeenCalledWith('ats', 'ats-local-panel')
+    expect(validateMock).not.toHaveBeenCalled()
+    expect(importMock).not.toHaveBeenCalled()
+    expect(getCareerImportRecord('user-panel', 'ats', 'ats-local-panel')).toMatchObject({
+      operationId: '33333333-3333-4333-8333-333333333333',
+      serverCareerId: 'server-career-recovered',
+      status: 'COMPLETED',
+      recoveredAt: expect.any(String),
+    })
+    expect(localStorage.getItem(careersStorageKey('ats'))).toContain('ats-local-panel')
+    expect(localStorage.getItem(phase1StorageKey('ats-local-panel', 'ats'))).toContain('2500')
+    expect(container.textContent).toContain('Vínculo recuperado')
+    expect(container.textContent).toContain('Backup local preservado')
+  })
+
+  it('keeps the career pending when recovery returns 404 and never starts an import automatically', async () => {
+    recoverMock.mockRejectedValue(new ApiProblemError('Association not found', {
+      status: 404,
+      code: 'CAREER_IMPORT_NOT_FOUND',
+    }))
+
+    await click('.career-migration-recover')
+
+    expect(recoverMock).toHaveBeenCalledWith('ats', 'ats-local-panel')
+    expect(validateMock).not.toHaveBeenCalled()
+    expect(importMock).not.toHaveBeenCalled()
+    expect(getCareerImportRecord('user-panel', 'ats', 'ats-local-panel')).toBeNull()
+    expect(container.textContent).toContain('Vínculo não encontrado')
+    expect(container.textContent).toContain('Nada foi importado ou alterado')
+    expect(container.querySelector('.career-migration-validate')).not.toBeNull()
+    expect(localStorage.getItem(careersStorageKey('ats'))).toContain('ats-local-panel')
+    expect(localStorage.getItem(phase1StorageKey('ats-local-panel', 'ats'))).toContain('2500')
   })
 })
