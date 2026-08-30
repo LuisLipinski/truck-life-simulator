@@ -46,6 +46,7 @@ export default function TripForm({ career, state, onAdd, onSaveDraft, onSaveDefa
     : Boolean(savedTruckMake && savedTruckModel))
   const [odometerStart, setOdometerStart] = useState(() => draftValue(draft, 'odometerStart', lastOdometerEnd))
   const [odometerEnd, setOdometerEnd] = useState(() => draftValue(draft, 'odometerEnd'))
+  const [submitting, setSubmitting] = useState(false)
 
   const categories = validPayCategories(state, game.id)
   const effectiveCategory = type === 'Deadhead' ? 'deadhead' : (categories.includes(payCategory) ? payCategory : 'normal')
@@ -90,11 +91,13 @@ export default function TripForm({ career, state, onAdd, onSaveDraft, onSaveDefa
   }
 
   function saveDraft() {
+    if (submitting) return
     onSaveDraft(currentDraft())
   }
 
-  function submit(event) {
+  async function submit(event) {
     event.preventDefault()
+    if (submitting) return
 
     let schedule
     try {
@@ -157,9 +160,7 @@ export default function TripForm({ career, state, onAdd, onSaveDraft, onSaveDefa
       return
     }
 
-    if (keepTruckSaved) onSaveDefaultTruck({ truckMake: truckMakeValue, truckModel: truckModelValue })
-
-    onAdd({
+    const trip = {
       id: Date.now(),
       week: state.currentWeek,
       departureDay,
@@ -182,7 +183,17 @@ export default function TripForm({ career, state, onAdd, onSaveDraft, onSaveDefa
       ...(game.id === 'ets2' ? { breakMinutes: Math.round(pauseValue) } : {}),
       [game.distanceField]: distanceValue,
       createdAt: new Date().toISOString(),
-    })
+    }
+
+    setSubmitting(true)
+    let saved = false
+    try {
+      saved = (await onAdd(trip)) !== false
+      if (saved && keepTruckSaved) onSaveDefaultTruck({ truckMake: truckMakeValue, truckModel: truckModelValue })
+    } finally {
+      setSubmitting(false)
+    }
+    if (!saved) return
 
     setDepartureDay('')
     setDepartureTime('')
@@ -212,57 +223,57 @@ export default function TripForm({ career, state, onAdd, onSaveDraft, onSaveDefa
       <div className="section-heading compact-heading">
         <span className="eyebrow">Semana {state.currentWeek}</span>
         <h2>Registrar viagem</h2>
-        <p>O ATS não possui calendário: registre o dia da semana e o horário exibido no jogo.</p>
+        <p>{career?.serverBacked ? 'A semana operacional é definida pelo servidor. Informe somente o dia da semana e os horários exibidos no jogo.' : 'O ATS não possui calendário: registre o dia da semana e o horário exibido no jogo.'}</p>
       </div>
 
       <div className="two-columns">
         <div>
           <label>Dia da saída</label>
-          <select value={departureDay} onChange={(event) => setDepartureDay(event.target.value)} required>{weekdayOptions}</select>
+          <select value={departureDay} onChange={(event) => setDepartureDay(event.target.value)} required disabled={submitting}>{weekdayOptions}</select>
         </div>
         <div>
           <label>Horário de saída</label>
-          <input type="time" value={departureTime} onChange={(event) => setDepartureTime(event.target.value)} required />
+          <input type="time" value={departureTime} onChange={(event) => setDepartureTime(event.target.value)} required disabled={submitting} />
         </div>
       </div>
       <div className="two-columns">
         <div>
           <label>Dia da chegada</label>
-          <select value={arrivalDay} onChange={(event) => setArrivalDay(event.target.value)} required>{weekdayOptions}</select>
+          <select value={arrivalDay} onChange={(event) => setArrivalDay(event.target.value)} required disabled={submitting}>{weekdayOptions}</select>
         </div>
         <div>
           <label>Horário de chegada</label>
-          <input type="time" value={arrivalTime} onChange={(event) => setArrivalTime(event.target.value)} required />
+          <input type="time" value={arrivalTime} onChange={(event) => setArrivalTime(event.target.value)} required disabled={submitting} />
         </div>
       </div>
 
       <div className="two-columns">
-        <CityAutocomplete value={origin} onChange={setOrigin} label="Cidade de origem" required />
-        <div><label>Filial / empresa de origem</label><input value={originCompany} onChange={(event) => setOriginCompany(event.target.value)} placeholder={`Ex.: ${game.companyPlaceholder}`} /></div>
+        <CityAutocomplete value={origin} onChange={setOrigin} label="Cidade de origem" required disabled={submitting} />
+        <div><label>Filial / empresa de origem</label><input value={originCompany} onChange={(event) => setOriginCompany(event.target.value)} placeholder={`Ex.: ${game.companyPlaceholder}`} disabled={submitting} /></div>
       </div>
       <div className="two-columns">
-        <CityAutocomplete value={destination} onChange={setDestination} label="Cidade de destino" required />
-        <div><label>Empresa de destino</label><input value={destinationCompany} onChange={(event) => setDestinationCompany(event.target.value)} placeholder="Cliente ou filial" /></div>
+        <CityAutocomplete value={destination} onChange={setDestination} label="Cidade de destino" required disabled={submitting} />
+        <div><label>Empresa de destino</label><input value={destinationCompany} onChange={(event) => setDestinationCompany(event.target.value)} placeholder="Cliente ou filial" disabled={submitting} /></div>
       </div>
       <div className="two-columns">
-        <div><label>Tipo</label><select value={type} onChange={(event) => setType(event.target.value)}><option value="Loaded">{game.tripTypes.loaded}</option><option value="Deadhead">{game.tripTypes.deadhead}</option></select></div>
-        <div><label>Categoria de pagamento</label><select value={effectiveCategory} disabled={type === 'Deadhead' || state.currentLevel <= 1} onChange={(event) => setPayCategory(event.target.value)}>{(type === 'Deadhead' ? ['deadhead'] : categories).map((category) => <option value={category} key={category}>{game.payLabels[category]} — {formatMoney(game.payRates[category], game)}/{game.distanceUnit}</option>)}</select></div>
+        <div><label>Tipo</label><select value={type} onChange={(event) => setType(event.target.value)} disabled={submitting}><option value="Loaded">{game.tripTypes.loaded}</option><option value="Deadhead">{game.tripTypes.deadhead}</option></select></div>
+        <div><label>Categoria de pagamento</label><select value={effectiveCategory} disabled={submitting || type === 'Deadhead' || state.currentLevel <= 1} onChange={(event) => setPayCategory(event.target.value)}>{(type === 'Deadhead' ? ['deadhead'] : categories).map((category) => <option value={category} key={category}>{game.payLabels[category]} — {formatMoney(game.payRates[category], game)}/{game.distanceUnit}</option>)}</select></div>
       </div>
       <div className="two-columns">
-        <div><label>Carga</label><input value={cargo} disabled={type === 'Deadhead'} onChange={(event) => setCargo(event.target.value)} placeholder={type === 'Deadhead' ? 'Viagem vazia' : 'Ex.: alimentos, equipamentos'} /></div>
-        <div><label>{game.distanceName[0].toUpperCase() + game.distanceName.slice(1)}</label><input type="number" min="1" step="1" value={distance} onChange={(event) => setDistance(event.target.value)} required /></div>
+        <div><label>Carga</label><input value={cargo} disabled={submitting || type === 'Deadhead'} onChange={(event) => setCargo(event.target.value)} placeholder={type === 'Deadhead' ? 'Viagem vazia' : 'Ex.: alimentos, equipamentos'} /></div>
+        <div><label>{game.distanceName[0].toUpperCase() + game.distanceName.slice(1)}</label><input type="number" min="1" step="1" value={distance} onChange={(event) => setDistance(event.target.value)} required disabled={submitting} /></div>
       </div>
       <div className="two-columns">
-        <div><label htmlFor="trip-truck-make">Marca do caminhão (opcional)</label><input id="trip-truck-make" name="truckMake" value={truckMake} onChange={(event) => setTruckMake(event.target.value)} placeholder="Ex.: Volvo, Scania, Kenworth" /></div>
-        <div><label htmlFor="trip-truck-model">Modelo do caminhão (opcional)</label><input id="trip-truck-model" name="truckModel" value={truckModel} onChange={(event) => setTruckModel(event.target.value)} placeholder="Aceita modelos e caminhões de mods" /></div>
+        <div><label htmlFor="trip-truck-make">Marca do caminhão (opcional)</label><input id="trip-truck-make" name="truckMake" value={truckMake} onChange={(event) => setTruckMake(event.target.value)} placeholder="Ex.: Volvo, Scania, Kenworth" disabled={submitting} /></div>
+        <div><label htmlFor="trip-truck-model">Modelo do caminhão (opcional)</label><input id="trip-truck-model" name="truckModel" value={truckModel} onChange={(event) => setTruckModel(event.target.value)} placeholder="Aceita modelos e caminhões de mods" disabled={submitting} /></div>
       </div>
       <label className="tutorial-opt-in">
-        <input name="keepTruckSaved" type="checkbox" checked={keepTruckSaved} onChange={(event) => setKeepTruckSaved(event.target.checked)} />
+        <input name="keepTruckSaved" type="checkbox" checked={keepTruckSaved} onChange={(event) => setKeepTruckSaved(event.target.checked)} disabled={submitting} />
         <span><strong>Manter este caminhão salvo para as próximas viagens</strong><small>{savedTruckMake || savedTruckModel ? 'Desmarque se estiver usando outro caminhão apenas nesta viagem; o caminhão padrão atual continuará salvo.' : 'Ao enviar a viagem, marca e modelo passam a ser preenchidos automaticamente nos próximos registros.'}</small></span>
       </label>
       <div className="two-columns">
-        <div><label htmlFor="trip-odometer-start">Odômetro inicial ({game.distanceUnit}, opcional)</label><input id="trip-odometer-start" name="odometerStart" type="number" min="0" step="0.1" value={odometerStart} onChange={(event) => setOdometerStart(event.target.value)} /></div>
-        <div><label htmlFor="trip-odometer-end">Odômetro final ({game.distanceUnit}, opcional)</label><input id="trip-odometer-end" name="odometerEnd" type="number" min="0" step="0.1" value={odometerEnd} onChange={(event) => setOdometerEnd(event.target.value)} /></div>
+        <div><label htmlFor="trip-odometer-start">Odômetro inicial ({game.distanceUnit}, opcional)</label><input id="trip-odometer-start" name="odometerStart" type="number" min="0" step="0.1" value={odometerStart} onChange={(event) => setOdometerStart(event.target.value)} disabled={submitting} /></div>
+        <div><label htmlFor="trip-odometer-end">Odômetro final ({game.distanceUnit}, opcional)</label><input id="trip-odometer-end" name="odometerEnd" type="number" min="0" step="0.1" value={odometerEnd} onChange={(event) => setOdometerEnd(event.target.value)} disabled={submitting} /></div>
       </div>
       <small className="trip-field-help">Quando você informar o odômetro final, essa leitura será usada automaticamente como odômetro inicial da próxima viagem. As leituras servem para conferência; a distância informada acima continua sendo o valor oficial da viagem.</small>
       {odometerDistance != null && <div className={`odometer-comparison${odometerDifference ? ' has-difference' : ''}`} role="status">
@@ -275,13 +286,13 @@ export default function TripForm({ career, state, onAdd, onSaveDraft, onSaveDefa
       </div>}
       {game.id === 'ets2' && <div>
         <label>Pausa não trabalhada dentro da viagem (minutos)</label>
-        <input type="number" min="0" step="15" value={breakMinutes} onChange={(event) => setBreakMinutes(event.target.value)} placeholder={String(breakSuggestion)} />
+        <input type="number" min="0" step="15" value={breakMinutes} onChange={(event) => setBreakMinutes(event.target.value)} placeholder={String(breakSuggestion)} disabled={submitting} />
         <small>Deixe vazio para aplicar a sugestão de {breakSuggestion} min conforme a duração registrada. Ajuste se a pausa real foi diferente. Intervalos entre duas viagens já ficam fora das horas trabalhadas.</small>
       </div>}
 
       {state.tripDraft && <small className="trip-field-help">Há um rascunho salvo para esta viagem. Salvar novamente atualiza o mesmo rascunho; enviar a viagem o remove.</small>}
-      <button className="button secondary submit-button" type="button" onClick={saveDraft}>Salvar rascunho</button>
-      <button className="button primary submit-button" type="submit">Enviar viagem</button>
+      <button className="button secondary submit-button" type="button" onClick={saveDraft} disabled={submitting}>Salvar rascunho</button>
+      <button className="button primary submit-button" type="submit" disabled={submitting}>{submitting ? 'Enviando...' : 'Enviar viagem'}</button>
     </form>
   )
 }
