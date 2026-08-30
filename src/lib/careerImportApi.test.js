@@ -65,4 +65,25 @@ describe('career import API client', () => {
       }),
     )
   })
+
+  it('recovers an existing association with an authenticated GET and only identity query parameters', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(response(200, {
+      persisted: true,
+      idempotentReplay: true,
+      careerId: 'server-career',
+    }))
+
+    await careerImportApi.recover('ets2', 'local career/1')
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1)
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      `${API_BASE_URL}/api/v1/careers/imports?game=ETS2&sourceCareerId=local+career%2F1`,
+      expect.objectContaining({
+        method: 'GET',
+        body: undefined,
+        cache: 'no-store',
+        headers: expect.objectContaining({ Authorization: 'Bearer migration-token' }),
+      }),
+    )
+  })
 })
