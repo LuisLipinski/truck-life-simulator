@@ -67,6 +67,27 @@ function localSummary(career, state, gameId) {
   }
 }
 
+function saveCompletedAssociation(userId, candidate, response, timestampField) {
+  if (!userId || !candidate?.sourceCareerId || !response?.careerId) {
+    throw new Error('Completed career import response is incomplete')
+  }
+  const registry = loadRegistry(userId)
+  const key = careerKey(candidate.gameId, candidate.sourceCareerId)
+  const current = registry[key] || {}
+  registry[key] = {
+    ...current,
+    gameId: candidate.gameId,
+    sourceCareerId: candidate.sourceCareerId,
+    operationId: response.operationId || current.operationId,
+    serverCareerId: response.careerId,
+    status: 'COMPLETED',
+    [timestampField]: new Date().toISOString(),
+    summary: response.summary || null,
+  }
+  saveRegistry(userId, registry)
+  return registry[key]
+}
+
 export function getCareerImportRecord(userId, gameId, sourceCareerId) {
   return loadRegistry(userId)[careerKey(gameId, sourceCareerId)] || null
 }
@@ -134,24 +155,11 @@ export function prepareCareerImportPayload(userId, candidate) {
 }
 
 export function markCareerImported(userId, candidate, response) {
-  if (!userId || !candidate?.sourceCareerId || !response?.careerId) {
-    throw new Error('Completed career import response is incomplete')
-  }
-  const registry = loadRegistry(userId)
-  const key = careerKey(candidate.gameId, candidate.sourceCareerId)
-  const current = registry[key] || {}
-  registry[key] = {
-    ...current,
-    gameId: candidate.gameId,
-    sourceCareerId: candidate.sourceCareerId,
-    operationId: response.operationId || current.operationId,
-    serverCareerId: response.careerId,
-    status: 'COMPLETED',
-    importedAt: new Date().toISOString(),
-    summary: response.summary || null,
-  }
-  saveRegistry(userId, registry)
-  return registry[key]
+  return saveCompletedAssociation(userId, candidate, response, 'importedAt')
+}
+
+export function markCareerImportRecovered(userId, candidate, response) {
+  return saveCompletedAssociation(userId, candidate, response, 'recoveredAt')
 }
 
 export function localCareerStillExists(candidate) {
