@@ -43,6 +43,12 @@ function render(career, callbacks = {}) {
   return container
 }
 
+function setControlledValue(element, value) {
+  const descriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(element), 'value')
+  descriptor.set.call(element, value)
+  element.dispatchEvent(new Event('input', { bubbles: true }))
+}
+
 function serverCareer(overrides = {}) {
   return {
     id: 'local-1',
@@ -78,10 +84,8 @@ describe('CareerManagementPanel server source', () => {
     const name = container.querySelector('#career-edit-driver')
     const bio = container.querySelector('#career-edit-bio')
     await act(async () => {
-      name.value = 'Server Driver'
-      name.dispatchEvent(new Event('input', { bubbles: true }))
-      bio.value = 'Server bio'
-      bio.dispatchEvent(new Event('input', { bubbles: true }))
+      setControlledValue(name, 'Server Driver')
+      setControlledValue(bio, 'Server bio')
     })
     await act(async () => {
       container.querySelector('#career-profile-editor').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
@@ -106,8 +110,7 @@ describe('CareerManagementPanel server source', () => {
 
     const name = container.querySelector('#career-edit-driver')
     await act(async () => {
-      name.value = 'Local Driver'
-      name.dispatchEvent(new Event('input', { bubbles: true }))
+      setControlledValue(name, 'Local Driver')
     })
     await act(async () => {
       container.querySelector('#career-profile-editor').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
