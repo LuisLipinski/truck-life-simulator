@@ -85,7 +85,7 @@ describe('CareerMigrationPanel', () => {
     expect(container.textContent).toContain('Driver Migration')
     expect(container.textContent).toContain('Phoenix, AZ')
     expect(container.textContent).toContain('Local Freight')
-    expect(container.textContent).toContain('Nenhum dado foi enviado ao backend')
+    expect(container.textContent).toContain('O snapshot completo só é enviado ao backend')
     expect(validateMock).not.toHaveBeenCalled()
     expect(importMock).not.toHaveBeenCalled()
     expect(recoverMock).not.toHaveBeenCalled()
