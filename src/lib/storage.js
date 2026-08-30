@@ -32,6 +32,8 @@ const SERVER_PROFILE_FIELDS = Object.freeze([
   'company',
   'bio',
   'biography',
+  'currentLevel',
+  'currentBalance',
   'baseCurrency',
   'currency',
   'exchangeRate',
