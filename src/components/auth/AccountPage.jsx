@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ApiProblemError, authApi } from '../../lib/authApi.js'
 import { useAuth } from './AuthProvider.jsx'
+import CareerMigrationPanel from './CareerMigrationPanel.jsx'
 
 const PASSWORD_MIN_LENGTH = 12
 const PASSWORD_MAX_LENGTH = 128
@@ -99,7 +100,7 @@ export default function AccountPage() {
       <section className="page-heading centered">
         <span className="eyebrow">Conta Truck Life Simulator</span>
         <h1>Minha Conta</h1>
-        <p>Confira os dados vinculados à sua sessão. As carreiras continuam salvas localmente nesta etapa.</p>
+        <p>Confira sua sessão e, quando quiser, associe com segurança as carreiras salvas neste navegador à sua conta.</p>
       </section>
 
       {logoutFeedback && <div className="auth-feedback auth-feedback-error" role="alert"><span className="auth-feedback-icon">!</span><div><strong>Logout não confirmado</strong><p>{logoutFeedback}</p></div></div>}
@@ -115,6 +116,8 @@ export default function AccountPage() {
           <div><span>Último login</span><strong>{formatInstant(user?.lastLoginAt)}</strong></div>
         </div>
       </section>
+
+      <CareerMigrationPanel userId={user?.id} />
 
       <section className="panel account-panel account-security-panel">
         <span className="eyebrow">Segurança</span>
