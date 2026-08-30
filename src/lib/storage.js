@@ -3,6 +3,7 @@ import { getAtsStateProfile, inferAtsStateCode } from '../config/atsStates.js'
 import { ATS_EXCHANGE_RATE_DATE, getAtsCurrency, getAtsExchangeRate } from '../config/atsCurrencies.js'
 import { getEts2CountryProfile, inferEts2CountryCode } from '../config/ets2Countries.js'
 import { ETS2_EXCHANGE_RATE_DATE, getEts2Currency, getEts2ExchangeRate } from '../config/ets2Currencies.js'
+import { getServerCareerOverlay, setActiveServerCareerForLocal } from './careerServerState.js'
 
 export function careersStorageKey(gameId = 'ats') {
   return `${getGame(gameId).storagePrefix}_careers_v1`
@@ -80,7 +81,7 @@ function normalizeCareer(career, gameId = 'ats') {
   }
 }
 
-export function loadCareers(gameId = 'ats') {
+function loadLocalCareers(gameId = 'ats') {
   try {
     const value = JSON.parse(localStorage.getItem(careersStorageKey(gameId)) || '[]')
     if (!Array.isArray(value)) return []
@@ -94,6 +95,10 @@ export function loadCareers(gameId = 'ats') {
   }
 }
 
+export function loadCareers(gameId = 'ats') {
+  return loadLocalCareers(gameId).map((career) => getServerCareerOverlay(career, gameId))
+}
+
 export function saveCareers(careers, gameId = 'ats') {
   localStorage.setItem(careersStorageKey(gameId), JSON.stringify(careers))
 }
@@ -103,7 +108,7 @@ export function getCareer(id, gameId = 'ats') {
 }
 
 export function createCareer(input, gameId = 'ats') {
-  const careers = loadCareers(gameId)
+  const careers = loadLocalCareers(gameId)
   const career = normalizeCareer({
     id: `career_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     gameId,
@@ -114,12 +119,12 @@ export function createCareer(input, gameId = 'ats') {
   }, gameId)
   careers.push(career)
   saveCareers(careers, gameId)
-  localStorage.setItem(activeCareerStorageKey(gameId), career.id)
+  setActiveCareer(career.id, gameId)
   return career
 }
 
 export function updateCareer(id, updates, gameId = 'ats') {
-  const careers = loadCareers(gameId)
+  const careers = loadLocalCareers(gameId)
   const index = careers.findIndex((career) => career.id === id)
   if (index < 0) return null
   const current = careers[index]
@@ -136,20 +141,24 @@ export function updateCareer(id, updates, gameId = 'ats') {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent(CAREER_UPDATED_EVENT, { detail: { careerId: id, gameId } }))
   }
-  return updated
+  return getServerCareerOverlay(updated, gameId)
 }
 
 export function deleteCareer(id, gameId = 'ats') {
-  saveCareers(loadCareers(gameId).filter((career) => career.id !== id), gameId)
+  saveCareers(loadLocalCareers(gameId).filter((career) => career.id !== id), gameId)
   if (localStorage.getItem(activeCareerStorageKey(gameId)) === id) {
     localStorage.removeItem(activeCareerStorageKey(gameId))
+    setActiveServerCareerForLocal(gameId, null)
   }
 }
 
 export function setActiveCareer(id, gameId = 'ats') {
   localStorage.setItem(activeCareerStorageKey(gameId), id)
+  setActiveServerCareerForLocal(gameId, id)
 }
 
 export function getActiveCareerId(gameId = 'ats') {
-  return localStorage.getItem(activeCareerStorageKey(gameId))
+  const id = localStorage.getItem(activeCareerStorageKey(gameId))
+  if (id) setActiveServerCareerForLocal(gameId, id)
+  return id
 }
