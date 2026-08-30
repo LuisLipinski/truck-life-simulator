@@ -19,6 +19,37 @@ export const ETS2_CAREERS_KEY = careersStorageKey('ets2')
 export const ETS2_ACTIVE_CAREER_KEY = activeCareerStorageKey('ets2')
 export const CAREER_UPDATED_EVENT = 'truck-life:career-updated'
 
+const SERVER_ONLY_FIELDS = Object.freeze([
+  'serverBacked',
+  'serverCareerId',
+  'serverVersion',
+  'serverSyncStatus',
+  'serverTripsStatus',
+])
+
+const SERVER_PROFILE_FIELDS = Object.freeze([
+  'driverName',
+  'company',
+  'bio',
+  'biography',
+  'baseCurrency',
+  'currency',
+  'exchangeRate',
+  'exchangeRateAsOf',
+  'stateCode',
+  'stateName',
+  'countryCode',
+  'countryName',
+  'city',
+  'cityMarketVersion',
+  'cityMarketLabel',
+  'cityCostFactor',
+  'citySalaryFactor',
+  'events',
+  'currentOperationalWeek',
+  'currentPayrollMonth',
+])
+
 function normalizeCareer(career, gameId = 'ats') {
   if (!career) return career
   if (gameId === 'ats') {
@@ -81,22 +112,37 @@ function normalizeCareer(career, gameId = 'ats') {
   }
 }
 
-function loadLocalCareers(gameId = 'ats') {
+function rawCareers(gameId = 'ats') {
   try {
     const value = JSON.parse(localStorage.getItem(careersStorageKey(gameId)) || '[]')
-    if (!Array.isArray(value)) return []
-    const normalized = value.map((career) => normalizeCareer(career, gameId))
-    if (JSON.stringify(normalized) !== JSON.stringify(value)) {
-      localStorage.setItem(careersStorageKey(gameId), JSON.stringify(normalized))
-    }
-    return normalized
+    return Array.isArray(value) ? value : []
   } catch {
     return []
   }
 }
 
+function loadLocalCareers(gameId = 'ats') {
+  const value = rawCareers(gameId)
+  const normalized = value.map((career) => normalizeCareer(career, gameId))
+  if (JSON.stringify(normalized) !== JSON.stringify(value)) {
+    localStorage.setItem(careersStorageKey(gameId), JSON.stringify(normalized))
+  }
+  return normalized
+}
+
 function withServerCareer(career, gameId) {
   return normalizeCareer(getServerCareerOverlay(career, gameId), gameId)
+}
+
+function localStorageCareer(career, existing) {
+  if (!career?.serverBacked) return career
+  const next = { ...career }
+  for (const field of SERVER_PROFILE_FIELDS) {
+    if (existing && Object.prototype.hasOwnProperty.call(existing, field)) next[field] = existing[field]
+    else delete next[field]
+  }
+  for (const field of SERVER_ONLY_FIELDS) delete next[field]
+  return next
 }
 
 export function loadCareers(gameId = 'ats') {
@@ -104,7 +150,9 @@ export function loadCareers(gameId = 'ats') {
 }
 
 export function saveCareers(careers, gameId = 'ats') {
-  localStorage.setItem(careersStorageKey(gameId), JSON.stringify(careers))
+  const existing = new Map(rawCareers(gameId).map((career) => [career?.id, career]))
+  const safe = (Array.isArray(careers) ? careers : []).map((career) => localStorageCareer(career, existing.get(career?.id)))
+  localStorage.setItem(careersStorageKey(gameId), JSON.stringify(safe))
 }
 
 export function getCareer(id, gameId = 'ats') {
