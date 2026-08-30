@@ -42,7 +42,7 @@ function closedPeriodLabel(period, game) {
   return `Semana ${period.week || '—'}`
 }
 
-export default function PayslipTab({ career, state, commit }) {
+export default function PayslipTab({ career, state, commit, serverTripsActive = false }) {
   const game = useGame()
   const money = (value) => formatMoney(value, game)
   const toast = useToast()
@@ -65,8 +65,8 @@ export default function PayslipTab({ career, state, commit }) {
   const perDiemDays = useMemo(() => perDiemDaysForTrips(periodTrips), [periodTrips])
   const routeOverrun = useMemo(() => routeOverrunSummary(periodTrips, undefined, game.routeOverrunRate, game), [game, periodTrips])
   const periodDistance = useMemo(() => periodTrips.reduce((sum, trip) => sum + tripDistance(trip), 0), [periodTrips])
-  const payrollReady = !monthlyPayroll || completedWeeks.length >= game.minWeeksPerPayroll
-  const canCloseWeek = monthlyPayroll && completedWeeks.length < game.maxWeeksPerPayroll
+  const payrollReady = !serverTripsActive && (!monthlyPayroll || completedWeeks.length >= game.minWeeksPerPayroll)
+  const canCloseWeek = !serverTripsActive && monthlyPayroll && completedWeeks.length < game.maxWeeksPerPayroll
   const periodName = monthlyPayroll ? `Mês ${state.currentPayrollMonth || 1}` : `Semana ${state.currentWeek}`
   const periodAdjective = monthlyPayroll ? 'mensal' : 'semanal'
 
@@ -121,6 +121,10 @@ export default function PayslipTab({ career, state, commit }) {
   }
 
   async function closeOperationalWeek() {
+    if (serverTripsActive) {
+      toast.info('O fechamento operacional desta carreira será reativado na P4.6.3, já usando o backend. A semana não será avançada somente no navegador.')
+      return
+    }
     if (!canCloseWeek) {
       toast.error(`O ${periodName} já possui ${game.maxWeeksPerPayroll} semanas. Gere o holerite antes de continuar.`)
       return
@@ -146,6 +150,10 @@ export default function PayslipTab({ career, state, commit }) {
   }
 
   async function generatePayslip() {
+    if (serverTripsActive) {
+      toast.info('O holerite desta carreira será reativado na P4.6.3, já usando fechamento e cálculos server-side. Nenhum período será fechado apenas no navegador.')
+      return
+    }
     if (!payrollReady) {
       toast.error(`Encerre pelo menos ${game.minWeeksPerPayroll} semanas antes de gerar o holerite do ${periodName}.`)
       return
@@ -274,6 +282,8 @@ export default function PayslipTab({ career, state, commit }) {
           <p>{monthlyPayroll ? 'Encerre de quatro a cinco semanas operacionais. O salário, os quilômetros e as retenções serão calculados juntos no fechamento mensal.' : 'O fechamento credita o depósito, atualiza a reserva em segundo plano, congela a semana no histórico e inicia a próxima.'}</p>
         </div>
 
+        {serverTripsActive && <div className="notice-box" role="status"><strong>Fechamento temporariamente protegido</strong><span>As viagens desta carreira já usam o backend. Para evitar estado híbrido, encerrar semana ou gerar holerite fica bloqueado até a P4.6.3 conectar também esses fechamentos ao servidor. A prévia abaixo continua disponível para consulta.</span></div>}
+
         {monthlyPayroll && (
           <div className="payroll-period-card" data-tour="payroll-period">
             <div>
@@ -282,7 +292,7 @@ export default function PayslipTab({ career, state, commit }) {
               <small>{completedWeeks.length ? `Semanas incluídas: ${completedWeeks.join(', ')}` : 'Nenhuma semana encerrada ainda.'} O limite do mês é {game.maxWeeksPerPayroll}.</small>
             </div>
             <button className="button secondary compact" type="button" disabled={!canCloseWeek} onClick={closeOperationalWeek}>
-              {canCloseWeek ? `Encerrar Semana ${state.currentWeek}` : 'Gere o holerite para continuar'}
+              {serverTripsActive ? 'Disponível na P4.6.3' : canCloseWeek ? `Encerrar Semana ${state.currentWeek}` : 'Gere o holerite para continuar'}
             </button>
           </div>
         )}
@@ -349,8 +359,10 @@ export default function PayslipTab({ career, state, commit }) {
           )}
         </div>
 
-        <button className="button success full-button" type="button" disabled={!payrollReady} onClick={generatePayslip}>{monthlyPayroll ? 'Gerar holerite mensal e depositar' : 'Gerar holerite e depositar'}</button>
-        {monthlyPayroll && !payrollReady && <small className="payroll-blocked-note">Encerre mais {game.minWeeksPerPayroll - completedWeeks.length} semana(s) para liberar o holerite.</small>}
+        <button className="button success full-button" type="button" disabled={!payrollReady} onClick={generatePayslip}>{serverTripsActive ? 'Disponível na P4.6.3' : monthlyPayroll ? 'Gerar holerite mensal e depositar' : 'Gerar holerite e depositar'}</button>
+        {serverTripsActive
+          ? <small className="payroll-blocked-note">Nenhum fechamento será executado localmente enquanto as viagens já estão server-side.</small>
+          : monthlyPayroll && !payrollReady && <small className="payroll-blocked-note">Encerre mais {game.minWeeksPerPayroll - completedWeeks.length} semana(s) para liberar o holerite.</small>}
       </section>
 
       <section className="panel payslip-preview-card" data-tour="payslip-preview">

@@ -78,6 +78,14 @@ function fillRequiredTrip(form) {
   setInputValue(form.querySelector('input[type="number"][min="1"]'), '100')
 }
 
+async function submit(form) {
+  await act(async () => {
+    form.querySelector('[type="submit"]').click()
+    await Promise.resolve()
+    await Promise.resolve()
+  })
+}
+
 describe('trip defaults', () => {
   it('prefills the truck saved in the career and the last final odometer', () => {
     const { form } = renderForm({
@@ -91,8 +99,8 @@ describe('trip defaults', () => {
     expect(form.querySelector('[name="odometerStart"]').value).toBe('45210.5')
   })
 
-  it('saves a selected truck as the default and carries the final odometer into the next trip', () => {
-    const onAdd = vi.fn()
+  it('saves a selected truck as the default and carries the final odometer into the next trip after authoritative save succeeds', async () => {
+    const onAdd = vi.fn().mockResolvedValue(true)
     const onSaveDefaultTruck = vi.fn()
     const { form } = renderForm({ onAdd, onSaveDefaultTruck })
     fillRequiredTrip(form)
@@ -103,7 +111,7 @@ describe('trip defaults', () => {
     setInputValue(form.querySelector('[name="odometerStart"]'), '1000')
     setInputValue(form.querySelector('[name="odometerEnd"]'), '1100')
 
-    act(() => form.querySelector('[type="submit"]').click())
+    await submit(form)
 
     expect(onSaveDefaultTruck).toHaveBeenCalledWith({ truckMake: 'Volvo', truckModel: 'VNL 860' })
     expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({
@@ -117,5 +125,26 @@ describe('trip defaults', () => {
     expect(form.querySelector('[name="truckModel"]').value).toBe('VNL 860')
     expect(form.querySelector('[name="odometerStart"]').value).toBe('1100')
     expect(form.querySelector('[name="odometerEnd"]').value).toBe('')
+  })
+
+  it('keeps the trip form intact when the authoritative save fails', async () => {
+    const onAdd = vi.fn().mockResolvedValue(false)
+    const onSaveDefaultTruck = vi.fn()
+    const { form } = renderForm({
+      career: { serverBacked: true },
+      onAdd,
+      onSaveDefaultTruck,
+    })
+    fillRequiredTrip(form)
+
+    const origin = form.querySelectorAll('.react-city-autocomplete input')[0]
+    const distance = form.querySelector('input[type="number"][min="1"]')
+    await submit(form)
+
+    expect(onAdd).toHaveBeenCalledTimes(1)
+    expect(onSaveDefaultTruck).not.toHaveBeenCalled()
+    expect(origin.value).toBe('Los Angeles, CA')
+    expect(distance.value).toBe('100')
+    expect(form.querySelector('[type="submit"]').textContent).toBe('Enviar viagem')
   })
 })

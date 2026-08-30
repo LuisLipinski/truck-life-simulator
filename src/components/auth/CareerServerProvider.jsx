@@ -6,11 +6,14 @@ import {
 } from '../../lib/careerMigration.js'
 import {
   clearServerCareerState,
+  markServerCareerTripsUnavailable,
   markServerCareerUnavailable,
   replaceServerCareerBindings,
   setServerCareerEvents,
   setServerCareerSnapshot,
+  setServerCareerTrips,
 } from '../../lib/careerServerState.js'
+import { tripApi } from '../../lib/tripApi.js'
 import { CAREER_UPDATED_EVENT, getActiveCareerId } from '../../lib/storage.js'
 import { useAuth } from './AuthProvider.jsx'
 
@@ -34,6 +37,14 @@ export default function CareerServerProvider({ children }) {
       try {
         const career = await careerApi.get(association.gameId, association.serverCareerId)
         setServerCareerSnapshot(association.gameId, association.sourceCareerId, career)
+
+        try {
+          const trips = await tripApi.list(association.gameId, association.serverCareerId)
+          setServerCareerTrips(association.gameId, association.sourceCareerId, trips)
+        } catch {
+          markServerCareerTripsUnavailable(association.gameId, association.sourceCareerId)
+        }
+
         try {
           const events = await careerApi.events(association.gameId, association.serverCareerId)
           setServerCareerEvents(association.gameId, association.sourceCareerId, events)

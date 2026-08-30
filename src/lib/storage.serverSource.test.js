@@ -6,7 +6,7 @@ import {
   replaceServerCareerBindings,
   setServerCareerSnapshot,
 } from './careerServerState.js'
-import { careersStorageKey, loadCareers, updateCareer } from './storage.js'
+import { careersStorageKey, loadCareers, saveCareers, updateCareer } from './storage.js'
 
 afterEach(() => {
   localStorage.clear()
@@ -28,6 +28,7 @@ function localCareer() {
     defaultTruckMake: 'Kenworth',
     defaultTruckModel: 'T680',
     currentLevel: 1,
+    currentBalance: 900,
     initialBalance: 1000,
     events: [],
     createdAt: '2026-08-01T00:00:00.000Z',
@@ -75,15 +76,19 @@ describe('storage server career source', () => {
       driverName: 'Server Driver',
       company: 'Server Logistics',
       city: 'Dallas, TX',
+      currentLevel: 2,
+      currentBalance: 1500,
       serverBacked: true,
       serverCareerId: 'server-1',
     })
     expect(persisted.driverName).toBe('Backup Driver')
     expect(persisted.company).toBe('Backup Logistics')
     expect(persisted.city).toBe('Los Angeles, CA')
+    expect(persisted.currentLevel).toBe(1)
+    expect(persisted.currentBalance).toBe(900)
   })
 
-  it('can still persist a not-yet-cut-over field without copying server profile values into the backup', () => {
+  it('can still persist a not-yet-cut-over field without copying server profile or progression into the backup', () => {
     localStorage.setItem(careersStorageKey('ats'), JSON.stringify([localCareer()]))
     replaceServerCareerBindings([{ gameId: 'ats', sourceCareerId: 'local-1', serverCareerId: 'server-1' }])
     setServerCareerSnapshot('ats', 'local-1', serverCareer(), [])
@@ -95,6 +100,27 @@ describe('storage server career source', () => {
     expect(returned.defaultTruckModel).toBe('W900')
     expect(persisted.driverName).toBe('Backup Driver')
     expect(persisted.company).toBe('Backup Logistics')
+    expect(persisted.currentLevel).toBe(1)
+    expect(persisted.currentBalance).toBe(900)
     expect(persisted.defaultTruckModel).toBe('W900')
+  })
+
+  it('does not copy an overlaid server career back into localStorage when a caller saves the visible list', () => {
+    localStorage.setItem(careersStorageKey('ats'), JSON.stringify([localCareer()]))
+    replaceServerCareerBindings([{ gameId: 'ats', sourceCareerId: 'local-1', serverCareerId: 'server-1' }])
+    setServerCareerSnapshot('ats', 'local-1', serverCareer(), [])
+
+    saveCareers(loadCareers('ats'), 'ats')
+    const persisted = JSON.parse(localStorage.getItem(careersStorageKey('ats')))[0]
+
+    expect(persisted).toMatchObject({
+      driverName: 'Backup Driver',
+      company: 'Backup Logistics',
+      city: 'Los Angeles, CA',
+      currentLevel: 1,
+      currentBalance: 900,
+    })
+    expect(persisted.serverBacked).toBeUndefined()
+    expect(persisted.serverCareerId).toBeUndefined()
   })
 })
