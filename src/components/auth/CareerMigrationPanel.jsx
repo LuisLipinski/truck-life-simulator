@@ -206,7 +206,7 @@ export default function CareerMigrationPanel({ userId }) {
                 <SummaryGrid summary={candidate.summary} currency={candidate.career.currency} />
 
                 <div className="career-migration-safety-note">
-                  Este resumo vem somente do navegador. Nenhum dado foi enviado ao backend até você clicar em “Validar no servidor”.
+                  Este resumo vem somente do navegador. O snapshot completo só é enviado ao backend quando você clicar em “Validar no servidor”.
                   Se esta carreira já tiver sido importada e apenas o vínculo local tiver sido perdido, “Recuperar vínculo existente” consulta somente a associação já concluída.
                 </div>
 
@@ -251,7 +251,7 @@ export default function CareerMigrationPanel({ userId }) {
                         disabled={busy}
                         onClick={() => importCareer(candidate)}
                       >
-                        {busy ? 'Importando…' : 'Confirmar e importar carreira'}
+                        {busy && recovery?.status !== 'loading' ? 'Importando…' : 'Confirmar e importar carreira'}
                       </button>
                       <button
                         className="button secondary career-migration-revalidate"
@@ -269,7 +269,7 @@ export default function CareerMigrationPanel({ userId }) {
                       disabled={busy}
                       onClick={() => validate(candidate)}
                     >
-                      {busy ? 'Validando…' : 'Validar no servidor'}
+                      {validation?.status === 'loading' ? 'Validando…' : 'Validar no servidor'}
                     </button>
                   )}
                   <button
