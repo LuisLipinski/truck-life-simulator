@@ -95,8 +95,12 @@ function loadLocalCareers(gameId = 'ats') {
   }
 }
 
+function withServerCareer(career, gameId) {
+  return normalizeCareer(getServerCareerOverlay(career, gameId), gameId)
+}
+
 export function loadCareers(gameId = 'ats') {
-  return loadLocalCareers(gameId).map((career) => getServerCareerOverlay(career, gameId))
+  return loadLocalCareers(gameId).map((career) => withServerCareer(career, gameId))
 }
 
 export function saveCareers(careers, gameId = 'ats') {
@@ -141,7 +145,7 @@ export function updateCareer(id, updates, gameId = 'ats') {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent(CAREER_UPDATED_EVENT, { detail: { careerId: id, gameId } }))
   }
-  return getServerCareerOverlay(updated, gameId)
+  return withServerCareer(updated, gameId)
 }
 
 export function deleteCareer(id, gameId = 'ats') {
