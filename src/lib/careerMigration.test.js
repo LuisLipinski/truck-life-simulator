@@ -13,6 +13,7 @@ import {
   getCareerImportRecord,
   listCareerImportCandidates,
   markCareerImported,
+  markCareerImportRecovered,
   prepareCareerImportPayload,
 } from './careerMigration.js'
 
@@ -134,5 +135,48 @@ describe('career migration local bridge', () => {
     expect(localStorage.getItem(careersStorageKey('ats'))).not.toBeNull()
     expect(localStorage.getItem(stateKey)).toContain('4321.25')
     expect(listCareerImportCandidates('another-user')[0].imported).toBe(false)
+  })
+
+  it('restores a completed association without mixing users or games that share the same local id', () => {
+    const sharedId = 'shared-local-id'
+    saveCareers([{ ...atsCareer(), id: sharedId }], 'ats')
+    saveCareers([{ ...ets2Career(), id: sharedId }], 'ets2')
+    localStorage.setItem(phase1StorageKey(sharedId, 'ats'), JSON.stringify({ balance: 1000, currentWeek: 2 }))
+    localStorage.setItem(phase1StorageKey(sharedId, 'ets2'), JSON.stringify({ balance: 2000, currentWeek: 3, currentPayrollMonth: 1 }))
+
+    const candidates = listCareerImportCandidates('user-1')
+    const atsCandidate = candidates.find((candidate) => candidate.gameId === 'ats')
+    const ets2Candidate = candidates.find((candidate) => candidate.gameId === 'ets2')
+
+    markCareerImportRecovered('user-1', atsCandidate, {
+      operationId: '11111111-1111-4111-8111-111111111111',
+      careerId: 'server-ats-career',
+      persisted: true,
+      idempotentReplay: true,
+      summary: { driverName: 'Ana Freight' },
+    })
+
+    expect(getCareerImportRecord('user-1', 'ats', sharedId)).toMatchObject({
+      serverCareerId: 'server-ats-career',
+      status: 'COMPLETED',
+      recoveredAt: expect.any(String),
+    })
+    expect(getCareerImportRecord('user-1', 'ets2', sharedId)).toBeNull()
+    expect(getCareerImportRecord('another-user', 'ats', sharedId)).toBeNull()
+    expect(listCareerImportCandidates('user-1').find((candidate) => candidate.gameId === 'ats').imported).toBe(true)
+    expect(listCareerImportCandidates('user-1').find((candidate) => candidate.gameId === 'ets2').imported).toBe(false)
+
+    markCareerImportRecovered('user-1', ets2Candidate, {
+      operationId: '22222222-2222-4222-8222-222222222222',
+      careerId: 'server-ets2-career',
+      persisted: true,
+      idempotentReplay: true,
+      summary: { driverName: 'Bruno Europe' },
+    })
+
+    expect(getCareerImportRecord('user-1', 'ats', sharedId).serverCareerId).toBe('server-ats-career')
+    expect(getCareerImportRecord('user-1', 'ets2', sharedId).serverCareerId).toBe('server-ets2-career')
+    expect(loadCareers('ats')).toHaveLength(1)
+    expect(loadCareers('ets2')).toHaveLength(1)
   })
 })

@@ -4,6 +4,7 @@ import { careerImportApi } from '../../lib/careerImportApi.js'
 import {
   listCareerImportCandidates,
   markCareerImported,
+  markCareerImportRecovered,
   prepareCareerImportPayload,
 } from '../../lib/careerMigration.js'
 
@@ -28,7 +29,7 @@ function money(value, currency) {
 function migrationError(error, phase) {
   if (error instanceof ApiProblemError) {
     if (error.code === 'CAREER_IMPORT_ALREADY_EXISTS') {
-      return 'O servidor informa que esta carreira local já foi importada anteriormente. O backup local foi mantido; a recuperação do vínculo será tratada na etapa de recuperação da P4.'
+      return 'O servidor informa que esta carreira local já foi importada anteriormente. O backup local foi mantido. Use “Recuperar vínculo existente” para restaurar a associação sem reimportar a carreira.'
     }
     if (error.code === 'CAREER_IMPORT_IDEMPOTENCY_CONFLICT') {
       return 'A operação local já foi usada com outro snapshot. Nenhum dado local foi apagado.'
@@ -41,6 +42,28 @@ function migrationError(error, phase) {
   return phase === 'validate'
     ? 'Não foi possível validar esta carreira agora. O snapshot local não foi alterado.'
     : 'Não foi possível importar esta carreira agora. O snapshot local não foi alterado.'
+}
+
+function recoveryError(error) {
+  if (error instanceof ApiProblemError) {
+    if (error.code === 'CAREER_IMPORT_NOT_FOUND') {
+      return {
+        status: 'not-found',
+        message: 'Nenhuma associação concluída foi encontrada para esta carreira, este jogo e esta conta. Nada foi importado ou alterado; você pode seguir com a validação normal.',
+      }
+    }
+    if (error.code === 'API_UNAVAILABLE') {
+      return {
+        status: 'error',
+        message: 'A API está indisponível agora. O vínculo local e o snapshot da carreira não foram alterados.',
+      }
+    }
+    if (error.message) return { status: 'error', message: error.message }
+  }
+  return {
+    status: 'error',
+    message: 'Não foi possível recuperar o vínculo agora. Nenhuma importação foi iniciada e o snapshot local não foi alterado.',
+  }
 }
 
 function SummaryGrid({ summary, currency }) {
@@ -63,6 +86,7 @@ function SummaryGrid({ summary, currency }) {
 export default function CareerMigrationPanel({ userId }) {
   const [revision, setRevision] = useState(0)
   const [validationByKey, setValidationByKey] = useState({})
+  const [recoveryByKey, setRecoveryByKey] = useState({})
   const [busyKey, setBusyKey] = useState(null)
   const candidates = useMemo(() => listCareerImportCandidates(userId), [userId, revision])
   const pending = candidates.filter((candidate) => !candidate.imported)
@@ -123,6 +147,31 @@ export default function CareerMigrationPanel({ userId }) {
     }
   }
 
+  async function recoverAssociation(candidate) {
+    setBusyKey(candidate.key)
+    setRecoveryByKey((current) => ({
+      ...current,
+      [candidate.key]: { status: 'loading', error: null },
+    }))
+    try {
+      const response = await careerImportApi.recover(candidate.gameId, candidate.sourceCareerId)
+      markCareerImportRecovered(userId, candidate, response)
+      setRecoveryByKey((current) => ({
+        ...current,
+        [candidate.key]: { status: 'recovered', error: null },
+      }))
+      setRevision((current) => current + 1)
+    } catch (error) {
+      const feedback = recoveryError(error)
+      setRecoveryByKey((current) => ({
+        ...current,
+        [candidate.key]: { status: feedback.status, error: feedback.message },
+      }))
+    } finally {
+      setBusyKey(null)
+    }
+  }
+
   return (
     <section className="panel account-panel account-migration-panel">
       <span className="eyebrow">Migração segura</span>
@@ -142,6 +191,7 @@ export default function CareerMigrationPanel({ userId }) {
         <div className="career-migration-list">
           {pending.map((candidate) => {
             const validation = validationByKey[candidate.key]
+            const recovery = recoveryByKey[candidate.key]
             const busy = busyKey === candidate.key
             return (
               <article className="career-migration-card" key={candidate.key}>
@@ -156,7 +206,8 @@ export default function CareerMigrationPanel({ userId }) {
                 <SummaryGrid summary={candidate.summary} currency={candidate.career.currency} />
 
                 <div className="career-migration-safety-note">
-                  Este resumo vem somente do navegador. Nenhum dado foi enviado ao backend até você clicar em “Validar no servidor”.
+                  Este resumo vem somente do navegador. O snapshot completo só é enviado ao backend quando você clicar em “Validar no servidor”.
+                  Se esta carreira já tiver sido importada e apenas o vínculo local tiver sido perdido, “Recuperar vínculo existente” consulta somente a associação já concluída.
                 </div>
 
                 {validation?.status === 'valid' && (
@@ -178,6 +229,19 @@ export default function CareerMigrationPanel({ userId }) {
                   </div>
                 )}
 
+                {recovery?.status === 'not-found' && (
+                  <div className="career-migration-safety-note" role="status">
+                    <strong>Vínculo não encontrado.</strong> {recovery.error}
+                  </div>
+                )}
+
+                {recovery?.status === 'error' && (
+                  <div className="auth-feedback auth-feedback-error career-migration-feedback" role="alert">
+                    <span className="auth-feedback-icon">!</span>
+                    <div><strong>Recuperação não concluída</strong><p>{recovery.error}</p></div>
+                  </div>
+                )}
+
                 <div className="career-migration-actions">
                   {validation?.status === 'valid' ? (
                     <>
@@ -187,7 +251,7 @@ export default function CareerMigrationPanel({ userId }) {
                         disabled={busy}
                         onClick={() => importCareer(candidate)}
                       >
-                        {busy ? 'Importando…' : 'Confirmar e importar carreira'}
+                        {busy && recovery?.status !== 'loading' ? 'Importando…' : 'Confirmar e importar carreira'}
                       </button>
                       <button
                         className="button secondary career-migration-revalidate"
@@ -205,9 +269,17 @@ export default function CareerMigrationPanel({ userId }) {
                       disabled={busy}
                       onClick={() => validate(candidate)}
                     >
-                      {busy ? 'Validando…' : 'Validar no servidor'}
+                      {validation?.status === 'loading' ? 'Validando…' : 'Validar no servidor'}
                     </button>
                   )}
+                  <button
+                    className="button secondary career-migration-recover"
+                    type="button"
+                    disabled={busy}
+                    onClick={() => recoverAssociation(candidate)}
+                  >
+                    {recovery?.status === 'loading' ? 'Recuperando…' : 'Recuperar vínculo existente'}
+                  </button>
                 </div>
               </article>
             )
@@ -218,18 +290,21 @@ export default function CareerMigrationPanel({ userId }) {
       {imported.length > 0 && (
         <div className="career-migration-imported-list">
           <h3>Já associadas a esta conta</h3>
-          {imported.map((candidate) => (
-            <div className="career-migration-imported" key={candidate.key}>
-              <div>
-                <strong>{candidate.summary.driverName} · {gameLabel(candidate.gameId)}</strong>
-                <span>{candidate.summary.baseCity} · {candidate.summary.companyName}</span>
+          {imported.map((candidate) => {
+            const recovered = Boolean(candidate.record?.recoveredAt && !candidate.record?.importedAt)
+            return (
+              <div className="career-migration-imported" key={candidate.key}>
+                <div>
+                  <strong>{candidate.summary.driverName} · {gameLabel(candidate.gameId)}</strong>
+                  <span>{candidate.summary.baseCity} · {candidate.summary.companyName}</span>
+                </div>
+                <div className="career-migration-imported-meta">
+                  <span className="career-migration-status imported">{recovered ? 'Vínculo recuperado' : 'Importada'}</span>
+                  <small>Backup local preservado</small>
+                </div>
               </div>
-              <div className="career-migration-imported-meta">
-                <span className="career-migration-status imported">Importada</span>
-                <small>Backup local preservado</small>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </section>

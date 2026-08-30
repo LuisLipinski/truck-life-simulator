@@ -13,4 +13,14 @@ export const careerImportApi = {
     body: payload,
     signal: options.signal,
   }),
+  recover: (gameId, sourceCareerId, options = {}) => {
+    const query = new URLSearchParams({
+      game: String(gameId || '').toUpperCase(),
+      sourceCareerId: String(sourceCareerId || ''),
+    })
+    return apiRequest(`/api/v1/careers/imports?${query.toString()}`, {
+      auth: true,
+      signal: options.signal,
+    })
+  },
 }
