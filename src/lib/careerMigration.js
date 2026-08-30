@@ -2,6 +2,7 @@ import { loadPhase1State } from './phase1.js'
 import { careersStorageKey, loadCareers } from './storage.js'
 
 export const CAREER_IMPORT_SOURCE_VERSION = 12
+export const CAREER_IMPORT_ASSOCIATION_UPDATED_EVENT = 'truck-life:career-import-association-updated'
 const MIGRATION_REGISTRY_PREFIX = 'truck_life_career_imports_v1'
 const GAME_IDS = ['ats', 'ets2']
 
@@ -26,6 +27,13 @@ function loadRegistry(userId) {
 function saveRegistry(userId, registry) {
   if (!userId) return
   localStorage.setItem(registryKey(userId), JSON.stringify(registry))
+}
+
+function notifyAssociationUpdated(userId, record) {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent(CAREER_IMPORT_ASSOCIATION_UPDATED_EVENT, {
+    detail: { userId: String(userId), record },
+  }))
 }
 
 function createOperationId() {
@@ -85,11 +93,23 @@ function saveCompletedAssociation(userId, candidate, response, timestampField) {
     summary: response.summary || null,
   }
   saveRegistry(userId, registry)
+  notifyAssociationUpdated(userId, registry[key])
   return registry[key]
 }
 
 export function getCareerImportRecord(userId, gameId, sourceCareerId) {
   return loadRegistry(userId)[careerKey(gameId, sourceCareerId)] || null
+}
+
+export function listCompletedCareerImportAssociations(userId) {
+  return Object.values(loadRegistry(userId))
+    .filter((record) => record?.status === 'COMPLETED' && record?.gameId && record?.sourceCareerId && record?.serverCareerId)
+    .map((record) => ({
+      gameId: String(record.gameId).toLowerCase(),
+      sourceCareerId: String(record.sourceCareerId),
+      serverCareerId: String(record.serverCareerId),
+      operationId: record.operationId || null,
+    }))
 }
 
 export function listCareerImportCandidates(userId) {

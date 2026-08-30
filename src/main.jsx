@@ -5,6 +5,7 @@ import BackendLoadingOverlay from './components/BackendLoadingOverlay.jsx'
 import BackendLoadingRetryFallback from './components/BackendLoadingRetryFallback.jsx'
 import MobileHelp from './components/MobileHelp.jsx'
 import { AuthProvider } from './components/auth/AuthProvider.jsx'
+import CareerServerProvider from './components/auth/CareerServerProvider.jsx'
 import SessionNavigation from './components/auth/SessionNavigation.jsx'
 import SessionRouter from './components/auth/SessionRouter.jsx'
 import { ConfirmProvider } from './components/ConfirmProvider.jsx'
@@ -23,19 +24,21 @@ import './react-tools.css'
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <AuthProvider>
-      <ToastProvider>
-        <ConfirmProvider>
-          <TutorialProvider>
-            <BackendLoadingOverlay />
-            <BackendLoadingRetryFallback />
-            <SessionNavigation />
-            <SessionRouter>
-              <App />
-              <MobileHelp />
-            </SessionRouter>
-          </TutorialProvider>
-        </ConfirmProvider>
-      </ToastProvider>
+      <CareerServerProvider>
+        <ToastProvider>
+          <ConfirmProvider>
+            <TutorialProvider>
+              <BackendLoadingOverlay />
+              <BackendLoadingRetryFallback />
+              <SessionNavigation />
+              <SessionRouter>
+                <App />
+                <MobileHelp />
+              </SessionRouter>
+            </TutorialProvider>
+          </ConfirmProvider>
+        </ToastProvider>
+      </CareerServerProvider>
     </AuthProvider>
   </StrictMode>,
 )
