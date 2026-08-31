@@ -64,6 +64,60 @@ afterEach(() => {
 })
 
 describe('CareerServerProvider', () => {
+  it('blocks gameplay children while a migrated career is still waiting for server hydration', async () => {
+    markCareerImported(
+      'user-1',
+      { gameId: 'ats', sourceCareerId: 'local-1' },
+      { operationId: 'op-1', careerId: 'server-1', summary: {} },
+    )
+
+    let resolveCareer
+    mocks.get.mockImplementation(() => new Promise((resolve) => {
+      resolveCareer = resolve
+    }))
+
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    root = createRoot(container)
+    await act(async () => {
+      root.render(
+        <CareerServerProvider>
+          <button type="button">Enviar viagem</button>
+        </CareerServerProvider>,
+      )
+    })
+    await flush()
+
+    expect(mocks.get).toHaveBeenCalledWith('ats', 'server-1')
+    expect(container.querySelector('button')).toBeNull()
+    expect(container.textContent).toContain('Sincronizando com o servidor')
+
+    await act(async () => {
+      resolveCareer({ id: 'server-1', driverName: 'Server Driver', version: 1 })
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await flush()
+
+    expect(container.querySelector('button')?.textContent).toBe('Enviar viagem')
+  })
+
+  it('renders local-only careers immediately when there is no completed server association', async () => {
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    root = createRoot(container)
+    await act(async () => {
+      root.render(
+        <CareerServerProvider>
+          <button type="button">Carreira local</button>
+        </CareerServerProvider>,
+      )
+    })
+
+    expect(container.querySelector('button')?.textContent).toBe('Carreira local')
+    expect(mocks.get).not.toHaveBeenCalled()
+  })
+
   it('hydrates a completed import association from the authenticated backend career, trips and events', async () => {
     markCareerImported(
       'user-1',
