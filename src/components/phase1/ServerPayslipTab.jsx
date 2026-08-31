@@ -54,6 +54,9 @@ export default function ServerPayslipTab({ career }) {
   const toast = useToast()
   const [periods, setPeriods] = useState([])
   const [payslips, setPayslips] = useState([])
+  const [settings, setSettings] = useState(null)
+  const [settingsForm, setSettingsForm] = useState(null)
+  const [preview, setPreview] = useState(null)
   const [selectedPayslipId, setSelectedPayslipId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(null)
@@ -74,6 +77,16 @@ export default function ServerPayslipTab({ career }) {
   const canGenerate = game.id === 'ats'
     ? true
     : currentMonthPeriods.length >= game.minWeeksPerPayroll && currentMonthPeriods.length <= game.maxWeeksPerPayroll
+
+  function applySettings(nextSettings) {
+    setSettings(nextSettings)
+    setSettingsForm(nextSettings ? {
+      level1Gross: String(nextSettings.level1Gross ?? ''),
+      routeOverrunRate: String(nextSettings.routeOverrunRate ?? ''),
+      benefits: String(nextSettings.benefits ?? ''),
+      perDiemRate: String(nextSettings.perDiemRate ?? ''),
+    } : null)
+  }
 
   function notifyCareerUpdated() {
     if (typeof window !== 'undefined') {
@@ -118,13 +131,17 @@ export default function ServerPayslipTab({ career }) {
     Promise.all([
       payrollApi.listPeriods(game.id, career.serverCareerId),
       payrollApi.listPayslips(game.id, career.serverCareerId),
-    ]).then(([nextPeriods, nextPayslips]) => {
+      payrollApi.getSettings(game.id, career.serverCareerId),
+      payrollApi.getPreview(game.id, career.serverCareerId),
+    ]).then(([nextPeriods, nextPayslips, nextSettings, nextPreview]) => {
       if (cancelled) return
       const safePeriods = Array.isArray(nextPeriods) ? nextPeriods : []
       const safePayslips = Array.isArray(nextPayslips) ? nextPayslips : []
       setPeriods(safePeriods)
       setPayslips(safePayslips)
       setSelectedPayslipId(safePayslips[0]?.id || null)
+      applySettings(nextSettings)
+      setPreview(nextPreview)
       setNeedsResync(false)
     }).catch((error) => {
       if (!cancelled) setLoadError(error)
@@ -133,6 +150,15 @@ export default function ServerPayslipTab({ career }) {
     })
     return () => { cancelled = true }
   }, [career.serverCareerId, game.id])
+
+  async function refreshPreferencesAndPreview() {
+    const [nextSettings, nextPreview] = await Promise.all([
+      payrollApi.getSettings(game.id, career.serverCareerId),
+      payrollApi.getPreview(game.id, career.serverCareerId),
+    ])
+    applySettings(nextSettings)
+    setPreview(nextPreview)
+  }
 
   async function bestEffortRefreshAfterConfirmedMutation() {
     let refreshFailed = false
@@ -143,6 +169,11 @@ export default function ServerPayslipTab({ career }) {
     }
     try {
       await loadPayrollData({ quiet: true })
+    } catch {
+      refreshFailed = true
+    }
+    try {
+      await refreshPreferencesAndPreview()
     } catch {
       refreshFailed = true
     }
@@ -287,11 +318,36 @@ export default function ServerPayslipTab({ career }) {
     }
   }
 
+  async function saveSettings(event) {
+    event.preventDefault()
+    if (mutation || needsResync || !settings?.editable || !settingsForm) return
+    setMutation('settings')
+    try {
+      const updated = await payrollApi.updateSettings(game.id, career.serverCareerId, {
+        expectedOperationalWeek: currentWeek,
+        expectedPayrollMonth: game.id === 'ets2' ? currentMonth : null,
+        level1Gross: Number(settingsForm.level1Gross),
+        routeOverrunRate: Number(settingsForm.routeOverrunRate),
+        benefits: Number(settingsForm.benefits),
+        perDiemRate: Number(settingsForm.perDiemRate),
+      })
+      applySettings(updated)
+      setPreview(await payrollApi.getPreview(game.id, career.serverCareerId))
+      toast.success('Ajustes do próximo holerite salvos no servidor.')
+    } catch (error) {
+      toast.error(mutationErrorMessage(error, 'Não foi possível salvar os ajustes da folha.'), {
+        title: 'Ajustes não salvos',
+      })
+    } finally {
+      setMutation(null)
+    }
+  }
+
   async function retrySync() {
     if (mutation) return
     setMutation('sync')
     try {
-      await Promise.all([loadPayrollData({ quiet: true }), refreshCareer()])
+      await Promise.all([loadPayrollData({ quiet: true }), refreshCareer(), refreshPreferencesAndPreview()])
       setNeedsResync(false)
       toast.success('Períodos e holerites foram sincronizados novamente com o servidor.')
     } catch (error) {
@@ -360,6 +416,26 @@ export default function ServerPayslipTab({ career }) {
           </div>
         )}
 
+        {settingsForm && (
+          <form className="server-payroll-settings" onSubmit={saveSettings}>
+            <div className="section-heading compact-heading">
+              <span className="eyebrow">Ajustes persistidos</span>
+              <h2>Parâmetros do próximo holerite</h2>
+              <p>Estes valores ficam salvos no backend e alimentam a prévia. O POST final continua enviando somente o período esperado.</p>
+            </div>
+            <div className="inline-form-grid">
+              <label>Salário N1<input aria-label="Salário N1" type="number" min="0" step="0.01" disabled={!settings.editable || Boolean(mutation)} value={settingsForm.level1Gross} onChange={(event) => setSettingsForm((current) => ({ ...current, level1Gross: event.target.value }))} /></label>
+              <label>Route Overrun / hora<input aria-label="Route Overrun por hora" type="number" min="0" step="0.01" disabled={!settings.editable || Boolean(mutation)} value={settingsForm.routeOverrunRate} onChange={(event) => setSettingsForm((current) => ({ ...current, routeOverrunRate: event.target.value }))} /></label>
+              <label>Benefícios<input aria-label="Benefícios" type="number" min="0" step="0.01" disabled={!settings.editable || Boolean(mutation)} value={settingsForm.benefits} onChange={(event) => setSettingsForm((current) => ({ ...current, benefits: event.target.value }))} /></label>
+              <label>{game.perDiemLabel}<input aria-label={game.perDiemLabel} type="number" min="0" step="0.01" disabled={!settings.editable || Boolean(mutation)} value={settingsForm.perDiemRate} onChange={(event) => setSettingsForm((current) => ({ ...current, perDiemRate: event.target.value }))} /></label>
+            </div>
+            <button className="button secondary full-button" type="submit" disabled={!settings.editable || Boolean(mutation) || needsResync}>
+              {mutation === 'settings' ? 'Salvando ajustes no servidor…' : 'Salvar ajustes no servidor'}
+            </button>
+            {!settings.editable && <small className="payroll-blocked-note">Este período já possui fechamento e seus parâmetros estão protegidos pelo backend.</small>}
+          </form>
+        )}
+
         <div className="notice-box">
           <strong>Sem cálculo financeiro no navegador</strong>
           <span>Salário, tarifas, impostos, benefícios, per diem, Route Overrun, ocorrências, reserva e depósito não são enviados como valores autoritativos pelo browser. O resultado exibido após o fechamento é exatamente o que o backend persistiu.</span>
@@ -379,20 +455,18 @@ export default function ServerPayslipTab({ career }) {
 
       <section className="panel payslip-preview-card" data-tour="payslip-preview">
         <div className="section-heading compact-heading">
-          <span className="eyebrow">Último resultado persistido</span>
-          <h2>{selectedPayslip ? payslipPeriodLabel(selectedPayslip, game) : 'Holerite'}</h2>
-          <p>{selectedPayslip ? 'Valores imutáveis retornados pelo backend.' : 'Nenhum holerite persistido foi encontrado para esta carreira.'}</p>
+          <span className="eyebrow">Prévia server-side</span>
+          <h2>{preview?.ready ? (game.id === 'ets2' ? `Mês ${preview.payrollMonth}` : `Semana ${preview.operationalWeek}`) : 'Próximo holerite'}</h2>
+          <p>{preview?.ready ? 'Cálculo atual retornado pelo backend; o histórico fechado permanece imutável.' : 'O backend ainda não possui semanas suficientes para calcular este fechamento.'}</p>
         </div>
-        {selectedPayslip && (
+        {preview?.ready && (
           <div className="payslip-lines">
-            <div><span>Salário bruto</span><strong>{money(selectedPayslip.grossAmount, selectedPayslip.displayCurrency)}</strong></div>
-            <div><span>Impostos</span><strong>-{money(selectedPayslip.taxAmount, selectedPayslip.displayCurrency)}</strong></div>
-            <div><span>Benefícios</span><strong>-{money(selectedPayslip.benefitsAmount, selectedPayslip.displayCurrency)}</strong></div>
-            <div><span>{game.perDiemLabel}</span><strong>+{money(selectedPayslip.perDiemAmount, selectedPayslip.displayCurrency)}</strong></div>
-            <div><span>Ocorrências</span><strong>-{money(selectedPayslip.incidentDeductionAmount, selectedPayslip.displayCurrency)}</strong></div>
-            <div><span>Depósito do holerite</span><strong>{money(selectedPayslip.depositAmount, selectedPayslip.displayCurrency)}</strong></div>
-            <div><span>Aporte à reserva</span><strong>-{money(selectedPayslip.reserveContributionAmount, selectedPayslip.displayCurrency)}</strong></div>
-            <div className="deposit-line"><span>Crédito efetivo no saldo</span><strong>{money(selectedPayslip.balanceCreditAmount, selectedPayslip.displayCurrency)}</strong></div>
+            <div><span>Salário bruto</span><strong>{money(preview.grossAmount, preview.displayCurrency)}</strong></div>
+            <div><span>Impostos</span><strong>-{money(preview.taxAmount, preview.displayCurrency)}</strong></div>
+            <div><span>Benefícios</span><strong>-{money(preview.benefitsAmount, preview.displayCurrency)}</strong></div>
+            <div><span>{game.perDiemLabel}</span><strong>+{money(preview.perDiemAmount, preview.displayCurrency)}</strong></div>
+            <div><span>Ocorrências</span><strong>-{money(preview.incidentDeductionAmount, preview.displayCurrency)}</strong></div>
+            <div className="deposit-line"><span>Depósito previsto</span><strong>{money(preview.depositAmount, preview.displayCurrency)}</strong></div>
           </div>
         )}
       </section>

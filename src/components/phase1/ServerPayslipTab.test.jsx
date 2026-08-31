@@ -12,6 +12,9 @@ const mocks = vi.hoisted(() => ({
   closeOperationalWeek: vi.fn(),
   listPayslips: vi.fn(),
   generatePayslip: vi.fn(),
+  getSettings: vi.fn(),
+  updateSettings: vi.fn(),
+  getPreview: vi.fn(),
   getCareer: vi.fn(),
   setServerCareerSnapshot: vi.fn(),
 }))
@@ -22,6 +25,9 @@ vi.mock('../../lib/payrollApi.js', () => ({
     closeOperationalWeek: mocks.closeOperationalWeek,
     listPayslips: mocks.listPayslips,
     generatePayslip: mocks.generatePayslip,
+    getSettings: mocks.getSettings,
+    updateSettings: mocks.updateSettings,
+    getPreview: mocks.getPreview,
   },
 }))
 
@@ -112,6 +118,27 @@ beforeEach(() => {
   mocks.closeOperationalWeek.mockReset()
   mocks.listPayslips.mockReset().mockResolvedValue([])
   mocks.generatePayslip.mockReset()
+  mocks.getSettings.mockReset().mockResolvedValue({
+    editable: true,
+    level1Gross: 850,
+    routeOverrunRate: 21.25,
+    benefits: 36,
+    perDiemRate: 80,
+    displayCurrency: 'USD',
+  })
+  mocks.updateSettings.mockReset()
+  mocks.getPreview.mockReset().mockResolvedValue({
+    ready: true,
+    operationalWeek: 4,
+    payrollMonth: null,
+    displayCurrency: 'USD',
+    grossAmount: 850,
+    taxAmount: 150,
+    benefitsAmount: 36,
+    perDiemAmount: 0,
+    incidentDeductionAmount: 0,
+    depositAmount: 664,
+  })
   mocks.getCareer.mockReset().mockResolvedValue({ id: 'server-1', currentOperationalWeek: 5, currentPayrollMonth: 1, version: 2 })
   mocks.setServerCareerSnapshot.mockReset()
 })
@@ -126,6 +153,37 @@ afterEach(() => {
 })
 
 describe('ServerPayslipTab confirmation safety', () => {
+  it('persists payroll preferences and refreshes the authoritative preview without changing the generation payload', async () => {
+    mocks.updateSettings.mockResolvedValue({
+      editable: true,
+      level1Gross: 1000,
+      routeOverrunRate: 30,
+      benefits: 50,
+      perDiemRate: 90,
+      displayCurrency: 'USD',
+    })
+    mocks.getPreview
+      .mockResolvedValueOnce({ ready: true, operationalWeek: 4, displayCurrency: 'USD', grossAmount: 850, depositAmount: 664 })
+      .mockResolvedValueOnce({ ready: true, operationalWeek: 4, displayCurrency: 'USD', grossAmount: 1000, depositAmount: 800 })
+
+    await render('ats')
+    const gross = container.querySelector('input[aria-label="Salário N1"]')
+    await act(async () => {
+      gross.value = '1000'
+      gross.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    const save = [...container.querySelectorAll('button')].find((button) => button.textContent.includes('Salvar ajustes no servidor'))
+    await act(async () => save.click())
+    await flush()
+
+    expect(mocks.updateSettings).toHaveBeenCalledWith('ats', 'server-1', expect.objectContaining({
+      expectedOperationalWeek: 4,
+      expectedPayrollMonth: null,
+    }))
+    expect(container.textContent).toContain('Depósito previsto')
+    expect(container.textContent).toContain('US$ 800,00')
+  })
+
   it('never falls back to local payroll history when the server history cannot be loaded', async () => {
     mocks.listPeriods.mockRejectedValue(new Error('offline'))
     mocks.listPayslips.mockRejectedValue(new Error('offline'))
@@ -192,7 +250,7 @@ describe('ServerPayslipTab confirmation safety', () => {
 
     expect(document.body.textContent).toContain('Holerite confirmado')
     expect(document.body.textContent).toContain('já existe no servidor e foi reconciliado')
-    expect(container.textContent).toContain('Crédito efetivo no saldo')
+    expect(container.textContent).toContain('Crédito no saldo')
     expect(mocks.getCareer).toHaveBeenCalledWith('ats', 'server-1')
   })
 
