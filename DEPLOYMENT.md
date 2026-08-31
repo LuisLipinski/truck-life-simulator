@@ -18,6 +18,18 @@ A workflow **Truck Life delivery** executa instalação, testes e build:
 
 Um push aprovado em `development` também publica a pasta `dist` no GitHub Pages.
 
+## Preview legado do Financeiro
+
+A versão anterior à migração do Financeiro para o backend fica congelada na branch `legacy/pre-backend-finance`, criada a partir do commit P2 `793bdeeb68953813df438ebbfaba49d1b9e9b02f`.
+
+Durante o build da `development`, a pipeline também compila esse snapshot com base própria e adiciona o resultado em `dist/legacy-finance`. Isso permite consultar a interface antiga sem trocar a branch publicada e sem alterar a versão atual da aplicação.
+
+URL do preview após o deploy da `development`:
+
+`https://luislipinski.github.io/truck-life-simulator/legacy-finance/`
+
+A branch `legacy/pre-backend-finance` é uma referência histórica e não deve acompanhar futuras promoções da `master`.
+
 ## Promoção manual
 
 Na aba **Actions**, abra **Truck Life delivery**, selecione **Run workflow** e escolha uma operação:
@@ -46,6 +58,6 @@ O rollback não apaga commits nem move a branch com `force`. Ele cria um novo co
 1. desenvolver em uma branch de trabalho;
 2. abrir um pull request para `development` e aguardar os testes;
 3. mesclar ou usar `promote-source-to-development`;
-4. validar o site publicado;
+4. validar o site publicado e, quando necessário, comparar com o preview legado do Financeiro;
 5. usar `promote-development-to-master` quando a versão estiver aprovada;
 6. em caso de problema, executar o rollback da branch afetada.

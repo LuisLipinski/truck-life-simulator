@@ -37,6 +37,8 @@ concurrency:
 
 env:
   NODE_VERSION: 22
+  LEGACY_FINANCE_REF: legacy/pre-backend-finance
+  LEGACY_FINANCE_BASE: /truck-life-simulator/legacy-finance/
 
 jobs:
   quality:
@@ -64,6 +66,24 @@ jobs:
 
       - name: Build React app
         run: npm run build
+
+      - name: Checkout frozen legacy finance snapshot
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.LEGACY_FINANCE_REF }}
+          path: .legacy-finance
+
+      - name: Build legacy finance preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd .legacy-finance
+          npm ci --no-audit --no-fund
+          npm run build -- --base="${LEGACY_FINANCE_BASE}"
+          cd ..
+          rm -rf dist/legacy-finance
+          mkdir -p dist/legacy-finance
+          cp -R .legacy-finance/dist/. dist/legacy-finance/
 
       - name: Configure Pages
         if: github.event_name == 'push' && github.ref == 'refs/heads/development'
@@ -117,6 +137,20 @@ jobs:
 
       - name: Build React app
         run: npm run build
+
+      - name: Checkout frozen legacy finance snapshot
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.LEGACY_FINANCE_REF }}
+          path: .legacy-finance
+
+      - name: Validate legacy finance preview build
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd .legacy-finance
+          npm ci --no-audit --no-fund
+          npm run build -- --base="${LEGACY_FINANCE_BASE}"
 
   branch-operation:
     name: Promote or rollback branches
@@ -272,6 +306,26 @@ jobs:
           echo "deploy_development=$deploy_development" >> "$GITHUB_OUTPUT"
           echo "summary=$summary" >> "$GITHUB_OUTPUT"
           printf '### Resultado\n\n%s\n' "$summary" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Checkout frozen legacy finance snapshot
+        if: steps.branch-flow.outputs.deploy_development == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.LEGACY_FINANCE_REF }}
+          path: .legacy-finance
+
+      - name: Add legacy finance preview to Pages artifact
+        if: steps.branch-flow.outputs.deploy_development == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd .legacy-finance
+          npm ci --no-audit --no-fund
+          npm run build -- --base="${LEGACY_FINANCE_BASE}"
+          cd ..
+          rm -rf dist/legacy-finance
+          mkdir -p dist/legacy-finance
+          cp -R .legacy-finance/dist/. dist/legacy-finance/
 
       - name: Configure Pages
         if: steps.branch-flow.outputs.deploy_development == 'true'
