@@ -28,12 +28,19 @@ export const payrollApi = {
     { auth: true, signal: options.signal },
   ),
   getPayslip: (gameId, careerId, payslipId, options = {}) => apiRequest(
-    careerResourcePath(
-      careerId,
-      'payslips',
-      gameId,
-      `/${encodeURIComponent(String(payslipId || ''))}`,
-    ),
+    careerResourcePath(careerId, 'payslips', gameId, `/${encodeURIComponent(String(payslipId || ''))}`),
+    { auth: true, signal: options.signal },
+  ),
+  getSettings: (gameId, careerId, options = {}) => apiRequest(
+    careerResourcePath(careerId, 'payslips', gameId, '/settings'),
+    { auth: true, signal: options.signal },
+  ),
+  updateSettings: (gameId, careerId, payload, options = {}) => apiRequest(
+    careerResourcePath(careerId, 'payslips', gameId, '/settings'),
+    { auth: true, method: 'PATCH', body: payload, signal: options.signal },
+  ),
+  preview: (gameId, careerId, options = {}) => apiRequest(
+    careerResourcePath(careerId, 'payslips', gameId, '/preview'),
     { auth: true, signal: options.signal },
   ),
   generatePayslip: (gameId, careerId, expected = {}, options = {}) => {
