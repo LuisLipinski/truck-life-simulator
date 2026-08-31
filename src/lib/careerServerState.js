@@ -125,6 +125,18 @@ export function getServerCareerBinding(gameId, localCareerId) {
   return bindings.get(cacheKey(gameId, localCareerId)) || null
 }
 
+export function listServerOnlyCareerShells(gameId = 'ats') {
+  const game = String(gameId || '').toLowerCase()
+  return [...bindings.values()]
+    .filter((binding) => binding.gameId === game && binding.sourceCareerId === binding.serverCareerId)
+    .map((binding) => ({
+      id: binding.sourceCareerId,
+      gameId: game,
+      events: [],
+      serverOnly: true,
+    }))
+}
+
 export function setServerCareerSnapshot(gameId, localCareerId, career, events) {
   const key = cacheKey(gameId, localCareerId)
   const binding = bindings.get(key)

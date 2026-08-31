@@ -26,6 +26,23 @@ function associationSyncKey(userId, associations) {
   return `${userId}:${bindings}`
 }
 
+function mergeServerAssociations(localAssociations, careersByGame) {
+  const associatedServerIds = new Set(localAssociations.map((association) => (
+    `${association.gameId}:${association.serverCareerId}`
+  )))
+  const discovered = Object.entries(careersByGame).flatMap(([gameId, careers]) => (
+    (Array.isArray(careers) ? careers : [])
+      .filter((career) => career?.id && !associatedServerIds.has(`${gameId}:${career.id}`))
+      .map((career) => ({
+        gameId,
+        sourceCareerId: String(career.id),
+        serverCareerId: String(career.id),
+        discoveredCareer: career,
+      }))
+  ))
+  return [...localAssociations, ...discovered]
+}
+
 function ServerCareerHydrationGate() {
   return (
     <div className="backend-loading-overlay" role="status" aria-live="polite" aria-label="Sincronizando carreira">
@@ -59,7 +76,16 @@ export default function CareerServerProvider({ children }) {
     }
 
     const userId = String(auth.user.id)
-    const associations = listCompletedCareerImportAssociations(userId)
+    const localAssociations = listCompletedCareerImportAssociations(userId)
+    const careersByGame = {}
+    await Promise.all(['ats', 'ets2'].map(async (gameId) => {
+      try {
+        careersByGame[gameId] = await careerApi.list(gameId)
+      } catch {
+        careersByGame[gameId] = []
+      }
+    }))
+    const associations = mergeServerAssociations(localAssociations, careersByGame)
     const syncKey = associationSyncKey(userId, associations)
 
     if (syncKey) setReadyKey(null)
@@ -70,7 +96,8 @@ export default function CareerServerProvider({ children }) {
 
     await Promise.all(associations.map(async (association) => {
       try {
-        const career = await careerApi.get(association.gameId, association.serverCareerId)
+        const career = association.discoveredCareer
+          || await careerApi.get(association.gameId, association.serverCareerId)
         setServerCareerSnapshot(association.gameId, association.sourceCareerId, career)
 
         try {
