@@ -123,4 +123,24 @@ describe('storage server career source', () => {
     expect(persisted.serverBacked).toBeUndefined()
     expect(persisted.serverCareerId).toBeUndefined()
   })
+
+  it('lists a server-only career on a new browser without writing it into the legacy backup', () => {
+    replaceServerCareerBindings([{
+      gameId: 'ats', sourceCareerId: 'server-1', serverCareerId: 'server-1',
+    }])
+    setServerCareerSnapshot('ats', 'server-1', serverCareer(), [])
+
+    const careers = loadCareers('ats')
+
+    expect(careers).toHaveLength(1)
+    expect(careers[0]).toMatchObject({
+      id: 'server-1',
+      driverName: 'Server Driver',
+      serverBacked: true,
+      serverOnly: true,
+    })
+
+    saveCareers(careers, 'ats')
+    expect(JSON.parse(localStorage.getItem(careersStorageKey('ats')))).toEqual([])
+  })
 })

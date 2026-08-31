@@ -3,7 +3,7 @@ import { getAtsStateProfile, inferAtsStateCode } from '../config/atsStates.js'
 import { ATS_EXCHANGE_RATE_DATE, getAtsCurrency, getAtsExchangeRate } from '../config/atsCurrencies.js'
 import { getEts2CountryProfile, inferEts2CountryCode } from '../config/ets2Countries.js'
 import { ETS2_EXCHANGE_RATE_DATE, getEts2Currency, getEts2ExchangeRate } from '../config/ets2Currencies.js'
-import { getServerCareerOverlay, setActiveServerCareerForLocal } from './careerServerState.js'
+import { getServerCareerOverlay, listServerOnlyCareerShells, setActiveServerCareerForLocal } from './careerServerState.js'
 
 export function careersStorageKey(gameId = 'ats') {
   return `${getGame(gameId).storagePrefix}_careers_v1`
@@ -148,12 +148,19 @@ function localStorageCareer(career, existing) {
 }
 
 export function loadCareers(gameId = 'ats') {
-  return loadLocalCareers(gameId).map((career) => withServerCareer(career, gameId))
+  const localCareers = loadLocalCareers(gameId)
+  const localIds = new Set(localCareers.map((career) => String(career.id)))
+  const serverOnlyCareers = listServerOnlyCareerShells(gameId)
+    .filter((career) => !localIds.has(String(career.id)))
+  return [...localCareers, ...serverOnlyCareers]
+    .map((career) => withServerCareer(career, gameId))
 }
 
 export function saveCareers(careers, gameId = 'ats') {
   const existing = new Map(rawCareers(gameId).map((career) => [career?.id, career]))
-  const safe = (Array.isArray(careers) ? careers : []).map((career) => localStorageCareer(career, existing.get(career?.id)))
+  const safe = (Array.isArray(careers) ? careers : [])
+    .filter((career) => !career?.serverOnly)
+    .map((career) => localStorageCareer(career, existing.get(career?.id)))
   localStorage.setItem(careersStorageKey(gameId), JSON.stringify(safe))
 }
 

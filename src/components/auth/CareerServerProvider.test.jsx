@@ -8,6 +8,7 @@ import { clearServerCareerState, getServerCareerOverlay, getServerCareerTrips } 
 
 const mocks = vi.hoisted(() => ({
   auth: { isAuthenticated: true, user: { id: 'user-1' } },
+  list: vi.fn(),
   get: vi.fn(),
   events: vi.fn(),
   trips: vi.fn(),
@@ -19,6 +20,7 @@ vi.mock('./AuthProvider.jsx', () => ({
 
 vi.mock('../../lib/careerApi.js', () => ({
   careerApi: {
+    list: mocks.list,
     get: mocks.get,
     events: mocks.events,
   },
@@ -47,10 +49,12 @@ beforeEach(() => {
   clearServerCareerState()
   mocks.auth = { isAuthenticated: true, user: { id: 'user-1' } }
   mocks.get.mockReset()
+  mocks.list.mockReset()
   mocks.events.mockReset()
   mocks.trips.mockReset()
   mocks.events.mockResolvedValue([])
   mocks.trips.mockResolvedValue([])
+  mocks.list.mockResolvedValue([])
 })
 
 afterEach(() => {
@@ -116,6 +120,34 @@ describe('CareerServerProvider', () => {
 
     expect(container.querySelector('button')?.textContent).toBe('Carreira local')
     expect(mocks.get).not.toHaveBeenCalled()
+  })
+
+  it('discovers authenticated server careers when this browser has no local migration registry', async () => {
+    const serverCareer = {
+      id: 'server-cross-device', game: 'ATS', driverName: 'Cross Device Driver',
+      companyName: 'Cloud Logistics', baseCity: 'Dallas, TX', stateCode: 'TX',
+      currentLevel: 1, balance: 1250, baseCurrency: 'USD', displayCurrency: 'USD',
+      exchangeRate: 1, currentOperationalWeek: 2, version: 3,
+    }
+    mocks.list.mockImplementation((gameId) => Promise.resolve(gameId === 'ats' ? [serverCareer] : []))
+
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    root = createRoot(container)
+    await act(async () => {
+      root.render(<CareerServerProvider><span>ready</span></CareerServerProvider>)
+    })
+    await flush()
+
+    expect(mocks.list).toHaveBeenCalledWith('ats')
+    expect(mocks.list).toHaveBeenCalledWith('ets2')
+    expect(mocks.get).not.toHaveBeenCalled()
+    expect(getServerCareerOverlay({ id: 'server-cross-device', events: [] }, 'ats')).toMatchObject({
+      driverName: 'Cross Device Driver',
+      serverCareerId: 'server-cross-device',
+      serverSyncStatus: 'ready',
+    })
+    expect(mocks.trips).toHaveBeenCalledWith('ats', 'server-cross-device')
   })
 
   it('hydrates a completed import association from the authenticated backend career, trips and events', async () => {

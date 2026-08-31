@@ -91,6 +91,10 @@ function CareersPage() {
   const allCareersSelected = careers.length > 0 && selectedCareers.length === careers.length
 
   async function removeCareer(career) {
+    if (career.serverBacked) {
+      toast.info('A exclusão de carreiras conectadas precisa ser feita no servidor e ainda não está disponível.', { title: 'Carreira conectada' })
+      return
+    }
     const confirmed = await confirm({
       title: 'Excluir carreira?',
       message: `A carreira de ${career.driverName} em ${game.shortName} será removida. Essa ação não pode ser desfeita.`,
@@ -252,7 +256,7 @@ function CareersPage() {
                 {selectingForExport ? (
                   <input className="career-select-checkbox" type="checkbox" checked={selected} aria-label={`Selecionar carreira ${career.driverName}`} onClick={(event) => event.stopPropagation()} onChange={() => toggleCareerSelection(career.id)} />
                 ) : (
-                  <button className="career-delete-icon" type="button" aria-label={`Excluir carreira ${career.driverName}`} title="Excluir carreira" onClick={(event) => { event.stopPropagation(); removeCareer(career) }}>
+                  <button className="career-delete-icon" type="button" aria-label={`Excluir carreira ${career.driverName}`} title={career.serverBacked ? 'Exclusão server-side ainda não disponível' : 'Excluir carreira'} onClick={(event) => { event.stopPropagation(); removeCareer(career) }}>
                     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-2 6h10l-.7 11H7.7L7 9Zm3 2v7h2v-7h-2Zm4 0v7h2v-7h-2Z" /></svg>
                   </button>
                 )}
