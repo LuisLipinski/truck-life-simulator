@@ -35,6 +35,7 @@ import { useTutorial } from './GuidedTutorial.jsx'
 import { useToast } from './ToastProvider.jsx'
 import FinancesTab from './phase1/FinancesTab.jsx'
 import PayslipTab from './phase1/PayslipTab.jsx'
+import ServerPayslipTab from './phase1/ServerPayslipTab.jsx'
 import IncidentsTab from './phase1/IncidentsTab.jsx'
 import QualificationsTab from './phase1/QualificationsTab.jsx'
 import RulesTab from './phase1/RulesTab.jsx'
@@ -156,6 +157,22 @@ function TabIntro({ tabId }) {
   )
 }
 
+function ServerCutoverGuard({ title, phase, detail }) {
+  return (
+    <section className="panel">
+      <div className="section-heading compact-heading">
+        <span className="eyebrow">Proteção de integridade • {phase}</span>
+        <h2>{title}</h2>
+        <p>{detail}</p>
+      </div>
+      <div className="notice-box" role="status">
+        <strong>Nenhuma gravação local será feita nesta carreira migrada</strong>
+        <span>O módulo volta a aceitar alterações quando sua fatia server-side estiver conectada. Isso evita mostrar “salvo” no navegador para algo que o backend não recebeu.</span>
+      </div>
+    </section>
+  )
+}
+
 function PromotionMilestoneModal({ milestone, onClose, onPromotion, onGuide }) {
   const game = useGame()
   if (!milestone) return null
@@ -185,21 +202,26 @@ function PromotionMilestoneModal({ milestone, onClose, onPromotion, onGuide }) {
   )
 }
 
-function HeaderSummary({ state }) {
+function HeaderSummary({ state, career }) {
   const game = useGame()
-  const distance = totalMiles(state)
-  const weekDistance = currentWeekMiles(state)
-  const promotion = getPromotionStatus(state, game)
-  const progressText = state.currentLevel >= 3
+  const effectiveLevel = career?.serverBacked ? Number(career.currentLevel || state.currentLevel || 1) : Number(state.currentLevel || 1)
+  const effectiveWeek = career?.serverBacked ? Number(career.currentOperationalWeek || state.currentWeek || 1) : Number(state.currentWeek || 1)
+  const effectiveMonth = career?.serverBacked ? Number(career.currentPayrollMonth || state.currentPayrollMonth || 1) : Number(state.currentPayrollMonth || 1)
+  const effectiveBalance = career?.serverBacked && career.currentBalance != null ? Number(career.currentBalance) : Number(state.balance || 0)
+  const effectiveState = { ...state, currentLevel: effectiveLevel, careerLevel: effectiveLevel, currentWeek: effectiveWeek }
+  const distance = totalMiles(effectiveState)
+  const weekDistance = currentWeekMiles(effectiveState)
+  const promotion = getPromotionStatus(effectiveState, game)
+  const progressText = effectiveLevel >= 3
     ? formatDistance(distance, game)
     : `${formatNumber(distance, game)} / ${formatDistance(promotion.goal, game)}`
 
   return (
     <div className="phase1-header-summary" aria-label="Resumo da carreira" data-tour="career-summary">
-      <div><span>Saldo</span><strong>{formatMoney(state.balance, game)}</strong></div>
-      <div><span>Nível atual</span><strong>Nível {state.currentLevel}</strong></div>
+      <div><span>Saldo</span><strong>{formatMoney(effectiveBalance, game)}</strong></div>
+      <div><span>Nível atual</span><strong>Nível {effectiveLevel}</strong></div>
       <div><span>Progressão</span><strong>{progressText}</strong></div>
-      <div><span>{game.payrollPeriod === 'monthly' ? 'Período atual' : 'Semana atual'}</span><strong>{game.payrollPeriod === 'monthly' ? `Mês ${state.currentPayrollMonth || 1} • ` : ''}Semana {state.currentWeek} • {formatDistance(weekDistance, game)}</strong></div>
+      <div><span>{game.payrollPeriod === 'monthly' ? 'Período atual' : 'Semana atual'}</span><strong>{game.payrollPeriod === 'monthly' ? `Mês ${effectiveMonth} • ` : ''}Semana {effectiveWeek} • {formatDistance(weekDistance, game)}</strong></div>
     </div>
   )
 }
@@ -237,13 +259,13 @@ function OverviewTab({ career, state, setActiveTab, onUpdateProfile, onChangeEmp
       <section className="phase1-status-grid" data-tour="overview-shortcuts">
         <button className="panel status-card" onClick={() => setActiveTab('finances')}>
           <span className="metric-label">Despesas mensais</span>
-          <strong>{formatMoney(monthly, game)}</strong>
-          <span>Padrão + personalizadas mensais.</span>
+          <strong>{career.serverBacked ? 'Protegido na migração' : formatMoney(monthly, game)}</strong>
+          <span>{career.serverBacked ? 'Novas alterações financeiras aguardam a P4.6.5 server-side.' : 'Padrão + personalizadas mensais.'}</span>
         </button>
         <button className="panel status-card" onClick={() => setActiveTab('payslip')}>
           <span className="metric-label">Resumo {game.payrollPeriod === 'monthly' ? 'mensal' : 'semanal'}</span>
-          <strong>{game.payrollPeriod === 'monthly' ? `${completedPayrollWeeks} / ${game.minWeeksPerPayroll} semanas encerradas` : weekTrips.length ? 'Pronto para conferir' : 'Semana em andamento'}</strong>
-          <span>{game.payrollPeriod === 'monthly' ? 'Encerre as semanas operacionais e gere um único holerite ao fim do mês.' : `Abra o holerite para visualizar bruto, impostos, ${game.perDiemLabel.toLowerCase()} e ocorrências.`}</span>
+          <strong>{career.serverBacked ? 'Fonte de verdade: servidor' : game.payrollPeriod === 'monthly' ? `${completedPayrollWeeks} / ${game.minWeeksPerPayroll} semanas encerradas` : weekTrips.length ? 'Pronto para conferir' : 'Semana em andamento'}</strong>
+          <span>{career.serverBacked ? 'Abra o holerite para consultar períodos persistidos e executar o fechamento no backend.' : game.payrollPeriod === 'monthly' ? 'Encerre as semanas operacionais e gere um único holerite ao fim do mês.' : `Abra o holerite para visualizar bruto, impostos, ${game.perDiemLabel.toLowerCase()} e ocorrências.`}</span>
         </button>
       </section>
 
@@ -268,7 +290,7 @@ function OverviewTab({ career, state, setActiveTab, onUpdateProfile, onChangeEmp
         <div>
           <span className="eyebrow">Backup da carreira</span>
           <h2>Exportar somente esta carreira</h2>
-          <p>O arquivo tabular inclui esta carreira em uma única linha e preserva perfil, sede fiscal, moeda, viagens, histórico, gastos, ocorrências, holerites e reserva. A importação e a exportação de várias carreiras ficam na tela de Carreiras.</p>
+          <p>{career.serverBacked ? 'Durante o cutover, esta exportação continua sendo o backup local legado. Viagens e fechamentos criados somente no servidor não devem ser tratados como parte desse CSV até a etapa final de compatibilidade/backup.' : 'O arquivo tabular inclui esta carreira em uma única linha e preserva perfil, sede fiscal, moeda, viagens, histórico, gastos, ocorrências, holerites e reserva. A importação e a exportação de várias carreiras ficam na tela de Carreiras.'}</p>
         </div>
         <button className="button success compact" type="button" onClick={() => exportCareerCSV(career, state, game.id)}>Exportar carreira CSV</button>
       </section>
@@ -286,7 +308,7 @@ function TripsTab({ career, state, onAddTrip, onSaveTripDraft, onSaveDefaultTruc
 
   return (
     <>
-      {career.serverBacked && <section className="notice-box" role="status"><strong>Viagens conectadas ao servidor</strong><span>O histórico abaixo vem da sua carreira server-side. Novas viagens e exclusões da semana aberta são gravadas somente no backend; o backup local anterior não recebe esses writes.</span></section>}
+      {career.serverBacked && <section className="notice-box" role="status"><strong>Viagens conectadas ao servidor</strong><span>O histórico abaixo vem da sua carreira server-side. Novas viagens e exclusões da semana aberta são gravadas somente no backend; o backup local anterior não recebe esses writes. O resumo de remuneração nesta aba é apenas informativo; o holerite final é calculado pelo servidor.</span></section>}
       <section className="phase1-status-grid progress-summary-grid" data-tour="trip-summary">
         <MetricCard label={`${game.distanceName[0].toUpperCase() + game.distanceName.slice(1)} da semana`} value={formatDistance(weekMiles, game)} detail={`Semana ${state.currentWeek}`} />
         <MetricCard label={`${game.distanceName[0].toUpperCase() + game.distanceName.slice(1)} na carreira`} value={formatDistance(allMiles, game)} detail={`Nível ${state.currentLevel}`} />
@@ -555,8 +577,6 @@ export default function Phase1Page({ careerId, onBack }) {
 
     try {
       await tripApi.delete(game.id, career.serverCareerId, trip.serverTripId || trip.id)
-      await refreshServerTrips()
-      toast.success('Viagem excluída do servidor com sucesso.')
     } catch (error) {
       if (error instanceof ApiProblemError && error.code === 'TRIP_WEEK_LOCKED') {
         toast.error('A semana dessa viagem foi encerrada no servidor e não permite mais exclusão.')
@@ -564,6 +584,19 @@ export default function Phase1Page({ careerId, onBack }) {
         return
       }
       toast.error(error?.message || 'Não foi possível excluir a viagem no servidor.', { title: 'Exclusão não concluída' })
+      return
+    }
+
+    try {
+      await refreshServerTrips()
+      toast.success('Viagem excluída do servidor com sucesso.')
+    } catch {
+      markServerCareerTripsUnavailable(game.id, career.id)
+      setState((current) => ({
+        ...current,
+        trips: current.trips.filter((item) => String(item.serverTripId || item.id) !== String(trip.serverTripId || trip.id)),
+      }))
+      toast.info('A viagem foi excluída no servidor, mas a lista não pôde ser recarregada agora. Sincronize novamente antes de continuar.')
     }
   }
 
@@ -580,11 +613,11 @@ export default function Phase1Page({ careerId, onBack }) {
           <button className="back-button" onClick={onBack}>← Voltar</button>
           <div className="phase1-header-main">
             <div className="phase1-driver-block">
-              <span className="eyebrow">Fase 1 • {game.shortName} • {game.levelRoles[state.currentLevel - 1]}</span>
+              <span className="eyebrow">Fase 1 • {game.shortName} • {game.levelRoles[(career.serverBacked ? Number(career.currentLevel || state.currentLevel || 1) : state.currentLevel) - 1]}</span>
               <h1>{career.driverName}</h1>
               <p>{career.city} • {career.company}</p>
             </div>
-            <HeaderSummary state={state} />
+            <HeaderSummary state={state} career={career} />
           </div>
         </div>
       </header>
@@ -599,11 +632,19 @@ export default function Phase1Page({ careerId, onBack }) {
         )}
         <TabIntro tabId={activeTab} />
         {activeTab === 'overview' && <OverviewTab career={career} state={state} setActiveTab={setActiveTab} onUpdateProfile={updateProfile} onChangeEmployer={changeEmployer} onChangeBase={changeBase} />}
-        {activeTab === 'finances' && <FinancesTab state={state} commit={commit} />}
-        {activeTab === 'payslip' && <PayslipTab career={career} state={state} commit={commit} serverTripsActive={career.serverBacked && career.serverTripsStatus === 'ready'} />}
+        {activeTab === 'finances' && (career.serverBacked
+          ? <ServerCutoverGuard title="Saldo e despesas temporariamente protegidos" phase="P4.6.5" detail="O saldo exibido no cabeçalho já vem do perfil server-side, mas despesas, reserva, ledger e demais movimentações financeiras ainda serão conectados em uma fatia própria. Até lá, esta carreira migrada não aceitará novas gravações financeiras apenas no navegador." />
+          : <FinancesTab state={state} commit={commit} />)}
+        {activeTab === 'payslip' && (career.serverBacked
+          ? <ServerPayslipTab career={career} />
+          : <PayslipTab career={career} state={state} commit={commit} />)}
         {activeTab === 'progress' && <TripsTab career={career} state={state} onAddTrip={addTrip} onSaveTripDraft={saveTripDraft} onSaveDefaultTruck={saveDefaultTruck} onDeleteTrip={deleteTrip} />}
-        {activeTab === 'incidents' && <IncidentsTab state={state} commit={commit} />}
-        {activeTab === 'qualifications' && <QualificationsTab state={state} commit={commit} />}
+        {activeTab === 'incidents' && (career.serverBacked
+          ? <ServerCutoverGuard title="Ocorrências temporariamente protegidas" phase="P4.6.4" detail="As ocorrências já existentes no backend continuam participando dos cálculos server-side. Novas multas ou acidentes ficarão bloqueados até a tela usar a API de ocorrências, evitando que um desconto exista somente no navegador e seja ignorado pelo holerite." />
+          : <IncidentsTab state={state} commit={commit} />)}
+        {activeTab === 'qualifications' && (career.serverBacked
+          ? <ServerCutoverGuard title="Promoções e qualificações temporariamente protegidas" phase="P4.6.4" detail="O nível e as qualificações persistidos no backend continuam sendo a referência para os cálculos. Novas promoções, HazMat/ADR e conclusões da Academy serão reativadas quando esta aba estiver conectada ao servidor." />
+          : <QualificationsTab state={state} commit={commit} />)}
         {activeTab === 'academy' && <AcademyGuideTab onOpenQualifications={() => goToTab('qualifications')} />}
         {activeTab === 'rules' && <RulesTab />}
         {activeTab === 'mods' && <ModsTab />}
