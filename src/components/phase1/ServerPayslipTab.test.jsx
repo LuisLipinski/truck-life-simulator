@@ -137,6 +137,15 @@ async function flush() {
   })
 }
 
+function setInputValue(input, value) {
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
+  act(() => {
+    setter.call(input, String(value))
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+  })
+}
+
 async function render(gameId = 'ats', careerOverrides = {}) {
   container = document.createElement('div')
   document.body.appendChild(container)
@@ -236,11 +245,7 @@ describe('ServerPayslipTab confirmation safety', () => {
       .mockResolvedValueOnce(preview({ grossAmount: 1000, netSalaryAmount: 800, depositAmount: 800 }))
 
     await render('ats')
-    const gross = container.querySelector('input[aria-label="Salário N1"]')
-    await act(async () => {
-      gross.value = '1000'
-      gross.dispatchEvent(new Event('input', { bubbles: true }))
-    })
+    setInputValue(container.querySelector('input[aria-label="Salário N1"]'), '1000')
     const save = [...container.querySelectorAll('button')].find((button) => button.textContent.includes('Salvar ajustes no servidor'))
     expect(save).not.toBeUndefined()
     await act(async () => save.click())
@@ -257,13 +262,10 @@ describe('ServerPayslipTab confirmation safety', () => {
   it('persists automatic reserve configuration in the finance backend before generation', async () => {
     await render('ats')
     const checkbox = container.querySelector('.server-reserve-control input[type="checkbox"]')
-    await act(async () => checkbox.click())
+    act(() => checkbox.click())
 
     const amount = container.querySelector('input[aria-label="Valor do aporte automático"]')
-    await act(async () => {
-      amount.value = '75'
-      amount.dispatchEvent(new Event('input', { bubbles: true }))
-    })
+    setInputValue(amount, '75')
     const save = [...container.querySelectorAll('button')].find((button) => button.textContent.includes('Salvar configuração da reserva'))
     expect(save).not.toBeUndefined()
     await act(async () => save.click())
