@@ -118,6 +118,9 @@ function preview(overrides = {}) {
     breakMinutes: 0,
     workedMinutes: 419,
     overrunMinutes: 0,
+    dailyWorkBreakdown: [
+      { operationalWeek: 4, day: 'MONDAY', elapsedMinutes: 419, breakMinutes: 0, workedMinutes: 419, overrunMinutes: 0 },
+    ],
     contextSnapshot: { stateCode: 'CA', baseCity: 'Los Angeles, CA', cityMarketLabel: 'Metro' },
     lines: [
       { code: 'FEDERAL_TAX', label: 'Federal Income Tax', type: 'DEDUCTION', amount: 80 },
@@ -221,6 +224,8 @@ describe('ServerPayslipTab confirmation safety', () => {
 
     expect(container.textContent).toContain('Gerar holerite')
     expect(container.textContent).toContain('Route Overrun automático')
+    expect(container.textContent).toContain('Semana 4 • Segunda-feira')
+    expect(container.textContent).toContain('6h 59min trabalhadas • sem extra')
     expect(container.textContent).toContain('Federal Income Tax')
     expect(container.textContent).toContain('Social Security')
     expect(container.textContent).toContain('Salário líquido')
