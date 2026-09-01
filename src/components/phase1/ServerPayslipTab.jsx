@@ -6,6 +6,7 @@ import { CAREER_UPDATED_EVENT } from '../../lib/storage.js'
 import { useConfirm } from '../ConfirmProvider.jsx'
 import { useGame } from '../GameContext.jsx'
 import { useToast } from '../ToastProvider.jsx'
+import ServerAutoReserveControl from './ServerAutoReserveControl.jsx'
 
 function money(value, currency) {
   const amount = Number(value || 0)
@@ -96,6 +97,7 @@ export default function ServerPayslipTab({ career }) {
   const [settings, setSettings] = useState(null)
   const [settingsForm, setSettingsForm] = useState(null)
   const [settingsDirty, setSettingsDirty] = useState(false)
+  const [reserveDirty, setReserveDirty] = useState(false)
   const [preview, setPreview] = useState(null)
   const [selectedPayslipId, setSelectedPayslipId] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -232,6 +234,7 @@ export default function ServerPayslipTab({ career }) {
     if (mutation || needsResync) return
     if (!canGenerate) { toast.error(`Encerre pelo menos ${game.minWeeksPerPayroll} semanas do Mês ${currentMonth} antes de gerar o holerite.`); return }
     if (settingsDirty) { toast.info('Salve os ajustes do holerite antes de gerar o fechamento.'); return }
+    if (reserveDirty) { toast.info('Salve a configuração da reserva antes de gerar o fechamento.'); return }
     const expectedWeek = currentWeek
     const expectedMonth = currentMonth
     const confirmed = await confirm({
@@ -308,8 +311,11 @@ export default function ServerPayslipTab({ career }) {
           {!settings.editable && <small className="payroll-blocked-note">Este período já possui fechamento e seus parâmetros estão protegidos pelo backend.</small>}
         </form>}
 
-        <button className="button success full-button" type="button" disabled={!canGenerate || Boolean(mutation) || needsResync || settingsDirty} onClick={generatePayslip}>{mutation === 'generate' ? 'Aguardando confirmação do servidor…' : game.id === 'ets2' ? 'Gerar holerite mensal e depositar' : 'Gerar holerite e depositar'}</button>
+        <ServerAutoReserveControl career={career} disabled={Boolean(mutation) || needsResync || settingsDirty} onDirtyChange={setReserveDirty} />
+
+        <button className="button success full-button" type="button" disabled={!canGenerate || Boolean(mutation) || needsResync || settingsDirty || reserveDirty} onClick={generatePayslip}>{mutation === 'generate' ? 'Aguardando confirmação do servidor…' : game.id === 'ets2' ? 'Gerar holerite mensal e depositar' : 'Gerar holerite e depositar'}</button>
         {settingsDirty && <small className="payroll-blocked-note">Salve os ajustes acima para atualizar a prévia antes de gerar o holerite.</small>}
+        {reserveDirty && <small className="payroll-blocked-note">Salve a configuração da reserva antes de gerar o holerite.</small>}
         {game.id === 'ets2' && !canGenerate && !needsResync && <small className="payroll-blocked-note">Encerre mais {Math.max(0, game.minWeeksPerPayroll - currentMonthPeriods.length)} semana(s) para liberar o holerite mensal.</small>}
       </section>
 
