@@ -17,6 +17,8 @@ const mocks = vi.hoisted(() => ({
   getPreview: vi.fn(),
   getCareer: vi.fn(),
   setServerCareerSnapshot: vi.fn(),
+  getFinance: vi.fn(),
+  configureAutoReserve: vi.fn(),
 }))
 
 vi.mock('../../lib/payrollApi.js', () => ({
@@ -30,7 +32,12 @@ vi.mock('../../lib/payrollApi.js', () => ({
     getPreview: mocks.getPreview,
   },
 }))
-
+vi.mock('../../lib/financeApi.js', () => ({
+  financeApi: {
+    get: mocks.getFinance,
+    configureAutoReserve: mocks.configureAutoReserve,
+  },
+}))
 vi.mock('../../lib/careerApi.js', () => ({ careerApi: { get: mocks.getCareer } }))
 vi.mock('../../lib/careerServerState.js', () => ({ setServerCareerSnapshot: mocks.setServerCareerSnapshot }))
 
@@ -47,6 +54,22 @@ function career(overrides = {}) {
     currentOperationalWeek: 4,
     currentPayrollMonth: 1,
     currentLevel: 1,
+    ...overrides,
+  }
+}
+
+function finance(overrides = {}) {
+  return {
+    careerId: 'server-1',
+    displayCurrency: 'USD',
+    currentOperationalWeek: 4,
+    currentPayrollMonth: 1,
+    emergencyReserve: {
+      balance: 0,
+      annualYieldRate: 0.04,
+      autoContributionEnabled: false,
+      autoContributionAmount: 0,
+    },
     ...overrides,
   }
 }
@@ -163,6 +186,15 @@ beforeEach(() => {
   mocks.getPreview.mockReset().mockResolvedValue(preview())
   mocks.getCareer.mockReset().mockResolvedValue({ id: 'server-1', currentOperationalWeek: 5, currentPayrollMonth: 1, version: 2 })
   mocks.setServerCareerSnapshot.mockReset()
+  mocks.getFinance.mockReset().mockResolvedValue(finance())
+  mocks.configureAutoReserve.mockReset().mockResolvedValue(finance({
+    emergencyReserve: {
+      balance: 0,
+      annualYieldRate: 0.04,
+      autoContributionEnabled: true,
+      autoContributionAmount: 75,
+    },
+  }))
 })
 
 afterEach(() => {
@@ -185,6 +217,8 @@ describe('ServerPayslipTab confirmation safety', () => {
     expect(container.textContent).toContain('Salário líquido')
     expect(container.textContent).toContain('Depósito total')
     expect(container.textContent).toContain('Histórico de holerites')
+    expect(container.textContent).toContain('Adicionar automaticamente à reserva ao fechar a semana')
+    expect(mocks.getFinance).toHaveBeenCalledWith('ats', 'server-1')
   })
 
   it('persists payroll preferences and refreshes the authoritative preview', async () => {
@@ -218,6 +252,30 @@ describe('ServerPayslipTab confirmation safety', () => {
     }))
     expect(container.textContent).toContain('Depósito total')
     expect(container.textContent).toContain('US$ 800,00')
+  })
+
+  it('persists automatic reserve configuration in the finance backend before generation', async () => {
+    await render('ats')
+    const checkbox = container.querySelector('.server-reserve-control input[type="checkbox"]')
+    await act(async () => checkbox.click())
+
+    const amount = container.querySelector('input[aria-label="Valor do aporte automático"]')
+    await act(async () => {
+      amount.value = '75'
+      amount.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    const save = [...container.querySelectorAll('button')].find((button) => button.textContent.includes('Salvar configuração da reserva'))
+    expect(save).not.toBeUndefined()
+    await act(async () => save.click())
+    await flush()
+
+    expect(mocks.configureAutoReserve).toHaveBeenCalledWith('ats', 'server-1', {
+      expectedOperationalWeek: 4,
+      expectedPayrollMonth: null,
+      enabled: true,
+      amount: 75,
+    })
+    expect(generateButton().disabled).toBe(false)
   })
 
   it('never falls back to local payroll history when the server history cannot be loaded', async () => {
