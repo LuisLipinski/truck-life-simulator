@@ -67,4 +67,39 @@ describe('finance API client', () => {
       }),
     )
   })
+
+  it('applies monthly expenses with an idempotent server operation', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(response(201, { balance: 1200 }))
+
+    await financeApi.applyExpenses('ets2', 'career-2', {
+      operationId: '11111111-1111-1111-1111-111111111111',
+      expectedOperationalWeek: 5,
+      expectedPayrollMonth: 2,
+    })
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      `${API_BASE_URL}/api/v1/careers/career-2/finances/monthly-expense-applications?game=ETS2`,
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          operationId: '11111111-1111-1111-1111-111111111111',
+          expectedOperationalWeek: 5,
+          expectedPayrollMonth: 2,
+        }),
+      }),
+    )
+  })
+
+  it('sends operational preconditions when deleting a custom expense', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(response(200, { expenses: [] }))
+
+    await financeApi.deleteExpense('ats', 'career-1', 'expense / 1', {
+      expectedOperationalWeek: 3,
+    })
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      `${API_BASE_URL}/api/v1/careers/career-1/finances/monthly-expenses/expense%20%2F%201?game=ATS&expectedOperationalWeek=3`,
+      expect.objectContaining({ method: 'DELETE' }),
+    )
+  })
 })

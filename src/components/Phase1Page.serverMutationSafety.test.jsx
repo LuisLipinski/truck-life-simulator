@@ -20,6 +20,13 @@ const mocks = vi.hoisted(() => ({
   createTrip: vi.fn(),
   deleteTrip: vi.fn(),
   listTrips: vi.fn(),
+  getFinances: vi.fn(),
+}))
+
+vi.mock('../lib/financeApi.js', () => ({
+  financeApi: {
+    get: mocks.getFinances,
+  },
 }))
 
 vi.mock('../lib/tripApi.js', () => ({
@@ -140,6 +147,15 @@ beforeEach(() => {
   mocks.createTrip.mockReset()
   mocks.deleteTrip.mockReset()
   mocks.listTrips.mockReset()
+  mocks.getFinances.mockReset()
+  mocks.getFinances.mockResolvedValue({
+    balance: 5000,
+    displayCurrency: 'USD',
+    currentOperationalWeek: 2,
+    monthlyExpenseTotal: 1800,
+    expenses: [{ id: 'rent-1', type: 'STANDARD', category: 'rent', amount: 1800, included: true }],
+    emergencyReserve: { balance: 250, annualYieldRate: 0.0325 },
+  })
   seedServerCareer()
 })
 
@@ -176,13 +192,16 @@ describe('Phase1Page server mutation safety', () => {
     expect(document.body.textContent).not.toContain('Exclusão não concluída')
   })
 
-  it('blocks still-local financial writes for an already migrated career', async () => {
+  it('renders server-backed financial controls without enabling the local finance flow', async () => {
     await renderPage()
     await clickButton('Financeiro')
 
-    expect(container.textContent).toContain('Saldo e despesas temporariamente protegidos')
-    expect(container.textContent).toContain('Nenhuma gravação local será feita nesta carreira migrada')
-    expect(container.textContent).not.toContain('Aplicar despesas do mês')
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+
+    expect(mocks.getFinances).toHaveBeenCalledWith('ats', serverCareerId)
+    expect(container.textContent).toContain('Reserva de emergência')
+    expect(container.textContent).toContain('Aplicar despesas mensais')
+    expect(container.textContent).not.toContain('Saldo e despesas temporariamente protegidos')
   })
 
   it('blocks still-local incident and qualification writes until P4.6.4', async () => {
