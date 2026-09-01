@@ -29,6 +29,30 @@ function formatHoursFromMinutes(minutes) {
   return remaining ? `${hours}h ${remaining}min` : `${hours}h`
 }
 
+const WEEKDAY_LABELS = Object.freeze({
+  MONDAY: 'Segunda-feira', TUESDAY: 'Terça-feira', WEDNESDAY: 'Quarta-feira',
+  THURSDAY: 'Quinta-feira', FRIDAY: 'Sexta-feira', SATURDAY: 'Sábado', SUNDAY: 'Domingo',
+})
+
+function dailyWorkLabel(day) {
+  const weekday = WEEKDAY_LABELS[String(day?.day || '').toUpperCase()] || String(day?.day || 'Dia operacional')
+  return `Semana ${day?.operationalWeek || '—'} • ${weekday}`
+}
+
+function DailyWorkBreakdown({ days, game }) {
+  if (!Array.isArray(days) || days.length === 0) return null
+  return <div className="breakdown-list compact-breakdown server-daily-work-breakdown">{days.map((day, index) => (
+    <div key={`${day.operationalWeek}-${day.day}-${index}`}>
+      <span>{dailyWorkLabel(day)}</span>
+      <strong>{game.id === 'ets2' && Number(day.breakMinutes || 0) > 0
+        ? `${formatHoursFromMinutes(day.elapsedMinutes)} corridas • -${formatHoursFromMinutes(day.breakMinutes)} de pausa • ${formatHoursFromMinutes(day.workedMinutes)} trabalhadas`
+        : `${formatHoursFromMinutes(day.workedMinutes)} trabalhadas`}{Number(day.overrunMinutes || 0) > 0
+        ? ` • +${formatHoursFromMinutes(day.overrunMinutes)} extra`
+        : ' • sem extra'}</strong>
+    </div>
+  ))}</div>
+}
+
 function auditTime(value) {
   if (!value) return '—'
   const date = new Date(value)
@@ -301,6 +325,7 @@ export default function ServerPayslipTab({ career }) {
             <TipLabel tip="Tarifa persistida no backend e usada no cálculo server-side do tempo excedente.">Valor por hora de {game.overtimeLabel}</TipLabel><input aria-label="Route Overrun por hora" type="number" min="0" step="0.01" disabled={!settings.editable || Boolean(mutation)} value={settingsForm.routeOverrunRate} onChange={(event) => updateSetting('routeOverrunRate', event.target.value)} />
             <div className="readout-box"><span>{game.overtimeLabel} automático</span><strong>{formatHoursFromMinutes(preview?.overrunMinutes)} • {money(overrunPay, currency)}</strong><small>O backend soma o tempo das viagens, aplica a jornada e retorna o excedente elegível a {money(overrunRate, currency)}/h.</small></div>
             {preview?.ready && <div className="breakdown-list compact-breakdown server-worked-time-breakdown"><div><span>Tempo total das viagens</span><strong>{formatHoursFromMinutes(preview.elapsedMinutes)}</strong></div>{Number(preview.breakMinutes || 0) > 0 && <div><span>Pausas descontadas</span><strong>-{formatHoursFromMinutes(preview.breakMinutes)}</strong></div>}<div><span>Tempo trabalhado</span><strong>{formatHoursFromMinutes(preview.workedMinutes)}</strong></div></div>}
+            <DailyWorkBreakdown days={preview?.dailyWorkBreakdown} game={game} />
           </> : <>
             <div className="readout-box"><span>{game.distanceName[0].toUpperCase() + game.distanceName.slice(1)} pagos no período</span><strong>{distance(preview?.totalDistance, game)}</strong></div>
             <div className="breakdown-list compact-breakdown">{(preview?.lines || []).filter((line) => line.code?.startsWith('MILEAGE_')).map((line) => <div key={line.code}><span>{line.label}</span><strong>{distance(line.quantity, game)} × {money(line.rate, currency)}</strong></div>)}</div>
@@ -337,7 +362,7 @@ export default function ServerPayslipTab({ career }) {
         <div className="section-heading compact-heading"><span className="eyebrow">Histórico de holerites</span><h2>{game.id === 'ets2' ? 'Meses fechados' : 'Semanas fechadas'}</h2></div>
         {payslips.length === 0 ? <div className="empty-inline">Nenhum holerite fechado ainda.</div> : <div className="server-payslip-history-list">{payslips.map((payslip) => <article className={`server-payslip-history-item${String(selectedPayslip?.id) === String(payslip.id) ? ' is-selected' : ''}`} key={payslip.id}>
           <button type="button" className="server-payslip-history-summary" onClick={() => setSelectedPayslipId(payslip.id)}><span><strong>{payslipPeriodLabel(payslip, game)}</strong><small>{auditTime(payslip.generatedAt)} • Nível {payslip.level} • {distance(payslip.totalDistance, game)}</small></span><span className="server-payslip-history-credit"><small>Crédito no saldo</small><strong>{money(payslip.balanceCreditAmount, payslip.displayCurrency)}</strong></span></button>
-          {String(selectedPayslip?.id) === String(payslip.id) && <div className="server-payslip-history-detail"><div className="payslip-lines"><div><span>Salário bruto</span><strong>{money(payslip.grossAmount, payslip.displayCurrency)}</strong></div><div><span>Impostos</span><strong>-{money(payslip.taxAmount, payslip.displayCurrency)}</strong></div><div><span>Outros descontos</span><strong>-{money(payslip.benefitsAmount, payslip.displayCurrency)}</strong></div><div className="emphasis-line"><span>Salário líquido</span><strong>{money(payslip.netSalaryAmount, payslip.displayCurrency)}</strong></div><div><span>{game.perDiemLabel}</span><strong>+{money(payslip.perDiemAmount, payslip.displayCurrency)}</strong></div><div><span>Infrações/acidentes</span><strong>-{money(payslip.incidentDeductionAmount, payslip.displayCurrency)}</strong></div><div className="deposit-line"><span>Depósito total</span><strong>{money(payslip.depositAmount, payslip.displayCurrency)}</strong></div></div>{Array.isArray(payslip.lines) && payslip.lines.length > 0 && <div className="server-payslip-persisted-lines"><span className="eyebrow">Composição persistida no servidor</span>{payslip.lines.map((line) => <div key={line.id || `${line.order}-${line.code}`}><span>{displayTaxLabel(line, game)}</span><strong>{line.type === 'DEDUCTION' ? '-' : '+'}{money(line.amount, payslip.displayCurrency)}</strong></div>)}</div>}</div>}
+          {String(selectedPayslip?.id) === String(payslip.id) && <div className="server-payslip-history-detail"><div className="payslip-lines"><div><span>Salário bruto</span><strong>{money(payslip.grossAmount, payslip.displayCurrency)}</strong></div><div><span>Impostos</span><strong>-{money(payslip.taxAmount, payslip.displayCurrency)}</strong></div><div><span>Outros descontos</span><strong>-{money(payslip.benefitsAmount, payslip.displayCurrency)}</strong></div><div className="emphasis-line"><span>Salário líquido</span><strong>{money(payslip.netSalaryAmount, payslip.displayCurrency)}</strong></div><div><span>{game.perDiemLabel}</span><strong>+{money(payslip.perDiemAmount, payslip.displayCurrency)}</strong></div><div><span>Infrações/acidentes</span><strong>-{money(payslip.incidentDeductionAmount, payslip.displayCurrency)}</strong></div><div className="deposit-line"><span>Depósito total</span><strong>{money(payslip.depositAmount, payslip.displayCurrency)}</strong></div></div><DailyWorkBreakdown days={payslip.contextSnapshot?.dailyWorkBreakdown} game={game} />{Array.isArray(payslip.lines) && payslip.lines.length > 0 && <div className="server-payslip-persisted-lines"><span className="eyebrow">Composição persistida no servidor</span>{payslip.lines.map((line) => <div key={line.id || `${line.order}-${line.code}`}><span>{displayTaxLabel(line, game)}</span><strong>{line.type === 'DEDUCTION' ? '-' : '+'}{money(line.amount, payslip.displayCurrency)}</strong></div>)}</div>}</div>}
         </article>)}</div>}
       </section>
     </div>
