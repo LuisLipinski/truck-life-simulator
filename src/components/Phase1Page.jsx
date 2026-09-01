@@ -34,6 +34,7 @@ import { useConfirm } from './ConfirmProvider.jsx'
 import { useTutorial } from './GuidedTutorial.jsx'
 import { useToast } from './ToastProvider.jsx'
 import FinancesTab from './phase1/FinancesTab.jsx'
+import ServerFinancesTab from './phase1/ServerFinancesTab.jsx'
 import PayslipTab from './phase1/PayslipTab.jsx'
 import ServerPayslipTab from './phase1/ServerPayslipTab.jsx'
 import IncidentsTab from './phase1/IncidentsTab.jsx'
@@ -633,7 +634,7 @@ export default function Phase1Page({ careerId, onBack }) {
         <TabIntro tabId={activeTab} />
         {activeTab === 'overview' && <OverviewTab career={career} state={state} setActiveTab={setActiveTab} onUpdateProfile={updateProfile} onChangeEmployer={changeEmployer} onChangeBase={changeBase} />}
         {activeTab === 'finances' && (career.serverBacked
-          ? <ServerCutoverGuard title="Saldo e despesas temporariamente protegidos" phase="P4.6.5" detail="O saldo exibido no cabeçalho já vem do perfil server-side, mas despesas, reserva, ledger e demais movimentações financeiras ainda serão conectados em uma fatia própria. Até lá, esta carreira migrada não aceitará novas gravações financeiras apenas no navegador." />
+          ? <ServerFinancesTab career={career} />
           : <FinancesTab state={state} commit={commit} />)}
         {activeTab === 'payslip' && (career.serverBacked
           ? <ServerPayslipTab career={career} />
