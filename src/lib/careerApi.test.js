@@ -79,7 +79,10 @@ describe('career API client', () => {
       citySalaryFactor: 1.05,
     }
 
+    const defaultTruck = { defaultTruckMake: 'Volvo', defaultTruckModel: 'VNL 860' }
+
     await careerApi.updateProfile('ats', 'server-career', profile)
+    await careerApi.updateDefaultTruck('ats', 'server-career', defaultTruck)
     await careerApi.changeEmployer('ats', 'server-career', employer)
     await careerApi.changeBase('ats', 'server-career', base)
 
@@ -90,11 +93,16 @@ describe('career API client', () => {
     )
     expect(globalThis.fetch).toHaveBeenNthCalledWith(
       2,
+      `${API_BASE_URL}/api/v1/careers/server-career/default-truck?game=ATS`,
+      expect.objectContaining({ method: 'PATCH', body: JSON.stringify(defaultTruck) }),
+    )
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      3,
       `${API_BASE_URL}/api/v1/careers/server-career/employer?game=ATS`,
       expect.objectContaining({ method: 'PATCH', body: JSON.stringify(employer) }),
     )
     expect(globalThis.fetch).toHaveBeenNthCalledWith(
-      3,
+      4,
       `${API_BASE_URL}/api/v1/careers/server-career/base?game=ATS`,
       expect.objectContaining({ method: 'PATCH', body: JSON.stringify(base) }),
     )
