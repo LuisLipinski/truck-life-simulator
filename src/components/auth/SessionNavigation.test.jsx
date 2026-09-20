@@ -58,4 +58,17 @@ describe('SessionNavigation career migration notice', () => {
     expect(link.textContent).toContain('Migrar 1 carreira')
     expect(link.getAttribute('href')).toBe('#/account')
   })
+
+  it('marks the document only while the fixed account bar is visible', async () => {
+    expect(document.documentElement.getAttribute('data-session-account-bar')).toBe('visible')
+
+    await act(async () => {
+      window.location.hash = '#/account'
+      window.dispatchEvent(new HashChangeEvent('hashchange'))
+      await Promise.resolve()
+    })
+
+    expect(container.querySelector('.session-account-bar')).toBeNull()
+    expect(document.documentElement.hasAttribute('data-session-account-bar')).toBe(false)
+  })
 })

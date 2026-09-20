@@ -21,6 +21,7 @@ export default function SessionNavigation() {
   const pendingImports = auth.isAuthenticated && auth.user?.id
     ? countPendingCareerImports(auth.user.id)
     : 0
+  const sessionBarVisible = auth.isAuthenticated && !PUBLIC_AUTH_PATHS.has(path) && path !== '/account'
 
   useEffect(() => {
     const onHashChange = () => setPath(currentPath())
@@ -28,7 +29,14 @@ export default function SessionNavigation() {
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
 
-  if (!auth.isAuthenticated || PUBLIC_AUTH_PATHS.has(path) || path === '/account') return null
+  useEffect(() => {
+    const root = document.documentElement
+    if (sessionBarVisible) root.setAttribute('data-session-account-bar', 'visible')
+    else root.removeAttribute('data-session-account-bar')
+    return () => root.removeAttribute('data-session-account-bar')
+  }, [sessionBarVisible])
+
+  if (!sessionBarVisible) return null
 
   async function signOut() {
     setSigningOut(true)
