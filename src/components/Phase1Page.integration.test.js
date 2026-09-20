@@ -352,6 +352,7 @@ describe('career profile and effective changes', () => {
     const careerId = seedCareer({ level: 1, miles: 0 })
     renderCareer(careerId, { openJournal: false })
 
+    act(() => container.querySelector('button[aria-label="Editar nome do motorista e biografia"]').click())
     setInputValue(container.querySelector('#career-edit-driver'), 'Corrected Driver')
     setInputValue(container.querySelector('#career-edit-bio'), 'Nova biografia')
     act(() => container.querySelector('.career-change-form [type="submit"]').click())
@@ -370,8 +371,8 @@ describe('career profile and effective changes', () => {
   it('changes employer only after confirmation and snapshots the old employer in existing trips', async () => {
     const careerId = seedCareer({ level: 1, miles: 50 })
     renderCareer(careerId, { openJournal: false })
-    const employerTab = [...container.querySelectorAll('.career-management-tabs button')].find((button) => button.textContent === 'Empresa')
-    act(() => employerTab.click())
+    const employerEdit = container.querySelector('button[aria-label="Editar empresa"]')
+    act(() => employerEdit.click())
     setInputValue(container.querySelector('#career-new-company'), 'Future Logistics')
 
     await act(async () => {
@@ -401,8 +402,8 @@ describe('career profile and effective changes', () => {
   it('moves the ATS base after confirmation and applies the new financial profile only to open defaults', async () => {
     const careerId = seedCareer({ level: 1, miles: 50 })
     renderCareer(careerId, { openJournal: false })
-    const baseTab = [...container.querySelectorAll('.career-management-tabs button')].find((button) => button.textContent === 'Base')
-    act(() => baseTab.click())
+    const baseEdit = container.querySelector('button[aria-label="Editar base"]')
+    act(() => baseEdit.click())
     setInputValue(container.querySelector('#career-new-location'), 'TX')
     setInputValue(container.querySelector('.career-change-form .react-city-autocomplete input'), 'Dallas, TX')
 
@@ -435,8 +436,8 @@ describe('career profile and effective changes', () => {
   it('moves an ETS2 base to another country while keeping the chosen display currency', async () => {
     const careerId = seedEts2Career({ distance: 80 })
     renderCareer(careerId, { openJournal: false, gameId: 'ets2' })
-    const baseTab = [...container.querySelectorAll('.career-management-tabs button')].find((button) => button.textContent === 'Base')
-    act(() => baseTab.click())
+    const baseEdit = container.querySelector('button[aria-label="Editar base"]')
+    act(() => baseEdit.click())
     setInputValue(container.querySelector('#career-new-location'), 'GB')
     setInputValue(container.querySelector('.career-change-form .react-city-autocomplete input'), 'Londres, Reino Unido')
 
