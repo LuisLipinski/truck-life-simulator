@@ -191,9 +191,19 @@ export function updateCareer(id, updates, gameId = 'ats') {
   const index = careers.findIndex((career) => career.id === id)
   if (index < 0) return null
   const current = careers[index]
+  const visibleCurrent = withServerCareer(current, gameId)
+  const safeUpdates = { ...(updates || {}) }
+
+  if (visibleCurrent?.serverBacked) {
+    for (const field of [...SERVER_PROFILE_FIELDS, ...SERVER_ONLY_FIELDS]) {
+      delete safeUpdates[field]
+    }
+    if (Object.keys(safeUpdates).length === 0) return visibleCurrent
+  }
+
   const updated = normalizeCareer({
     ...current,
-    ...(updates || {}),
+    ...safeUpdates,
     id: current.id,
     gameId,
     createdAt: current.createdAt,
