@@ -38,7 +38,9 @@ import ServerFinancesTab from './phase1/ServerFinancesTab.jsx'
 import PayslipTab from './phase1/PayslipTab.jsx'
 import ServerPayslipTab from './phase1/ServerPayslipTab.jsx'
 import IncidentsTab from './phase1/IncidentsTab.jsx'
+import ServerIncidentsTab from './phase1/ServerIncidentsTab.jsx'
 import QualificationsTab from './phase1/QualificationsTab.jsx'
+import ServerQualificationsTab from './phase1/ServerQualificationsTab.jsx'
 import RulesTab from './phase1/RulesTab.jsx'
 import ModsTab from './phase1/ModsTab.jsx'
 import HistoryTab from './phase1/HistoryTab.jsx'
@@ -641,10 +643,10 @@ export default function Phase1Page({ careerId, onBack }) {
           : <PayslipTab career={career} state={state} commit={commit} />)}
         {activeTab === 'progress' && <TripsTab career={career} state={state} onAddTrip={addTrip} onSaveTripDraft={saveTripDraft} onSaveDefaultTruck={saveDefaultTruck} onDeleteTrip={deleteTrip} />}
         {activeTab === 'incidents' && (career.serverBacked
-          ? <ServerCutoverGuard title="Ocorrências temporariamente protegidas" phase="P4.6.4" detail="As ocorrências já existentes no backend continuam participando dos cálculos server-side. Novas multas ou acidentes ficarão bloqueados até a tela usar a API de ocorrências, evitando que um desconto exista somente no navegador e seja ignorado pelo holerite." />
+          ? <ServerIncidentsTab career={career} state={state} />
           : <IncidentsTab state={state} commit={commit} />)}
         {activeTab === 'qualifications' && (career.serverBacked
-          ? <ServerCutoverGuard title="Promoções e qualificações temporariamente protegidas" phase="P4.6.4" detail="O nível e as qualificações persistidos no backend continuam sendo a referência para os cálculos. Novas promoções, HazMat/ADR e conclusões da Academy serão reativadas quando esta aba estiver conectada ao servidor." />
+          ? <ServerQualificationsTab career={career} />
           : <QualificationsTab state={state} commit={commit} />)}
         {activeTab === 'academy' && <AcademyGuideTab onOpenQualifications={() => goToTab('qualifications')} />}
         {activeTab === 'rules' && <RulesTab />}
