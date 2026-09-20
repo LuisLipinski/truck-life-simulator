@@ -27,17 +27,6 @@ function eventFromServer(event) {
   }
 }
 
-function mergeEvents(localEvents, serverEvents) {
-  const result = Array.isArray(localEvents) ? [...localEvents] : []
-  const ids = new Set(result.map((event) => String(event?.id || '')).filter(Boolean))
-  for (const event of (serverEvents || []).map(eventFromServer)) {
-    if (event.id && ids.has(event.id)) continue
-    result.push(event)
-    if (event.id) ids.add(event.id)
-  }
-  return result
-}
-
 export function serverTripToPhase1Trip(trip, gameId = 'ats') {
   const game = String(gameId || '').toLowerCase()
   const departureDay = String(trip?.departureDay || '').toLowerCase()
@@ -191,10 +180,28 @@ export function applyServerTripsToPhase1State(state, career, gameId = 'ats') {
   if (!career?.serverBacked || !career?.id) return state
   const serverTrips = getServerCareerTrips(gameId, career.id)
   if (serverTrips.status !== 'ready') return state
+  const level = Math.max(1, numberOr(career.currentLevel, 1))
   return {
     ...state,
+    balance: numberOr(career.currentBalance, 0),
+    currentLevel: level,
+    careerLevel: level,
+    currentWeek: Math.max(1, numberOr(career.currentOperationalWeek, 1)),
+    currentPayrollMonth: career.currentPayrollMonth == null
+      ? Math.max(1, numberOr(state?.currentPayrollMonth, 1))
+      : Math.max(1, numberOr(career.currentPayrollMonth, 1)),
     trips: serverTrips.trips,
-    currentWeek: Math.max(1, numberOr(career.currentOperationalWeek, state?.currentWeek || 1)),
+    tripDraft: null,
+    history: [],
+    closedWeeks: [],
+    closedOperationalWeeks: [],
+    incidents: [],
+    expenses: {},
+    customExpenses: [],
+    emergencyReserve: 0,
+    dangerousGoodsQualified: false,
+    hazmatQualified: false,
+    academy: { level2: false, level3: false },
   }
 }
 
@@ -244,7 +251,9 @@ export function getServerCareerOverlay(localCareer, gameId = 'ats') {
     citySalaryFactor: numberOr(server.citySalaryFactor, localCareer.citySalaryFactor || 1),
     currentOperationalWeek: numberOr(server.currentOperationalWeek, localCareer.currentOperationalWeek || 1),
     currentPayrollMonth: server.currentPayrollMonth == null ? localCareer.currentPayrollMonth : Number(server.currentPayrollMonth),
-    events: mergeEvents(localCareer.events, snapshot.events),
+    defaultTruckMake: server.defaultTruckMake || '',
+    defaultTruckModel: server.defaultTruckModel || '',
+    events: (snapshot.events || []).map(eventFromServer),
     serverBacked: true,
     serverCareerId: binding.serverCareerId,
     serverVersion: numberOr(server.version, 0),
