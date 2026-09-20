@@ -272,7 +272,7 @@ describe('career card navigation', () => {
       root.render(createElement(ToastProvider, null, createElement(ConfirmProvider, null, createElement(TutorialProvider, null, createElement(App)))))
     })
 
-    await act(async () => document.querySelector('button[aria-label="Editar nome do motorista e biografia"]').click())
+    await act(async () => document.querySelector('button[aria-label="Editar nome do motorista"]').click())
     setInputValue(document.querySelector('#career-edit-driver'), 'Corrected Driver')
     await act(async () => {
       document.querySelector('#career-profile-editor').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
