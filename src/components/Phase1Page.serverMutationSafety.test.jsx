@@ -385,9 +385,9 @@ describe('Phase1Page server mutation safety', () => {
     const amountInput = container.querySelector('#financing-amount')
     expect(amountInput).not.toBeNull()
     await act(async () => {
-      amountInput.value = '5000'
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+      setter.call(amountInput, '5000')
       amountInput.dispatchEvent(new Event('input', { bubbles: true }))
-      amountInput.dispatchEvent(new Event('change', { bubbles: true }))
     })
     await clickButton('Buscar ofertas')
     await act(async () => { await Promise.resolve(); await Promise.resolve() })
