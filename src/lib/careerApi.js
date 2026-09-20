@@ -27,6 +27,12 @@ export const careerApi = {
     body: payload,
     signal: options.signal,
   }),
+  updateDefaultTruck: (gameId, careerId, payload, options = {}) => apiRequest(careerPath(careerId, gameId, '/default-truck'), {
+    auth: true,
+    method: 'PATCH',
+    body: payload,
+    signal: options.signal,
+  }),
   changeEmployer: (gameId, careerId, payload, options = {}) => apiRequest(careerPath(careerId, gameId, '/employer'), {
     auth: true,
     method: 'PATCH',
