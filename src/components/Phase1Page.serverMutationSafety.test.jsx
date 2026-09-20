@@ -21,6 +21,8 @@ const mocks = vi.hoisted(() => ({
   deleteTrip: vi.fn(),
   listTrips: vi.fn(),
   getFinances: vi.fn(),
+  listIncidents: vi.fn(),
+  getProgression: vi.fn(),
 }))
 
 vi.mock('../lib/financeApi.js', () => ({
@@ -34,6 +36,22 @@ vi.mock('../lib/tripApi.js', () => ({
     create: mocks.createTrip,
     delete: mocks.deleteTrip,
     list: mocks.listTrips,
+  },
+}))
+
+vi.mock('../lib/incidentApi.js', () => ({
+  incidentApi: {
+    list: mocks.listIncidents,
+    create: vi.fn(),
+    cancel: vi.fn(),
+  },
+}))
+
+vi.mock('../lib/progressionApi.js', () => ({
+  progressionApi: {
+    get: mocks.getProgression,
+    promote: vi.fn(),
+    acquireDangerousGoods: vi.fn(),
   },
 }))
 
@@ -148,6 +166,23 @@ beforeEach(() => {
   mocks.deleteTrip.mockReset()
   mocks.listTrips.mockReset()
   mocks.getFinances.mockReset()
+  mocks.listIncidents.mockReset().mockResolvedValue([])
+  mocks.getProgression.mockReset().mockResolvedValue({
+    careerId: serverCareerId,
+    game: 'ATS',
+    currentLevel: 1,
+    balance: 5000,
+    displayCurrency: 'USD',
+    totalDistance: 120,
+    dangerousGoodsQualified: false,
+    academyProgress: [],
+    qualifications: [],
+    promotions: [
+      { targetLevel: 2, moduleName: 'Truck Driving Proficiency', requiredDistance: 10000, currentDistance: 120, remainingDistance: 9880, feeAmount: 300, completed: false, ready: false },
+      { targetLevel: 3, moduleName: 'Double Trailer Handling', requiredDistance: 50000, currentDistance: 120, remainingDistance: 49880, feeAmount: 59, completed: false, ready: false },
+    ],
+    dangerousQualification: { type: 'HAZMAT', name: 'HazMat', minimumLevel: 2, feeAmount: 144.25, acquired: false, ready: false },
+  })
   mocks.getFinances.mockResolvedValue({
     balance: 5000,
     displayCurrency: 'USD',
@@ -204,15 +239,22 @@ describe('Phase1Page server mutation safety', () => {
     expect(container.textContent).not.toContain('Saldo e despesas temporariamente protegidos')
   })
 
-  it('blocks still-local incident and qualification writes until P4.6.4', async () => {
+  it('renders server-backed incidents and qualifications instead of the migration guards', async () => {
     await renderPage()
     await clickButton('Diário de Bordo')
     await clickButton('Infrações e Acidentes')
-    expect(container.textContent).toContain('Ocorrências temporariamente protegidas')
-    expect(container.textContent).not.toContain('Registrar ocorrência')
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+
+    expect(mocks.listIncidents).toHaveBeenCalledWith('ats', serverCareerId)
+    expect(container.textContent).toContain('Registrar ocorrência')
+    expect(container.textContent).not.toContain('Ocorrências temporariamente protegidas')
 
     await clickButton('Qualificações')
-    expect(container.textContent).toContain('Promoções e qualificações temporariamente protegidas')
-    expect(container.textContent).toContain('P4.6.4')
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+
+    expect(mocks.getProgression).toHaveBeenCalledWith('ats', serverCareerId)
+    expect(container.textContent).toContain('Truck Driving Proficiency')
+    expect(container.textContent).toContain('HazMat')
+    expect(container.textContent).not.toContain('Promoções e qualificações temporariamente protegidas')
   })
 })
