@@ -385,7 +385,7 @@ function TripsTab({ career, state, onAddTrip, onSaveTripDraft, onSaveDefaultTruc
       <MileageChart trips={state.trips} />
 
       <div className="phase1-two-panel">
-        <TripForm career={career} state={state} onAdd={onAddTrip} onSaveDraft={onSaveTripDraft} onSaveDefaultTruck={onSaveDefaultTruck} />
+        <TripForm key={career.serverBacked ? `server-trip-form:${JSON.stringify(state.tripDraft || {})}` : 'local-trip-form'} career={career} state={state} onAdd={onAddTrip} onSaveDraft={onSaveTripDraft} onSaveDefaultTruck={onSaveDefaultTruck} />
         <section className="panel pay-breakdown-panel">
           <span className="eyebrow">Resumo semanal</span>
           <h2>Pagamento por categoria</h2>
