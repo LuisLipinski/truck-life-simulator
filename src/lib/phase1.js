@@ -15,15 +15,6 @@ export function loadPhase1State(careerId, gameId = 'ats') {
 
 export function savePhase1State(careerId, state, gameId = 'ats') {
   const career = getCareer(careerId, gameId)
-  if (!career?.serverBacked || career.serverTripsStatus !== 'ready') {
-    saveLocalPhase1State(careerId, state, gameId)
-    return
-  }
-
-  const localBackup = loadLocalPhase1State(careerId, gameId)
-  saveLocalPhase1State(careerId, {
-    ...state,
-    trips: localBackup.trips,
-    currentWeek: localBackup.currentWeek,
-  }, gameId)
+  if (career?.serverBacked) return
+  saveLocalPhase1State(careerId, state, gameId)
 }
