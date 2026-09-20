@@ -45,6 +45,7 @@ import { useTutorial } from './GuidedTutorial.jsx'
 import { useToast } from './ToastProvider.jsx'
 import FinancesTab from './phase1/FinancesTab.jsx'
 import ServerFinancesTab from './phase1/ServerFinancesTab.jsx'
+import FinancingTab from './phase1/FinancingTab.jsx'
 import PayslipTab from './phase1/PayslipTab.jsx'
 import ServerPayslipTab from './phase1/ServerPayslipTab.jsx'
 import IncidentsTab from './phase1/IncidentsTab.jsx'
@@ -74,6 +75,11 @@ const TAB_HELP = {
     label: 'Holerite',
     description: 'Calcula o pagamento semanal com salário ou milhas, impostos estimados, benefícios, per diem e descontos de ocorrências.',
     tip: 'Ao gerar o holerite, a semana é fechada, o depósito entra no saldo e uma nova semana começa.',
+  },
+  financing: {
+    label: 'Empréstimos e Financiamentos',
+    description: 'Simule, contrate e acompanhe empréstimos pessoais e financiamentos de veículo usando as regras e taxas pesquisadas da sede da carreira.',
+    tip: 'A taxa, o teto local quando houver, as parcelas e a quitação são calculados pelo backend e congelados no contrato.',
   },
   progress: {
     label: 'Registro de Viagens',
@@ -444,6 +450,7 @@ export default function Phase1Page({ careerId, onBack }) {
   const financialTabs = useMemo(() => [
     ['finances', 'Saldo e Despesas'],
     ['payslip', 'Holerite'],
+    ['financing', 'Empréstimos e Financiamentos'],
     ['history', 'Histórico'],
   ], [])
 
@@ -864,6 +871,7 @@ export default function Phase1Page({ careerId, onBack }) {
         {activeTab === 'payslip' && (career.serverBacked
           ? <ServerPayslipTab career={career} />
           : <PayslipTab career={career} state={state} commit={commit} />)}
+        {activeTab === 'financing' && <FinancingTab career={career} />}
         {activeTab === 'progress' && <TripsTab career={career} state={state} onAddTrip={addTrip} onSaveTripDraft={saveTripDraft} onSaveDefaultTruck={saveDefaultTruck} onDeleteTrip={deleteTrip} />}
         {activeTab === 'incidents' && (career.serverBacked
           ? <ServerIncidentsTab career={career} state={state} />
