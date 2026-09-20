@@ -12,6 +12,11 @@ function tripsPath(careerId, gameId, tripId = null, operationalWeek = null) {
   return `/api/v1/careers/${career}/trips${trip}?${gameQuery(gameId, operationalWeek)}`
 }
 
+function draftPath(careerId, gameId) {
+  const career = encodeURIComponent(String(careerId || ''))
+  return `/api/v1/careers/${career}/trips/draft?${gameQuery(gameId)}`
+}
+
 function optionalNumber(value) {
   if (value == null || String(value).trim() === '') return undefined
   const number = Number(value)
@@ -41,6 +46,19 @@ export function toServerTripPayload(trip = {}) {
 }
 
 export const tripApi = {
+  getDraft: (gameId, careerId, options = {}) => apiRequest(
+    draftPath(careerId, gameId),
+    { auth: true, signal: options.signal },
+  ),
+  saveDraft: (gameId, careerId, expectedOperationalWeek, data, options = {}) => apiRequest(
+    draftPath(careerId, gameId),
+    {
+      auth: true,
+      method: 'PUT',
+      body: { expectedOperationalWeek: Number(expectedOperationalWeek), data: data || {} },
+      signal: options.signal,
+    },
+  ),
   list: (gameId, careerId, options = {}) => apiRequest(
     tripsPath(careerId, gameId, null, options.operationalWeek),
     { auth: true, signal: options.signal },
