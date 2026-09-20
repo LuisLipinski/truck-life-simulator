@@ -26,7 +26,7 @@ function WeekdaySelect({ id, value, onChange }) {
   )
 }
 
-export default function CareerManagementPanel({ career, onUpdateProfile, onChangeEmployer, onChangeBase, initialMode = 'profile', lockedMode = false }) {
+export default function CareerManagementPanel({ career, onUpdateProfile, onChangeEmployer, onChangeBase, initialMode = 'driver', lockedMode = false }) {
   const game = useGame()
   const confirm = useConfirm()
   const toast = useToast()
@@ -106,16 +106,23 @@ export default function CareerManagementPanel({ career, onUpdateProfile, onChang
     return false
   }
 
-  async function submitProfile(event) {
+  async function submitProfile(event, target) {
     event.preventDefault()
-    const nextName = driverName.trim()
-    const nextBio = bio.trim()
-    if (nextName.length < 2) {
+    const currentName = career.driverName || ''
+    const currentBio = career.bio || career.biography || ''
+    const nextName = target === 'driver' ? driverName.trim() : currentName
+    const nextBio = target === 'biography' ? bio.trim() : currentBio
+
+    if (target === 'driver' && nextName.length < 2) {
       toast.error('Informe um nome de motorista com pelo menos 2 caracteres.')
       return
     }
-    if (nextName === career.driverName && nextBio === (career.bio || career.biography || '')) {
-      toast.info('Nenhuma alteração de perfil para salvar.')
+    if (target === 'driver' && nextName === currentName) {
+      toast.info('Nenhuma alteração no nome para salvar.')
+      return
+    }
+    if (target === 'biography' && nextBio === currentBio) {
+      toast.info('Nenhuma alteração na biografia para salvar.')
       return
     }
     if (!career.serverBacked) {
@@ -132,7 +139,9 @@ export default function CareerManagementPanel({ career, onUpdateProfile, onChang
         biography: nextBio,
       })
       await refreshServerCareer(response)
-      toast.success('Perfil atualizado na sua carreira server-side.')
+      toast.success(target === 'driver'
+        ? 'Nome do motorista atualizado no servidor.'
+        : 'Biografia atualizada no servidor.')
     } catch (error) {
       await handleServerError(error)
     } finally {
@@ -242,41 +251,77 @@ export default function CareerManagementPanel({ career, onUpdateProfile, onChang
     }
   }
 
+  const editorCopy = {
+    driver: {
+      eyebrow: 'Perfil do motorista',
+      title: 'Editar nome do motorista',
+      description: 'Altere somente o nome exibido na carreira.',
+    },
+    biography: {
+      eyebrow: 'Perfil do motorista',
+      title: 'Editar biografia',
+      description: 'Altere somente a biografia exibida no cabeçalho da carreira.',
+    },
+    employer: {
+      eyebrow: 'Vínculo profissional',
+      title: 'Trocar empresa',
+      description: 'A nova empresa vale somente a partir do momento operacional escolhido.',
+    },
+    base: {
+      eyebrow: 'Sede da carreira',
+      title: 'Mudar base',
+      description: 'A nova base e suas regras financeiras valem somente a partir do momento operacional escolhido.',
+    },
+  }[mode] || {
+    eyebrow: 'Perfil e vínculos',
+    title: 'Gerenciar carreira',
+    description: 'Correções e mudanças ficam registradas sem alterar viagens ou holerites anteriores.',
+  }
+
   return (
     <section className="panel career-management-panel" data-tour="career-management">
       <div className="section-heading compact-heading">
-        <span className="eyebrow">Perfil e vínculos</span>
-        <h2>Gerenciar carreira</h2>
-        <p>Correções e mudanças ficam registradas sem alterar viagens ou holerites anteriores.</p>
+        <span className="eyebrow">{editorCopy.eyebrow}</span>
+        <h2>{editorCopy.title}</h2>
+        <p>{editorCopy.description}</p>
         {career.serverBacked && (
           <small>
             {serverReady
-              ? 'Esta carreira está vinculada à sua conta. Perfil, empresa e base são lidos e alterados no servidor.'
+              ? 'Esta carreira está vinculada à sua conta e as alterações são gravadas no servidor.'
               : 'Esta carreira está vinculada à sua conta. Aguardando sincronização do perfil server-side.'}
           </small>
         )}
       </div>
       {!lockedMode && <div className="career-management-tabs" role="tablist" aria-label="Alterações da carreira">
-        <button className={mode === 'profile' ? 'active' : ''} type="button" role="tab" aria-selected={mode === 'profile'} aria-controls="career-profile-editor" onClick={() => setMode('profile')}>Perfil</button>
+        <button className={mode === 'driver' ? 'active' : ''} type="button" role="tab" aria-selected={mode === 'driver'} aria-controls="career-driver-editor" onClick={() => setMode('driver')}>Nome</button>
+        <button className={mode === 'biography' ? 'active' : ''} type="button" role="tab" aria-selected={mode === 'biography'} aria-controls="career-biography-editor" onClick={() => setMode('biography')}>Biografia</button>
         <button className={mode === 'employer' ? 'active' : ''} type="button" role="tab" aria-selected={mode === 'employer'} aria-controls="career-employer-editor" onClick={() => setMode('employer')}>Empresa</button>
         <button className={mode === 'base' ? 'active' : ''} type="button" role="tab" aria-selected={mode === 'base'} aria-controls="career-base-editor" onClick={() => setMode('base')}>Base</button>
       </div>}
 
-      {mode === 'profile' && <form className="career-change-form" id="career-profile-editor" role="tabpanel" onSubmit={submitProfile}>
+      {mode === 'driver' && <form className="career-change-form" id="career-driver-editor" role="tabpanel" onSubmit={(event) => submitProfile(event, 'driver')}>
         <label htmlFor="career-edit-driver">Nome do motorista</label>
         <input id="career-edit-driver" value={driverName} maxLength="100" onChange={(event) => setDriverName(event.target.value)} required />
+        <button className="button primary compact" type="submit" disabled={saving || (career.serverBacked && !serverReady)}>{saving ? 'Salvando...' : 'Salvar nome'}</button>
+      </form>}
+
+      {mode === 'biography' && <form className="career-change-form" id="career-biography-editor" role="tabpanel" onSubmit={(event) => submitProfile(event, 'biography')}>
         <label htmlFor="career-edit-bio">Biografia</label>
         <textarea id="career-edit-bio" value={bio} maxLength="800" onChange={(event) => setBio(event.target.value)} placeholder="Deixe vazio para remover a biografia." />
-        <button className="button primary compact" type="submit" disabled={saving || (career.serverBacked && !serverReady)}>{saving ? 'Salvando...' : 'Salvar perfil'}</button>
+        <button className="button primary compact" type="submit" disabled={saving || (career.serverBacked && !serverReady)}>{saving ? 'Salvando...' : 'Salvar biografia'}</button>
       </form>}
 
       {mode === 'employer' && <form className="career-change-form" id="career-employer-editor" role="tabpanel" onSubmit={submitEmployer}>
         <div className="career-current-value"><span>Empresa atual</span><strong>{career.company || '—'}</strong></div>
         <label htmlFor="career-new-company">Nova empresa</label>
         <input id="career-new-company" value={company} maxLength="140" onChange={(event) => setCompany(event.target.value)} placeholder={`Ex.: ${game.companyPlaceholder}`} required />
-        <label htmlFor="career-company-day">Dia da semana efetivo</label>
-        <WeekdaySelect id="career-company-day" value={companyEffectiveDay} onChange={(event) => setCompanyEffectiveDay(event.target.value)} />
-        <small>A semana operacional começa em Segunda-feira. Ajuste o dia para corresponder ao momento atual no jogo. Registros existentes mantêm a empregadora anterior.</small>
+        <div className="career-effective-change">
+          <strong>Quando a troca passa a valer?</strong>
+          <span>Como a carreira não usa datas de calendário do jogo, escolha o dia da semana operacional em que a nova empresa começa a valer.</span>
+          <label htmlFor="career-company-day">Válida a partir de</label>
+          <WeekdaySelect id="career-company-day" value={companyEffectiveDay} onChange={(event) => setCompanyEffectiveDay(event.target.value)} />
+        </div>
+        <small>Viagens e holerites anteriores continuam vinculados à empresa antiga.</small>
         <button className="button primary compact" type="submit" disabled={saving || (career.serverBacked && !serverReady)}>{saving ? 'Salvando...' : 'Trocar empresa'}</button>
       </form>}
 
@@ -291,14 +336,18 @@ export default function CareerManagementPanel({ career, onUpdateProfile, onChang
           </div>
           <CityAutocomplete value={baseCity} onChange={setBaseCity} label="Nova cidade-base" required cities={baseGame.baseCities || []} disabled={!baseLocationCode} placeholder={baseGame.cityPlaceholder} />
         </div>
-        <label htmlFor="career-base-day">Dia da semana efetivo</label>
-        <WeekdaySelect id="career-base-day" value={baseEffectiveDay} onChange={(event) => setBaseEffectiveDay(event.target.value)} />
+        <div className="career-effective-change">
+          <strong>Quando a mudança passa a valer?</strong>
+          <span>Como a carreira não usa datas de calendário do jogo, escolha o dia da semana operacional em que a nova base começa a valer.</span>
+          <label htmlFor="career-base-day">Válida a partir de</label>
+          <WeekdaySelect id="career-base-day" value={baseEffectiveDay} onChange={(event) => setBaseEffectiveDay(event.target.value)} />
+        </div>
         {baseLocationCode && <div className="career-base-preview">
           <strong>{baseGame.cityMarketLabel}</strong>
           <span>Custos: {marketFactorText(baseGame.cityCostFactor)} • salários: {marketFactorText(baseGame.citySalaryFactor)}</span>
           <span>Moeda fiscal {baseGame.baseCurrency}; carreira permanece em {baseGame.currency}{baseGame.currency !== baseGame.baseCurrency ? ` (1 ${baseGame.baseCurrency} = ${formatMoney(baseGame.exchangeRate, baseGame)})` : ''}.</span>
         </div>}
-        <small>Ajuste o dia para o momento atual do jogo. Despesas padrão abertas passam ao perfil novo; saldo, histórico, viagens e holerites fechados não são recalculados.</small>
+        <small>Despesas padrão abertas passam ao perfil novo; saldo, histórico, viagens e holerites fechados não são recalculados.</small>
         <button className="button primary compact" type="submit" disabled={saving || (career.serverBacked && !serverReady)}>{saving ? 'Salvando...' : 'Mudar base'}</button>
       </form>}
     </section>
