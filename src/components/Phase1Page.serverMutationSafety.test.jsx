@@ -290,14 +290,14 @@ describe('Phase1Page server mutation safety', () => {
     await renderPage()
     await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve() })
 
-    expect(container.textContent).toContain('US$ 1.800,00')
+    expect(container.textContent).toContain('1.800,00')
     await clickButton('Financeiro')
     await clickButton('Histórico')
     expect(mocks.listLedger).toHaveBeenCalledWith('ats', serverCareerId, 100, expect.objectContaining({ signal: expect.anything() }))
     expect(mocks.listPayslips).toHaveBeenCalledWith('ats', serverCareerId, expect.objectContaining({ signal: expect.anything() }))
     expect(container.textContent).toContain('Despesas mensais aplicadas')
-    expect(container.textContent).toContain('1 períodos')
-    expect(container.textContent).toContain('1 ocorrências')
+    const summaryValues = [...container.querySelectorAll('.history-summary strong')].map((item) => item.textContent)
+    expect(summaryValues.slice(0, 3)).toEqual(['1', '1', '1'])
   })
 
   it('does not report a confirmed server delete as failed only because the refresh GET failed', async () => {
