@@ -50,6 +50,8 @@ const SERVER_PROFILE_FIELDS = Object.freeze([
   'events',
   'currentOperationalWeek',
   'currentPayrollMonth',
+  'defaultTruckMake',
+  'defaultTruckModel',
 ])
 
 function normalizeCareer(career, gameId = 'ats') {
