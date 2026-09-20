@@ -275,7 +275,7 @@ describe('career card navigation', () => {
     await act(async () => document.querySelector('button[aria-label="Editar nome do motorista"]').click())
     setInputValue(document.querySelector('#career-edit-driver'), 'Corrected Driver')
     await act(async () => {
-      document.querySelector('#career-profile-editor').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+      document.querySelector('#career-driver-editor').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
       await Promise.resolve()
     })
 
