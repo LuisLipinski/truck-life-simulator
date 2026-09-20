@@ -20,7 +20,7 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-function render(career, callbacks = {}) {
+function render(career, callbacks = {}, panelProps = {}) {
   container = document.createElement('div')
   document.body.appendChild(container)
   root = createRoot(container)
@@ -34,6 +34,7 @@ function render(career, callbacks = {}) {
               onUpdateProfile={callbacks.onUpdateProfile || vi.fn()}
               onChangeEmployer={callbacks.onChangeEmployer || vi.fn()}
               onChangeBase={callbacks.onChangeBase || vi.fn()}
+              {...panelProps}
             />
           </GameProvider>
         </ConfirmProvider>
@@ -69,26 +70,25 @@ function serverCareer(overrides = {}) {
 }
 
 describe('CareerManagementPanel server source', () => {
-  it('updates a migrated career profile through the backend without invoking the local write callback', async () => {
+  it('updates a migrated driver name through the backend without invoking the local write callback', async () => {
     const localUpdate = vi.fn()
     vi.spyOn(careerApi, 'updateProfile').mockResolvedValue({
       id: 'server-1',
       driverName: 'Server Driver',
       companyName: 'Old Logistics',
-      biography: 'Server bio',
+      biography: '',
       version: 5,
     })
     vi.spyOn(careerApi, 'events').mockResolvedValue([])
 
     render(serverCareer(), { onUpdateProfile: localUpdate })
     const name = container.querySelector('#career-edit-driver')
-    const bio = container.querySelector('#career-edit-bio')
+    expect(container.querySelector('#career-edit-bio')).toBeNull()
     await act(async () => {
       setControlledValue(name, 'Server Driver')
-      setControlledValue(bio, 'Server bio')
     })
     await act(async () => {
-      container.querySelector('#career-profile-editor').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+      container.querySelector('#career-driver-editor').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
       await Promise.resolve()
       await Promise.resolve()
     })
@@ -96,6 +96,37 @@ describe('CareerManagementPanel server source', () => {
     expect(careerApi.updateProfile).toHaveBeenCalledWith('ats', 'server-1', {
       version: 4,
       driverName: 'Server Driver',
+      biography: '',
+    })
+    expect(localUpdate).not.toHaveBeenCalled()
+  })
+
+  it('updates a migrated biography independently while preserving the current driver name', async () => {
+    const localUpdate = vi.fn()
+    vi.spyOn(careerApi, 'updateProfile').mockResolvedValue({
+      id: 'server-1',
+      driverName: 'Driver',
+      companyName: 'Old Logistics',
+      biography: 'Server bio',
+      version: 5,
+    })
+    vi.spyOn(careerApi, 'events').mockResolvedValue([])
+
+    render(serverCareer(), { onUpdateProfile: localUpdate }, { initialMode: 'biography' })
+    expect(container.querySelector('#career-edit-driver')).toBeNull()
+    const bio = container.querySelector('#career-edit-bio')
+    await act(async () => {
+      setControlledValue(bio, 'Server bio')
+    })
+    await act(async () => {
+      container.querySelector('#career-biography-editor').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(careerApi.updateProfile).toHaveBeenCalledWith('ats', 'server-1', {
+      version: 4,
+      driverName: 'Driver',
       biography: 'Server bio',
     })
     expect(localUpdate).not.toHaveBeenCalled()
@@ -113,7 +144,7 @@ describe('CareerManagementPanel server source', () => {
       setControlledValue(name, 'Local Driver')
     })
     await act(async () => {
-      container.querySelector('#career-profile-editor').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+      container.querySelector('#career-driver-editor').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
     })
 
     expect(localUpdate).toHaveBeenCalledWith({ driverName: 'Local Driver', bio: '', effectiveDate: '' })
@@ -122,7 +153,7 @@ describe('CareerManagementPanel server source', () => {
 
   it('blocks writes while an associated server career has not finished loading', () => {
     render(serverCareer({ serverVersion: null, serverSyncStatus: 'loading' }))
-    expect(container.querySelector('#career-profile-editor button[type="submit"]').disabled).toBe(true)
+    expect(container.querySelector('#career-driver-editor button[type="submit"]').disabled).toBe(true)
     expect(container.textContent).toContain('Aguardando sincronização do perfil server-side')
   })
 })

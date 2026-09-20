@@ -60,7 +60,9 @@ describe('calendarless gameplay UI', () => {
     act(() => employerTab.click())
 
     expect(container.querySelector('input[type="date"]')).toBeNull()
-    expect(container.textContent).toContain('Dia da semana efetivo')
+    expect(container.textContent).toContain('Quando a troca passa a valer?')
+    expect(container.textContent).toContain('Válida a partir de')
+    expect(container.textContent).not.toContain('Dia da semana efetivo')
     expect([...container.querySelectorAll('#career-company-day option')].map((option) => option.textContent)).toContain('Segunda-feira')
 
     const baseTab = [...container.querySelectorAll('[role="tab"]')].find((button) => button.textContent === 'Base')

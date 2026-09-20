@@ -348,12 +348,20 @@ describe('telemetry-ready trip registration', () => {
 })
 
 describe('career profile and effective changes', () => {
-  it('updates driver name and biography and records previous and new values', () => {
+  it('edits driver name and biography independently and records only the changed field', () => {
     const careerId = seedCareer({ level: 1, miles: 0 })
     renderCareer(careerId, { openJournal: false })
 
-    act(() => container.querySelector('button[aria-label="Editar nome do motorista e biografia"]').click())
+    act(() => container.querySelector('button[aria-label="Editar nome do motorista"]').click())
+    expect(container.querySelector('#career-edit-driver')).not.toBeNull()
+    expect(container.querySelector('#career-edit-bio')).toBeNull()
     setInputValue(container.querySelector('#career-edit-driver'), 'Corrected Driver')
+    act(() => container.querySelector('.career-change-form [type="submit"]').click())
+
+    act(() => document.querySelector('button[aria-label="Fechar edição"]').click())
+    act(() => container.querySelector('button[aria-label="Editar biografia"]').click())
+    expect(container.querySelector('#career-edit-driver')).toBeNull()
+    expect(container.querySelector('#career-edit-bio')).not.toBeNull()
     setInputValue(container.querySelector('#career-edit-bio'), 'Nova biografia')
     act(() => container.querySelector('.career-change-form [type="submit"]').click())
 
@@ -363,9 +371,16 @@ describe('career profile and effective changes', () => {
       type: 'PROFILE_UPDATED',
       changes: {
         driverName: { previous: 'Test Driver', next: 'Corrected Driver' },
+      },
+    })
+    expect(career.events[0].changes.bio).toBeUndefined()
+    expect(career.events[1]).toMatchObject({
+      type: 'PROFILE_UPDATED',
+      changes: {
         bio: { previous: '', next: 'Nova biografia' },
       },
     })
+    expect(career.events[1].changes.driverName).toBeUndefined()
   })
 
   it('changes employer only after confirmation and snapshots the old employer in existing trips', async () => {
