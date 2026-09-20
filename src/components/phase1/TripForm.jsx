@@ -189,7 +189,7 @@ export default function TripForm({ career, state, onAdd, onSaveDraft, onSaveDefa
     let saved = false
     try {
       saved = (await onAdd(trip)) !== false
-      if (saved && keepTruckSaved) onSaveDefaultTruck({ truckMake: truckMakeValue, truckModel: truckModelValue })
+      if (saved && keepTruckSaved) await onSaveDefaultTruck({ truckMake: truckMakeValue, truckModel: truckModelValue })
     } finally {
       setSubmitting(false)
     }
