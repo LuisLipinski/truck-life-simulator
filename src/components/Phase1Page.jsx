@@ -635,7 +635,7 @@ export default function Phase1Page({ careerId, onBack }) {
         <div className="phase1-header-inner">
           <button className="back-button" onClick={onBack}>← Voltar</button>
           <div className="phase1-header-main">
-            <div className="phase1-driver-block">
+            <div className="phase1-driver-block" data-tour="career-management">
               <span className="eyebrow">Fase 1 • {game.shortName} • {game.levelRoles[(career.serverBacked ? Number(career.currentLevel || state.currentLevel || 1) : state.currentLevel) - 1]}</span>
               <div className="career-header-field career-header-name">
                 <h1>{career.driverName}</h1>
