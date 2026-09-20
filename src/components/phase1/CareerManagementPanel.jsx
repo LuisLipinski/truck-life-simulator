@@ -26,13 +26,13 @@ function WeekdaySelect({ id, value, onChange }) {
   )
 }
 
-export default function CareerManagementPanel({ career, onUpdateProfile, onChangeEmployer, onChangeBase }) {
+export default function CareerManagementPanel({ career, onUpdateProfile, onChangeEmployer, onChangeBase, initialMode = 'profile', lockedMode = false }) {
   const game = useGame()
   const confirm = useConfirm()
   const toast = useToast()
   const currentLocationCode = game.id === 'ets2' ? career.countryCode : career.stateCode
   const serverReady = Boolean(career.serverBacked && career.serverSyncStatus === 'ready' && career.serverVersion != null)
-  const [mode, setMode] = useState('profile')
+  const [mode, setMode] = useState(initialMode)
   const [driverName, setDriverName] = useState(career.driverName || '')
   const [bio, setBio] = useState(career.bio || career.biography || '')
   const [company, setCompany] = useState('')
@@ -41,6 +41,10 @@ export default function CareerManagementPanel({ career, onUpdateProfile, onChang
   const [baseCity, setBaseCity] = useState(career.city || '')
   const [baseEffectiveDay, setBaseEffectiveDay] = useState(DEFAULT_EFFECTIVE_DAY)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    setMode(initialMode)
+  }, [initialMode])
 
   useEffect(() => {
     setDriverName(career.driverName || '')
@@ -252,11 +256,11 @@ export default function CareerManagementPanel({ career, onUpdateProfile, onChang
           </small>
         )}
       </div>
-      <div className="career-management-tabs" role="tablist" aria-label="Alterações da carreira">
+      {!lockedMode && <div className="career-management-tabs" role="tablist" aria-label="Alterações da carreira">
         <button className={mode === 'profile' ? 'active' : ''} type="button" role="tab" aria-selected={mode === 'profile'} aria-controls="career-profile-editor" onClick={() => setMode('profile')}>Perfil</button>
         <button className={mode === 'employer' ? 'active' : ''} type="button" role="tab" aria-selected={mode === 'employer'} aria-controls="career-employer-editor" onClick={() => setMode('employer')}>Empresa</button>
         <button className={mode === 'base' ? 'active' : ''} type="button" role="tab" aria-selected={mode === 'base'} aria-controls="career-base-editor" onClick={() => setMode('base')}>Base</button>
-      </div>
+      </div>}
 
       {mode === 'profile' && <form className="career-change-form" id="career-profile-editor" role="tabpanel" onSubmit={submitProfile}>
         <label htmlFor="career-edit-driver">Nome do motorista</label>
