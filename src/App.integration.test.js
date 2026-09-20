@@ -272,6 +272,7 @@ describe('career card navigation', () => {
       root.render(createElement(ToastProvider, null, createElement(ConfirmProvider, null, createElement(TutorialProvider, null, createElement(App)))))
     })
 
+    await act(async () => document.querySelector('button[aria-label="Editar nome do motorista e biografia"]').click())
     setInputValue(document.querySelector('#career-edit-driver'), 'Corrected Driver')
     await act(async () => {
       document.querySelector('#career-profile-editor').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
@@ -289,8 +290,8 @@ describe('career card navigation', () => {
       root.render(createElement(ToastProvider, null, createElement(ConfirmProvider, null, createElement(TutorialProvider, null, createElement(App)))))
     })
 
-    const baseTab = [...document.querySelectorAll('.career-management-tabs button')].find((button) => button.textContent === 'Base')
-    await act(async () => baseTab.click())
+    const baseEdit = document.querySelector('button[aria-label="Editar base"]')
+    await act(async () => baseEdit.click())
     setSelectValue(document.querySelector('#career-new-location'), 'TX')
     setInputValue(document.querySelector('#career-base-editor .react-city-autocomplete input'), 'Dallas, TX')
     await act(async () => {
