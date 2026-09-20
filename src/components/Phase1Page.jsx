@@ -424,6 +424,7 @@ export default function Phase1Page({ careerId, onBack }) {
   const [activeTab, setActiveTab] = useState('overview')
   const [promotionMilestone, setPromotionMilestone] = useState(null)
   const [careerEditorMode, setCareerEditorMode] = useState(null)
+  const [serverDataRevision, setServerDataRevision] = useState(0)
 
   const mainTabs = useMemo(() => [
     ['overview', 'Visão Geral'],
@@ -477,6 +478,17 @@ export default function Phase1Page({ careerId, onBack }) {
   useEffect(() => {
     if (activeStep?.route === '/phase1' && activeStep.tab) setActiveTab(activeStep.tab)
   }, [activeStep?.id, activeStep?.route, activeStep?.tab])
+
+  useEffect(() => {
+    if (!career?.serverBacked || typeof window === 'undefined') return undefined
+    const onCareerUpdated = (event) => {
+      if (event.detail?.careerId && String(event.detail.careerId) !== String(career.id)) return
+      if (event.detail?.gameId && String(event.detail.gameId) !== String(game.id)) return
+      setServerDataRevision((value) => value + 1)
+    }
+    window.addEventListener(CAREER_UPDATED_EVENT, onCareerUpdated)
+    return () => window.removeEventListener(CAREER_UPDATED_EVENT, onCareerUpdated)
+  }, [career?.id, career?.serverBacked, game.id])
 
   useEffect(() => {
     if (!career?.serverBacked || !career.serverCareerId || career.serverTripsStatus !== 'ready') return undefined
@@ -552,6 +564,7 @@ export default function Phase1Page({ careerId, onBack }) {
     career?.serverCareerId,
     career?.serverTripsStatus,
     career?.serverVersion,
+    serverDataRevision,
     game.id,
     game.payrollPeriod,
     toast,
