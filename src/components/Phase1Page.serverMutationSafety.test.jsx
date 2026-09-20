@@ -290,7 +290,7 @@ describe('Phase1Page server mutation safety', () => {
     await renderPage()
     await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve() })
 
-    expect(container.textContent).toContain('1.800,00')
+    expect(container.textContent).toContain('$1,800.00')
     await clickButton('Financeiro')
     await clickButton('Histórico')
     expect(mocks.listLedger).toHaveBeenCalledWith('ats', serverCareerId, 100, expect.objectContaining({ signal: expect.anything() }))
