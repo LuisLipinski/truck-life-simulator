@@ -503,9 +503,14 @@ export default function Phase1Page({ careerId, onBack }) {
   }
 
   function updateProfile({ driverName, bio, effectiveDate }) {
-    const changes = {
-      driverName: { previous: career.driverName || '', next: driverName },
-      bio: { previous: career.bio || career.biography || '', next: bio },
+    const currentName = career.driverName || ''
+    const currentBio = career.bio || career.biography || ''
+    const changes = {}
+    if (driverName !== currentName) changes.driverName = { previous: currentName, next: driverName }
+    if (bio !== currentBio) changes.bio = { previous: currentBio, next: bio }
+    if (!Object.keys(changes).length) {
+      toast.info('Nenhuma alteração de perfil para salvar.')
+      return
     }
     const event = createCareerEvent({ type: CAREER_EVENT_TYPES.PROFILE_UPDATED, effectiveDate, changes })
     updateCareer(career.id, {
@@ -514,7 +519,7 @@ export default function Phase1Page({ careerId, onBack }) {
       biography: undefined,
       events: [...(career.events || []), event],
     }, game.id)
-    toast.success('Perfil atualizado e registrado no histórico da carreira.')
+    toast.success(changes.driverName ? 'Nome do motorista atualizado.' : 'Biografia atualizada.')
   }
 
   function changeEmployer({ company, effectiveDate }) {
@@ -639,7 +644,7 @@ export default function Phase1Page({ careerId, onBack }) {
               <span className="eyebrow">Fase 1 • {game.shortName} • {game.levelRoles[(career.serverBacked ? Number(career.currentLevel || state.currentLevel || 1) : state.currentLevel) - 1]}</span>
               <div className="career-header-field career-header-name">
                 <h1>{career.driverName}</h1>
-                <EditButton label="Editar nome do motorista e biografia" onClick={() => setCareerEditorMode('profile')} />
+                <EditButton label="Editar nome do motorista" onClick={() => setCareerEditorMode('driver')} />
               </div>
               <div className="career-header-field career-header-meta">
                 <span>{career.city || 'Base não informada'}</span>
@@ -650,7 +655,7 @@ export default function Phase1Page({ careerId, onBack }) {
               </div>
               <div className="career-header-field career-header-bio">
                 <span>{career.bio || career.biography || 'Adicionar biografia'}</span>
-                <EditButton label="Editar biografia e nome do motorista" onClick={() => setCareerEditorMode('profile')} />
+                <EditButton label="Editar biografia" onClick={() => setCareerEditorMode('biography')} />
               </div>
             </div>
             <HeaderSummary state={state} career={career} />
