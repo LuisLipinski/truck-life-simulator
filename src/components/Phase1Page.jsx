@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getCareer, setActiveCareer, updateCareer } from '../lib/storage.js'
+import { CAREER_UPDATED_EVENT, getCareer, setActiveCareer, updateCareer } from '../lib/storage.js'
+import { careerApi } from '../lib/careerApi.js'
+import { financeApi } from '../lib/financeApi.js'
+import { payrollApi } from '../lib/payrollApi.js'
+import { incidentApi } from '../lib/incidentApi.js'
+import { progressionApi } from '../lib/progressionApi.js'
 import { exportCareerCSV } from '../lib/csv.js'
 import { formatDistance, formatMoney, formatNumber } from '../config/games.js'
 import {
@@ -22,7 +27,12 @@ import {
 import { formatTripWeekMoment } from '../lib/tripWeek.js'
 import { ApiProblemError } from '../lib/authApi.js'
 import { tripApi } from '../lib/tripApi.js'
-import { markServerCareerTripsUnavailable, setServerCareerTrips, serverTripToPhase1Trip } from '../lib/careerServerState.js'
+import {
+  markServerCareerTripsUnavailable,
+  setServerCareerSnapshot,
+  setServerCareerTrips,
+  serverTripToPhase1Trip,
+} from '../lib/careerServerState.js'
 import {
   CAREER_EVENT_TYPES,
   careerBaseSnapshot,
@@ -135,6 +145,55 @@ function formatDateTime(value) {
 
 function tripSourceLabel(source) {
   return ({ MANUAL: 'Manual', TELEMETRY: 'Telemetria', IMPORT: 'Importação' })[source] || 'Manual'
+}
+
+function serverExpenses(finance) {
+  const expenses = Array.isArray(finance?.expenses) ? finance.expenses : []
+  return {
+    expenses: Object.fromEntries(
+      expenses
+        .filter((item) => item?.type === 'STANDARD')
+        .map((item) => [item.category, Number(item.amount || 0)]),
+    ),
+    customExpenses: expenses
+      .filter((item) => item?.type === 'CUSTOM')
+      .map((item) => ({
+        id: item.id,
+        name: item.name || item.category || 'Gasto',
+        value: Number(item.amount || 0),
+        monthly: Boolean(item.included),
+      })),
+  }
+}
+
+function serverPayslipHistory(payslips, monthlyPayroll) {
+  return (Array.isArray(payslips) ? payslips : []).map((payslip) => {
+    const start = Math.max(1, Number(payslip?.startOperationalWeek || payslip?.operationalWeek || 1))
+    const end = Math.max(start, Number(payslip?.endOperationalWeek || payslip?.operationalWeek || start))
+    return {
+      id: payslip?.id,
+      periodType: monthlyPayroll ? 'month' : 'week',
+      month: payslip?.payrollMonth == null ? undefined : Number(payslip.payrollMonth),
+      week: payslip?.operationalWeek == null ? end : Number(payslip.operationalWeek),
+      weeks: Array.from({ length: end - start + 1 }, (_, index) => start + index),
+      gross: Number(payslip?.grossAmount || 0),
+      perDiem: Number(payslip?.perDiemAmount || 0),
+      incidentDeduction: Number(payslip?.incidentDeductionAmount || 0),
+      net: Number(payslip?.depositAmount || payslip?.balanceCreditAmount || 0),
+    }
+  })
+}
+
+function serverLedgerHistory(entries) {
+  return (Array.isArray(entries) ? entries : []).map((entry) => ({
+    id: entry?.id,
+    desc: entry?.description || entry?.type || 'Movimentação',
+    description: entry?.description || entry?.type || 'Movimentação',
+    amount: Number(entry?.balanceDelta ?? entry?.amount ?? 0),
+    value: Number(entry?.balanceDelta ?? entry?.amount ?? 0),
+    balance: Number(entry?.balanceAfter || 0),
+    operationalWeek: Number(entry?.operationalWeek || 0),
+  }))
 }
 
 function InfoTip({ text }) {
@@ -272,8 +331,8 @@ function OverviewTab({ career, state, setActiveTab }) {
       <section className="phase1-status-grid" data-tour="overview-shortcuts">
         <button className="panel status-card" onClick={() => setActiveTab('finances')}>
           <span className="metric-label">Despesas mensais</span>
-          <strong>{career.serverBacked ? 'Protegido na migração' : formatMoney(monthly, game)}</strong>
-          <span>{career.serverBacked ? 'Novas alterações financeiras aguardam a P4.6.5 server-side.' : 'Padrão + personalizadas mensais.'}</span>
+          <strong>{formatMoney(monthly, game)}</strong>
+          <span>Padrão + personalizadas mensais.</span>
         </button>
         <button className="panel status-card" onClick={() => setActiveTab('payslip')}>
           <span className="metric-label">Resumo {game.payrollPeriod === 'monthly' ? 'mensal' : 'semanal'}</span>
@@ -419,6 +478,85 @@ export default function Phase1Page({ careerId, onBack }) {
     if (activeStep?.route === '/phase1' && activeStep.tab) setActiveTab(activeStep.tab)
   }, [activeStep?.id, activeStep?.route, activeStep?.tab])
 
+  useEffect(() => {
+    if (!career?.serverBacked || !career.serverCareerId || career.serverTripsStatus !== 'ready') return undefined
+    const controller = new AbortController()
+    let active = true
+
+    async function hydrateServerGameplay() {
+      const options = { signal: controller.signal }
+      const results = await Promise.allSettled([
+        progressionApi.get(game.id, career.serverCareerId, options),
+        financeApi.get(game.id, career.serverCareerId, options),
+        financeApi.listLedger(game.id, career.serverCareerId, 100, options),
+        payrollApi.listPayslips(game.id, career.serverCareerId, options),
+        incidentApi.list(game.id, career.serverCareerId, options),
+        tripApi.getDraft(game.id, career.serverCareerId, options),
+      ])
+      if (!active) return
+
+      setState((current) => {
+        const next = { ...current }
+        const [progressionResult, financeResult, ledgerResult, payslipsResult, incidentsResult, draftResult] = results
+
+        if (progressionResult.status === 'fulfilled') {
+          const progression = progressionResult.value || {}
+          const level = Math.max(1, Number(progression.currentLevel || career.currentLevel || 1))
+          next.currentLevel = level
+          next.careerLevel = level
+          next.balance = Number(progression.balance ?? career.currentBalance ?? next.balance ?? 0)
+          next.dangerousGoodsQualified = Boolean(progression.dangerousGoodsQualified)
+          next.hazmatQualified = next.dangerousGoodsQualified
+          next.academy = {
+            level2: level >= 2 || (progression.academyProgress || []).some((item) => Number(item?.targetLevel) === 2),
+            level3: level >= 3 || (progression.academyProgress || []).some((item) => Number(item?.targetLevel) === 3),
+          }
+        }
+
+        if (financeResult.status === 'fulfilled') {
+          const finance = financeResult.value || {}
+          const mapped = serverExpenses(finance)
+          next.balance = Number(finance.balance ?? next.balance ?? 0)
+          next.emergencyReserve = Number(finance.emergencyReserve?.balance || 0)
+          next.expenses = mapped.expenses
+          next.customExpenses = mapped.customExpenses
+        }
+
+        if (ledgerResult.status === 'fulfilled') next.history = serverLedgerHistory(ledgerResult.value)
+        if (payslipsResult.status === 'fulfilled') {
+          next.closedWeeks = serverPayslipHistory(payslipsResult.value, game.payrollPeriod === 'monthly')
+        }
+        if (incidentsResult.status === 'fulfilled') next.incidents = Array.isArray(incidentsResult.value) ? incidentsResult.value : []
+        if (draftResult.status === 'fulfilled') {
+          const data = draftResult.value?.data
+          next.tripDraft = data && Object.keys(data).length > 0 ? data : null
+        }
+
+        return next
+      })
+    }
+
+    hydrateServerGameplay().catch((error) => {
+      if (error?.name !== 'AbortError') {
+        toast.error('Não foi possível sincronizar todos os dados da carreira com o servidor.')
+      }
+    })
+
+    return () => {
+      active = false
+      controller.abort()
+    }
+  }, [
+    career?.id,
+    career?.serverBacked,
+    career?.serverCareerId,
+    career?.serverTripsStatus,
+    career?.serverVersion,
+    game.id,
+    game.payrollPeriod,
+    toast,
+  ])
+
   if (!career) return <main className="page-shell"><div className="empty-state"><h2>Carreira não encontrada</h2><button className="button primary compact" onClick={onBack}>Voltar</button></div></main>
   if (career.serverBacked && career.serverTripsStatus !== 'ready') {
     const failed = career.serverTripsStatus === 'error'
@@ -431,16 +569,52 @@ export default function Phase1Page({ careerId, onBack }) {
     savePhase1State(career.id, normalized, game.id)
   }
 
-  function saveTripDraft(draft) {
-    commit({ ...state, tripDraft: draft })
-    toast.success('Rascunho da viagem salvo. Você pode fechar a aplicação e continuar depois.')
+  async function saveTripDraft(draft) {
+    if (!career.serverBacked) {
+      commit({ ...state, tripDraft: draft })
+      toast.success('Rascunho da viagem salvo. Você pode fechar a aplicação e continuar depois.')
+      return true
+    }
+
+    try {
+      const response = await tripApi.saveDraft(
+        game.id,
+        career.serverCareerId,
+        career.currentOperationalWeek || state.currentWeek,
+        draft,
+      )
+      const data = response?.data && Object.keys(response.data).length > 0 ? response.data : null
+      setState((current) => ({ ...current, tripDraft: data }))
+      toast.success('Rascunho da viagem salvo. Você pode fechar a aplicação e continuar depois.')
+      return true
+    } catch (error) {
+      toast.error(error?.message || 'Não foi possível salvar o rascunho no servidor.')
+      return false
+    }
   }
 
-  function saveDefaultTruck({ truckMake, truckModel }) {
-    updateCareer(career.id, {
-      defaultTruckMake: String(truckMake || '').trim(),
-      defaultTruckModel: String(truckModel || '').trim(),
-    }, game.id)
+  async function saveDefaultTruck({ truckMake, truckModel }) {
+    const defaultTruckMake = String(truckMake || '').trim()
+    const defaultTruckModel = String(truckModel || '').trim()
+    if (!career.serverBacked) {
+      updateCareer(career.id, { defaultTruckMake, defaultTruckModel }, game.id)
+      return true
+    }
+
+    try {
+      const response = await careerApi.updateDefaultTruck(game.id, career.serverCareerId, {
+        defaultTruckMake,
+        defaultTruckModel,
+      })
+      setServerCareerSnapshot(game.id, career.id, response)
+      window.dispatchEvent(new CustomEvent(CAREER_UPDATED_EVENT, {
+        detail: { careerId: career.id, gameId: game.id, source: 'server-default-truck' },
+      }))
+      return true
+    } catch (error) {
+      toast.error(error?.message || 'A viagem foi registrada, mas não foi possível atualizar o caminhão padrão no servidor.')
+      return false
+    }
   }
 
   function handleMilestone(beforeDistance, afterDistance) {
@@ -483,7 +657,6 @@ export default function Phase1Page({ careerId, onBack }) {
         const refreshed = await refreshServerTrips()
         const withoutDraft = { ...refreshed, tripDraft: null }
         setState(withoutDraft)
-        savePhase1State(career.id, withoutDraft, game.id)
         const afterDistance = totalMiles(refreshed)
         toast.success(`Viagem registrada no servidor: ${formatDistance(tripDistance(serverTripToPhase1Trip(created, game.id)), game)} adicionados à carreira.`)
         handleMilestone(beforeDistance, afterDistance)
@@ -492,7 +665,6 @@ export default function Phase1Page({ careerId, onBack }) {
         const createdTrip = serverTripToPhase1Trip(created, game.id)
         const visibleState = { ...state, tripDraft: null, trips: [...state.trips, createdTrip] }
         setState(visibleState)
-        savePhase1State(career.id, visibleState, game.id)
         toast.info('A viagem foi salva no servidor, mas a lista não pôde ser recarregada agora. Recarregue a aplicação antes de continuar.')
       }
       return true
