@@ -58,6 +58,8 @@ function serverCareer() {
     citySalaryFactor: 1.05,
     currentOperationalWeek: 3,
     currentPayrollMonth: null,
+    defaultTruckMake: 'Volvo',
+    defaultTruckModel: 'VNL 860',
     version: 4,
   }
 }
@@ -88,7 +90,7 @@ describe('storage server career source', () => {
     expect(persisted.currentBalance).toBe(900)
   })
 
-  it('can still persist a not-yet-cut-over field without copying server profile or progression into the backup', () => {
+  it('keeps cut-over server fields authoritative without mutating the frozen local backup', () => {
     localStorage.setItem(careersStorageKey('ats'), JSON.stringify([localCareer()]))
     replaceServerCareerBindings([{ gameId: 'ats', sourceCareerId: 'local-1', serverCareerId: 'server-1' }])
     setServerCareerSnapshot('ats', 'local-1', serverCareer(), [])
@@ -97,12 +99,14 @@ describe('storage server career source', () => {
     const persisted = JSON.parse(localStorage.getItem(careersStorageKey('ats')))[0]
 
     expect(returned.driverName).toBe('Server Driver')
-    expect(returned.defaultTruckModel).toBe('W900')
+    expect(returned.defaultTruckMake).toBe('Volvo')
+    expect(returned.defaultTruckModel).toBe('VNL 860')
     expect(persisted.driverName).toBe('Backup Driver')
     expect(persisted.company).toBe('Backup Logistics')
     expect(persisted.currentLevel).toBe(1)
     expect(persisted.currentBalance).toBe(900)
-    expect(persisted.defaultTruckModel).toBe('W900')
+    expect(persisted.defaultTruckMake).toBe('Kenworth')
+    expect(persisted.defaultTruckModel).toBe('T680')
   })
 
   it('does not copy an overlaid server career back into localStorage when a caller saves the visible list', () => {

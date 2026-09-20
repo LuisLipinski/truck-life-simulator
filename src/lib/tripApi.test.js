@@ -51,6 +51,34 @@ describe('trip API client', () => {
     )
   })
 
+  it('reads and saves a trip draft in the current operational week', async () => {
+    globalThis.fetch = vi.fn()
+      .mockResolvedValueOnce(response(200, { operationalWeek: 4, data: { origin: 'Phoenix, AZ' } }))
+      .mockResolvedValueOnce(response(200, { operationalWeek: 4, data: { origin: 'Tucson, AZ' } }))
+
+    await tripApi.getDraft('ats', 'career/1')
+    await tripApi.saveDraft('ats', 'career/1', 4, { origin: 'Tucson, AZ' })
+
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      1,
+      `${API_BASE_URL}/api/v1/careers/career%2F1/trips/draft?game=ATS`,
+      expect.objectContaining({
+        method: 'GET',
+        cache: 'no-store',
+        headers: expect.objectContaining({ Authorization: 'Bearer trip-token' }),
+      }),
+    )
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      2,
+      `${API_BASE_URL}/api/v1/careers/career%2F1/trips/draft?game=ATS`,
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({ expectedOperationalWeek: 4, data: { origin: 'Tucson, AZ' } }),
+        headers: expect.objectContaining({ Authorization: 'Bearer trip-token' }),
+      }),
+    )
+  })
+
   it('maps the frontend trip into the authoritative calendarless create contract', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(response(201, { id: 'trip-1' }))
     const trip = {

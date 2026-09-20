@@ -20,14 +20,20 @@ const mocks = vi.hoisted(() => ({
   createTrip: vi.fn(),
   deleteTrip: vi.fn(),
   listTrips: vi.fn(),
+  getDraft: vi.fn(),
+  saveDraft: vi.fn(),
   getFinances: vi.fn(),
+  listLedger: vi.fn(),
+  listPayslips: vi.fn(),
   listIncidents: vi.fn(),
   getProgression: vi.fn(),
+  updateDefaultTruck: vi.fn(),
 }))
 
 vi.mock('../lib/financeApi.js', () => ({
   financeApi: {
     get: mocks.getFinances,
+    listLedger: mocks.listLedger,
   },
 }))
 
@@ -36,6 +42,20 @@ vi.mock('../lib/tripApi.js', () => ({
     create: mocks.createTrip,
     delete: mocks.deleteTrip,
     list: mocks.listTrips,
+    getDraft: mocks.getDraft,
+    saveDraft: mocks.saveDraft,
+  },
+}))
+
+vi.mock('../lib/payrollApi.js', () => ({
+  payrollApi: {
+    listPayslips: mocks.listPayslips,
+  },
+}))
+
+vi.mock('../lib/careerApi.js', () => ({
+  careerApi: {
+    updateDefaultTruck: mocks.updateDefaultTruck,
   },
 }))
 
@@ -165,7 +185,28 @@ beforeEach(() => {
   mocks.createTrip.mockReset()
   mocks.deleteTrip.mockReset()
   mocks.listTrips.mockReset()
+  mocks.getDraft.mockReset().mockResolvedValue({ operationalWeek: 2, data: {}, updatedAt: null })
+  mocks.saveDraft.mockReset().mockImplementation(async (_game, _careerId, week, data) => ({ operationalWeek: week, data, updatedAt: '2026-09-20T11:00:00Z' }))
   mocks.getFinances.mockReset()
+  mocks.listLedger.mockReset().mockResolvedValue([])
+  mocks.listPayslips.mockReset().mockResolvedValue([])
+  mocks.updateDefaultTruck.mockReset().mockResolvedValue({
+    id: serverCareerId,
+    driverName: 'Server Driver',
+    companyName: 'Server Logistics',
+    biography: '',
+    currentLevel: 1,
+    balance: 5000,
+    baseCurrency: 'USD',
+    displayCurrency: 'USD',
+    exchangeRate: 1,
+    stateCode: 'CA',
+    baseCity: 'Los Angeles, CA',
+    defaultTruckMake: 'Volvo',
+    defaultTruckModel: 'VNL 860',
+    currentOperationalWeek: 2,
+    version: 4,
+  })
   mocks.listIncidents.mockReset().mockResolvedValue([])
   mocks.getProgression.mockReset().mockResolvedValue({
     careerId: serverCareerId,
@@ -206,6 +247,59 @@ afterEach(() => {
 })
 
 describe('Phase1Page server mutation safety', () => {
+  it('saves the existing trip draft control only on the backend and leaves the legacy backup unchanged', async () => {
+    const storageKey = phase1StorageKey(localCareerId)
+    const backupBefore = localStorage.getItem(storageKey)
+
+    await renderPage()
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+    await clickButton('Diário de Bordo')
+    await clickButton('Salvar rascunho')
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+
+    expect(mocks.saveDraft).toHaveBeenCalledWith(
+      'ats',
+      serverCareerId,
+      2,
+      expect.objectContaining({ week: 2 }),
+    )
+    expect(localStorage.getItem(storageKey)).toBe(backupBefore)
+  })
+
+  it('hydrates the existing overview and history with server-side finance data', async () => {
+    mocks.listLedger.mockResolvedValue([{
+      id: 'ledger-1',
+      type: 'MONTHLY_EXPENSE',
+      operationalWeek: 2,
+      balanceDelta: -1800,
+      balanceAfter: 3200,
+      description: 'Despesas mensais aplicadas',
+    }])
+    mocks.listPayslips.mockResolvedValue([{
+      id: 'payslip-1',
+      operationalWeek: 1,
+      startOperationalWeek: 1,
+      endOperationalWeek: 1,
+      grossAmount: 1000,
+      perDiemAmount: 80,
+      incidentDeductionAmount: 0,
+      depositAmount: 900,
+    }])
+    mocks.listIncidents.mockResolvedValue([{ id: 'incident-1' }])
+
+    await renderPage()
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve() })
+
+    expect(container.textContent).toContain('$1,800.00')
+    await clickButton('Financeiro')
+    await clickButton('Histórico')
+    expect(mocks.listLedger).toHaveBeenCalledWith('ats', serverCareerId, 100, expect.objectContaining({ signal: expect.anything() }))
+    expect(mocks.listPayslips).toHaveBeenCalledWith('ats', serverCareerId, expect.objectContaining({ signal: expect.anything() }))
+    expect(container.textContent).toContain('Despesas mensais aplicadas')
+    const summaryValues = [...container.querySelectorAll('.history-summary strong')].map((item) => item.textContent)
+    expect(summaryValues.slice(0, 3)).toEqual(['1', '1', '1'])
+  })
+
   it('does not report a confirmed server delete as failed only because the refresh GET failed', async () => {
     mocks.deleteTrip.mockResolvedValue(null)
     mocks.listTrips.mockRejectedValue(new Error('refresh failed'))

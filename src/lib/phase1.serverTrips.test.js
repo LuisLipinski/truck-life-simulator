@@ -112,7 +112,7 @@ describe('phase1 server trip source', () => {
     expect(ets2.miles).toBeUndefined()
   })
 
-  it('reads server trips and server operational week while preserving the original local trip backup on every save', () => {
+  it('reads server gameplay while preserving the entire original local backup without server-side writes', () => {
     localStorage.setItem(careersStorageKey('ats'), JSON.stringify([localCareer('ats')]))
     localStorage.setItem(phase1StorageKey('local-1', 'ats'), JSON.stringify({
       balance: 1000,
@@ -129,13 +129,15 @@ describe('phase1 server trip source', () => {
     expect(state.trips).toHaveLength(1)
     expect(state.trips[0]).toMatchObject({ id: 'trip-server-1', miles: 121.5, serverBacked: true })
 
+    const backupBefore = localStorage.getItem(phase1StorageKey('local-1', 'ats'))
     savePhase1State('local-1', { ...state, balance: 1100, tripDraft: { origin: 'Draft' } }, 'ats')
 
-    const persistedState = JSON.parse(localStorage.getItem(phase1StorageKey('local-1', 'ats')))
+    expect(localStorage.getItem(phase1StorageKey('local-1', 'ats'))).toBe(backupBefore)
+    const persistedState = JSON.parse(backupBefore)
     const persistedCareer = JSON.parse(localStorage.getItem(careersStorageKey('ats')))[0]
     expect(persistedState.currentWeek).toBe(2)
     expect(persistedState.trips).toEqual([expect.objectContaining({ id: 77, origin: 'Local Backup' })])
-    expect(persistedState.tripDraft).toEqual({ origin: 'Draft' })
+    expect(persistedState.tripDraft).toBeUndefined()
     expect(persistedCareer.driverName).toBe('Backup Driver')
     expect(persistedCareer.company).toBe('Backup Logistics')
   })
