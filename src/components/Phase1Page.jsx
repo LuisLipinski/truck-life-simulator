@@ -145,6 +145,16 @@ function InfoTip({ text }) {
   )
 }
 
+function EditButton({ label, onClick }) {
+  return (
+    <button className="career-header-edit" type="button" aria-label={label} title={label} onClick={onClick}>
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25Zm17.71-10.04a1.003 1.003 0 0 0 0-1.42l-2.5-2.5a1.003 1.003 0 0 0-1.42 0l-1.96 1.96 3.75 3.75 2.13-1.79Z" />
+      </svg>
+    </button>
+  )
+}
+
 function TabIntro({ tabId }) {
   const game = useGame()
   const help = TAB_HELP[tabId] || TAB_HELP.overview
@@ -242,7 +252,7 @@ function MetricCard({ label, value, detail, onClick, children }) {
   )
 }
 
-function OverviewTab({ career, state, setActiveTab, onUpdateProfile, onChangeEmployer, onChangeBase }) {
+function OverviewTab({ career, state, setActiveTab }) {
   const game = useGame()
   const weekTrips = currentWeekTrips(state)
   const promotion = getPromotionStatus(state, game)
@@ -282,12 +292,6 @@ function OverviewTab({ career, state, setActiveTab, onUpdateProfile, onChangeEmp
         <div><span className="metric-label">Moeda da carreira</span><strong>{game.currency} {game.currency !== game.baseCurrency ? `• base fiscal ${game.baseCurrency}` : '• moeda fiscal local'}</strong></div>
       </section>
 
-      <CareerManagementPanel
-        career={career}
-        onUpdateProfile={onUpdateProfile}
-        onChangeEmployer={onChangeEmployer}
-        onChangeBase={onChangeBase}
-      />
 
       <section className="panel legacy-bridge" data-tour="career-backup">
         <div>
@@ -360,6 +364,7 @@ export default function Phase1Page({ careerId, onBack }) {
   const [state, setState] = useState(() => loadPhase1State(careerId, game.id))
   const [activeTab, setActiveTab] = useState('overview')
   const [promotionMilestone, setPromotionMilestone] = useState(null)
+  const [careerEditorMode, setCareerEditorMode] = useState(null)
 
   const mainTabs = useMemo(() => [
     ['overview', 'Visão Geral'],
@@ -611,14 +616,42 @@ export default function Phase1Page({ careerId, onBack }) {
         onPromotion={() => goToTab('qualifications')}
         onGuide={() => goToTab('academy')}
       />
+      {careerEditorMode && (
+        <div className="career-editor-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCareerEditorMode(null) }}>
+          <div className="career-editor-modal" role="dialog" aria-modal="true" aria-label="Editar dados da carreira">
+            <button className="career-editor-close" type="button" aria-label="Fechar edição" onClick={() => setCareerEditorMode(null)}>×</button>
+            <CareerManagementPanel
+              career={career}
+              onUpdateProfile={updateProfile}
+              onChangeEmployer={changeEmployer}
+              onChangeBase={changeBase}
+              initialMode={careerEditorMode}
+              lockedMode
+            />
+          </div>
+        </div>
+      )}
       <header className="phase1-header">
         <div className="phase1-header-inner">
           <button className="back-button" onClick={onBack}>← Voltar</button>
           <div className="phase1-header-main">
-            <div className="phase1-driver-block">
+            <div className="phase1-driver-block" data-tour="career-management">
               <span className="eyebrow">Fase 1 • {game.shortName} • {game.levelRoles[(career.serverBacked ? Number(career.currentLevel || state.currentLevel || 1) : state.currentLevel) - 1]}</span>
-              <h1>{career.driverName}</h1>
-              <p>{career.city} • {career.company}</p>
+              <div className="career-header-field career-header-name">
+                <h1>{career.driverName}</h1>
+                <EditButton label="Editar nome do motorista e biografia" onClick={() => setCareerEditorMode('profile')} />
+              </div>
+              <div className="career-header-field career-header-meta">
+                <span>{career.city || 'Base não informada'}</span>
+                <EditButton label="Editar base" onClick={() => setCareerEditorMode('base')} />
+                <span className="career-header-separator">•</span>
+                <span>{career.company || 'Empresa não informada'}</span>
+                <EditButton label="Editar empresa" onClick={() => setCareerEditorMode('employer')} />
+              </div>
+              <div className="career-header-field career-header-bio">
+                <span>{career.bio || career.biography || 'Adicionar biografia'}</span>
+                <EditButton label="Editar biografia e nome do motorista" onClick={() => setCareerEditorMode('profile')} />
+              </div>
             </div>
             <HeaderSummary state={state} career={career} />
           </div>
@@ -634,7 +667,7 @@ export default function Phase1Page({ careerId, onBack }) {
           </nav>
         )}
         <TabIntro tabId={activeTab} />
-        {activeTab === 'overview' && <OverviewTab career={career} state={state} setActiveTab={setActiveTab} onUpdateProfile={updateProfile} onChangeEmployer={changeEmployer} onChangeBase={changeBase} />}
+        {activeTab === 'overview' && <OverviewTab career={career} state={state} setActiveTab={setActiveTab} />}
         {activeTab === 'finances' && (career.serverBacked
           ? <ServerFinancesTab career={career} />
           : <FinancesTab state={state} commit={commit} />)}

@@ -257,4 +257,31 @@ describe('Phase1Page server mutation safety', () => {
     expect(container.textContent).toContain('HazMat')
     expect(container.textContent).not.toContain('Promoções e qualificações temporariamente protegidas')
   })
+
+  it('opens career editing from header pencils and keeps management controls out of overview', async () => {
+    await renderPage()
+
+    expect(container.textContent).not.toContain('Gerenciar carreira')
+
+    const profileEdit = container.querySelector('button[aria-label="Editar nome do motorista e biografia"]')
+    const baseEdit = container.querySelector('button[aria-label="Editar base"]')
+    const companyEdit = container.querySelector('button[aria-label="Editar empresa"]')
+    expect(profileEdit).not.toBeNull()
+    expect(baseEdit).not.toBeNull()
+    expect(companyEdit).not.toBeNull()
+
+    await act(async () => profileEdit.click())
+    expect(document.querySelector('[role="dialog"][aria-label="Editar dados da carreira"]')).not.toBeNull()
+    expect(document.body.textContent).toContain('Nome do motorista')
+    expect(document.body.textContent).toContain('Biografia')
+    expect(document.body.textContent).not.toContain('Nova empresa')
+
+    const close = document.querySelector('button[aria-label="Fechar edição"]')
+    await act(async () => close.click())
+
+    await act(async () => baseEdit.click())
+    expect(document.body.textContent).toContain('Nova cidade-base')
+    expect(document.body.textContent).not.toContain('Nome do motorista')
+  })
+
 })
