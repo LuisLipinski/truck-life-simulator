@@ -28,12 +28,25 @@ const mocks = vi.hoisted(() => ({
   listIncidents: vi.fn(),
   getProgression: vi.fn(),
   updateDefaultTruck: vi.fn(),
+  listFinancingContracts: vi.fn(),
+  financingOffers: vi.fn(),
+  createFinancingContract: vi.fn(),
+  financingPayment: vi.fn(),
 }))
 
 vi.mock('../lib/financeApi.js', () => ({
   financeApi: {
     get: mocks.getFinances,
     listLedger: mocks.listLedger,
+  },
+}))
+
+vi.mock('../lib/financingApi.js', () => ({
+  financingApi: {
+    listContracts: mocks.listFinancingContracts,
+    offers: mocks.financingOffers,
+    createContract: mocks.createFinancingContract,
+    pay: mocks.financingPayment,
   },
 }))
 
@@ -190,6 +203,10 @@ beforeEach(() => {
   mocks.getFinances.mockReset()
   mocks.listLedger.mockReset().mockResolvedValue([])
   mocks.listPayslips.mockReset().mockResolvedValue([])
+  mocks.listFinancingContracts.mockReset().mockResolvedValue([])
+  mocks.financingOffers.mockReset().mockResolvedValue([])
+  mocks.createFinancingContract.mockReset()
+  mocks.financingPayment.mockReset()
   mocks.updateDefaultTruck.mockReset().mockResolvedValue({
     id: serverCareerId,
     driverName: 'Server Driver',
@@ -331,6 +348,54 @@ describe('Phase1Page server mutation safety', () => {
     expect(container.textContent).toContain('Reserva de emergência')
     expect(container.textContent).toContain('Aplicar despesas mensais')
     expect(container.textContent).not.toContain('Saldo e despesas temporariamente protegidos')
+  })
+
+  it('opens the new financing screen and renders server-calculated jurisdiction offers', async () => {
+    mocks.financingOffers.mockResolvedValue([{
+      productType: 'PERSONAL_LOAN',
+      policyVersion: 'phase1-financing-ats-state-2026-v2-CA',
+      policySource: 'https://fred.stlouisfed.org/series/TERMCBPER24NS',
+      policyReferenceAsOf: '2026-05-01',
+      jurisdictionRuleSource: 'https://www.nclc.org/example',
+      jurisdictionRuleSummary: 'California: regra estadual pesquisada aplicada sobre a referência de mercado.',
+      jurisdictionStateCode: 'CA',
+      jurisdictionCity: 'Los Angeles, CA',
+      displayCurrency: 'USD',
+      requestedAmount: 5000,
+      principal: 5000,
+      downPayment: 0,
+      annualInterestRate: 0.1186,
+      paymentFrequency: 'WEEKLY',
+      termPeriods: 52,
+      installmentAmount: 110,
+      expectedTotalCost: 5720,
+      legalAprCap: 0.25,
+      prepaymentRuleSummary: 'Quitação antecipada permitida.',
+      latePaymentRuleSummary: 'Atraso controlado pelo cronograma operacional.',
+    }])
+
+    await renderPage()
+    await clickButton('Financeiro')
+    await clickButton('Empréstimos e Financiamentos')
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+
+    expect(mocks.listFinancingContracts).toHaveBeenCalledWith('ats', serverCareerId)
+    expect(container.textContent).toContain('Política de crédito da sua sede')
+
+    const amountInput = container.querySelector('#financing-amount')
+    expect(amountInput).not.toBeNull()
+    await act(async () => {
+      amountInput.value = '5000'
+      amountInput.dispatchEvent(new Event('input', { bubbles: true }))
+      amountInput.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    await clickButton('Buscar ofertas')
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+
+    expect(mocks.financingOffers).toHaveBeenCalledWith('ats', serverCareerId, 'PERSONAL_LOAN', '5000.00')
+    expect(container.textContent).toContain('11,86% a.a.')
+    expect(container.textContent).toContain('California: regra estadual pesquisada')
+    expect(container.textContent).toContain('25,00% a.a.')
   })
 
   it('renders server-backed incidents and qualifications instead of the migration guards', async () => {
