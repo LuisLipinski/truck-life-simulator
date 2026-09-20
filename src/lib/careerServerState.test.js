@@ -44,6 +44,8 @@ describe('server career state', () => {
       citySalaryFactor: 1.05,
       currentOperationalWeek: 4,
       currentPayrollMonth: null,
+      defaultTruckMake: 'Volvo',
+      defaultTruckModel: 'VNL 860',
       version: 9,
     }, [{ id: 'server-event', type: 'EMPLOYER_CHANGED', operationalWeek: 4, effectiveDay: 'monday', changes: {} }])
 
@@ -55,14 +57,16 @@ describe('server career state', () => {
       company: 'Empresa servidor',
       city: 'Dallas, TX',
       stateCode: 'TX',
-      defaultTruckMake: 'Kenworth',
+      defaultTruckMake: 'Volvo',
+      defaultTruckModel: 'VNL 860',
       serverBacked: true,
       serverCareerId: 'server-1',
       serverVersion: 9,
       serverSyncStatus: 'ready',
     })
-    expect(overlay.events).toHaveLength(2)
-    expect(overlay.events[1]).toMatchObject({ effectiveDate: 'monday', operationalWeek: 4, serverBacked: true })
+    expect(overlay.events).toHaveLength(1)
+    expect(overlay.events[0]).toMatchObject({ effectiveDate: 'monday', operationalWeek: 4, serverBacked: true })
+    expect(overlay.events.find((event) => event.id === 'legacy-event')).toBeUndefined()
     expect(local.driverName).toBe('Nome antigo')
     expect(local.company).toBe('Empresa antiga')
   })
