@@ -258,30 +258,48 @@ describe('Phase1Page server mutation safety', () => {
     expect(container.textContent).not.toContain('Promoções e qualificações temporariamente protegidas')
   })
 
-  it('opens career editing from header pencils and keeps management controls out of overview', async () => {
+  it('opens independent header editors and explains when employer/base changes become effective', async () => {
     await renderPage()
 
     expect(container.textContent).not.toContain('Gerenciar carreira')
 
-    const profileEdit = container.querySelector('button[aria-label="Editar nome do motorista e biografia"]')
+    const driverEdit = container.querySelector('button[aria-label="Editar nome do motorista"]')
+    const biographyEdit = container.querySelector('button[aria-label="Editar biografia"]')
     const baseEdit = container.querySelector('button[aria-label="Editar base"]')
     const companyEdit = container.querySelector('button[aria-label="Editar empresa"]')
-    expect(profileEdit).not.toBeNull()
+    expect(driverEdit).not.toBeNull()
+    expect(biographyEdit).not.toBeNull()
     expect(baseEdit).not.toBeNull()
     expect(companyEdit).not.toBeNull()
 
-    await act(async () => profileEdit.click())
+    await act(async () => driverEdit.click())
     expect(document.querySelector('[role="dialog"][aria-label="Editar dados da carreira"]')).not.toBeNull()
-    expect(document.body.textContent).toContain('Nome do motorista')
-    expect(document.body.textContent).toContain('Biografia')
-    expect(document.body.textContent).not.toContain('Nova empresa')
+    expect(document.querySelector('#career-edit-driver')).not.toBeNull()
+    expect(document.querySelector('#career-edit-bio')).toBeNull()
 
-    const close = document.querySelector('button[aria-label="Fechar edição"]')
+    let close = document.querySelector('button[aria-label="Fechar edição"]')
+    await act(async () => close.click())
+
+    await act(async () => biographyEdit.click())
+    expect(document.querySelector('#career-edit-driver')).toBeNull()
+    expect(document.querySelector('#career-edit-bio')).not.toBeNull()
+
+    close = document.querySelector('button[aria-label="Fechar edição"]')
+    await act(async () => close.click())
+
+    await act(async () => companyEdit.click())
+    expect(document.body.textContent).toContain('Quando a troca passa a valer?')
+    expect(document.body.textContent).toContain('Válida a partir de')
+    expect(document.body.textContent).not.toContain('Dia da semana efetivo')
+
+    close = document.querySelector('button[aria-label="Fechar edição"]')
     await act(async () => close.click())
 
     await act(async () => baseEdit.click())
     expect(document.body.textContent).toContain('Nova cidade-base')
-    expect(document.body.textContent).not.toContain('Nome do motorista')
+    expect(document.body.textContent).toContain('Quando a mudança passa a valer?')
+    expect(document.body.textContent).toContain('Válida a partir de')
+    expect(document.body.textContent).not.toContain('Dia da semana efetivo')
   })
 
 })
