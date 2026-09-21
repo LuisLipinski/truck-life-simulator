@@ -28,12 +28,26 @@ const mocks = vi.hoisted(() => ({
   listIncidents: vi.fn(),
   getProgression: vi.fn(),
   updateDefaultTruck: vi.fn(),
+  listFinancingContracts: vi.fn(),
+  getFinancingOffers: vi.fn(),
+  createFinancingContract: vi.fn(),
+  payFinancingContract: vi.fn(),
 }))
 
 vi.mock('../lib/financeApi.js', () => ({
   financeApi: {
     get: mocks.getFinances,
     listLedger: mocks.listLedger,
+  },
+}))
+
+vi.mock('../lib/financingApi.js', () => ({
+  financingApi: {
+    listContracts: mocks.listFinancingContracts,
+    offers: mocks.getFinancingOffers,
+    createContract: mocks.createFinancingContract,
+    pay: mocks.payFinancingContract,
+    getContract: vi.fn(),
   },
 }))
 
@@ -190,6 +204,10 @@ beforeEach(() => {
   mocks.getFinances.mockReset()
   mocks.listLedger.mockReset().mockResolvedValue([])
   mocks.listPayslips.mockReset().mockResolvedValue([])
+  mocks.listFinancingContracts.mockReset().mockResolvedValue([])
+  mocks.getFinancingOffers.mockReset().mockResolvedValue([])
+  mocks.createFinancingContract.mockReset()
+  mocks.payFinancingContract.mockReset()
   mocks.updateDefaultTruck.mockReset().mockResolvedValue({
     id: serverCareerId,
     driverName: 'Server Driver',
@@ -331,6 +349,18 @@ describe('Phase1Page server mutation safety', () => {
     expect(container.textContent).toContain('Reserva de emergência')
     expect(container.textContent).toContain('Aplicar despesas mensais')
     expect(container.textContent).not.toContain('Saldo e despesas temporariamente protegidos')
+  })
+
+  it('opens the server-backed loans and financing screen without local fallback', async () => {
+    await renderPage()
+    await clickButton('Financeiro')
+    await clickButton('Empréstimos e Financiamentos')
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+
+    expect(mocks.listFinancingContracts).toHaveBeenCalledWith('ats', serverCareerId)
+    expect(container.textContent).toContain('Consultar ofertas da sua jurisdição')
+    expect(container.textContent).toContain('Nenhum empréstimo ou financiamento contratado nesta carreira.')
+    expect(container.textContent).not.toContain('Empréstimos e financiamentos exigem uma carreira server-side')
   })
 
   it('renders server-backed incidents and qualifications instead of the migration guards', async () => {
