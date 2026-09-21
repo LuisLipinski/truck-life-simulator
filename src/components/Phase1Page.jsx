@@ -45,6 +45,7 @@ import { useTutorial } from './GuidedTutorial.jsx'
 import { useToast } from './ToastProvider.jsx'
 import FinancesTab from './phase1/FinancesTab.jsx'
 import ServerFinancesTab from './phase1/ServerFinancesTab.jsx'
+import ServerFinancingTab from './phase1/ServerFinancingTab.jsx'
 import PayslipTab from './phase1/PayslipTab.jsx'
 import ServerPayslipTab from './phase1/ServerPayslipTab.jsx'
 import IncidentsTab from './phase1/IncidentsTab.jsx'
@@ -74,6 +75,11 @@ const TAB_HELP = {
     label: 'Holerite',
     description: 'Calcula o pagamento semanal com salário ou milhas, impostos estimados, benefícios, per diem e descontos de ocorrências.',
     tip: 'Ao gerar o holerite, a semana é fechada, o depósito entra no saldo e uma nova semana começa.',
+  },
+  financing: {
+    label: 'Empréstimos e Financiamentos',
+    description: 'Consulte ofertas calculadas pelo servidor para a sua jurisdição, contrate crédito e acompanhe parcelas, saldo devedor e pagamentos.',
+    tip: 'Taxas, limites, regras locais, cronograma e quitação são calculados no backend e ficam congelados no contrato.',
   },
   progress: {
     label: 'Registro de Viagens',
@@ -444,6 +450,7 @@ export default function Phase1Page({ careerId, onBack }) {
   const financialTabs = useMemo(() => [
     ['finances', 'Saldo e Despesas'],
     ['payslip', 'Holerite'],
+    ['financing', 'Empréstimos e Financiamentos'],
     ['history', 'Histórico'],
   ], [])
 
@@ -864,6 +871,13 @@ export default function Phase1Page({ careerId, onBack }) {
         {activeTab === 'payslip' && (career.serverBacked
           ? <ServerPayslipTab career={career} />
           : <PayslipTab career={career} state={state} commit={commit} />)}
+        {activeTab === 'financing' && (career.serverBacked
+          ? <ServerFinancingTab career={career} />
+          : <ServerCutoverGuard
+              title="Empréstimos e financiamentos exigem uma carreira server-side"
+              phase="P4.7"
+              detail="As ofertas e contratos são calculados pelo backend por estado ou país. Carreiras locais não recebem contratos financeiros autoritativos."
+            />)}
         {activeTab === 'progress' && <TripsTab career={career} state={state} onAddTrip={addTrip} onSaveTripDraft={saveTripDraft} onSaveDefaultTruck={saveDefaultTruck} onDeleteTrip={deleteTrip} />}
         {activeTab === 'incidents' && (career.serverBacked
           ? <ServerIncidentsTab career={career} state={state} />
