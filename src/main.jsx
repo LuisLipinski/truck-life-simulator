@@ -6,6 +6,7 @@ import BackendLoadingRetryFallback from './components/BackendLoadingRetryFallbac
 import MobileHelp from './components/MobileHelp.jsx'
 import { AuthProvider } from './components/auth/AuthProvider.jsx'
 import CareerServerProvider from './components/auth/CareerServerProvider.jsx'
+import { EntitlementProvider } from './components/premium/EntitlementProvider.jsx'
 import SessionNavigation from './components/auth/SessionNavigation.jsx'
 import SessionRouter from './components/auth/SessionRouter.jsx'
 import { ConfirmProvider } from './components/ConfirmProvider.jsx'
@@ -19,12 +20,14 @@ import './phase1.css'
 import './phase1-finance.css'
 import './phase1-career.css'
 import './phase1-charts.css'
+import './premium.css'
 import './react-tools.css'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <AuthProvider>
-      <CareerServerProvider>
+      <EntitlementProvider>
+        <CareerServerProvider>
         <ToastProvider>
           <ConfirmProvider>
             <TutorialProvider>
@@ -38,7 +41,8 @@ createRoot(document.getElementById('root')).render(
             </TutorialProvider>
           </ConfirmProvider>
         </ToastProvider>
-      </CareerServerProvider>
+        </CareerServerProvider>
+      </EntitlementProvider>
     </AuthProvider>
   </StrictMode>,
 )
