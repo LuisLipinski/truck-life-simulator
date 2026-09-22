@@ -18,6 +18,8 @@ import Phase1Page from './components/Phase1Page.jsx'
 import CityAutocomplete from './components/CityAutocomplete.jsx'
 import PublicAuthPage, { PUBLIC_AUTH_PATHS } from './components/auth/AuthPages.jsx'
 import { useAuth } from './components/auth/AuthProvider.jsx'
+import PremiumGate from './components/premium/PremiumGate.jsx'
+import { useEntitlements } from './components/premium/EntitlementProvider.jsx'
 import { GameProvider, useGame } from './components/GameContext.jsx'
 import { useConfirm } from './components/ConfirmProvider.jsx'
 import { useTutorial } from './components/GuidedTutorial.jsx'
@@ -82,6 +84,7 @@ function CareersPage() {
   const game = useGame()
   const toast = useToast()
   const confirm = useConfirm()
+  const entitlements = useEntitlements()
   const [careers, setCareers] = useState(() => loadCareers(game.id))
   const [showCsvHelp, setShowCsvHelp] = useState(false)
   const [selectingForExport, setSelectingForExport] = useState(false)
@@ -92,6 +95,12 @@ function CareersPage() {
     [careers, selectedCareerIds],
   )
   const allCareersSelected = careers.length > 0 && selectedCareers.length === careers.length
+  const careerLimitFeature = game.id === 'ets2' ? 'MAX_ETS2_CAREERS' : 'MAX_ATS_CAREERS'
+  const careerLimit = entitlements.featureLimit(careerLimitFeature)
+  const serverCareerCount = careers.filter((career) => career.serverBacked).length
+  const careerLimitReached = entitlements.status === 'ready'
+    && careerLimit != null
+    && serverCareerCount >= Number(careerLimit)
 
   async function removeCareer(career) {
     if (career.serverBacked) {
@@ -173,9 +182,19 @@ function CareersPage() {
       </section>
 
       <div className="action-row">
-        <AppLink className="button primary" to={game.routes.new}>+ Criar nova carreira</AppLink>
+        {careerLimitReached ? (
+          <PremiumGate feature={careerLimitFeature} variant="control" locked>
+            <button className="button primary" type="button">+ Criar nova carreira</button>
+          </PremiumGate>
+        ) : (
+          <AppLink className="button primary" to={game.routes.new}>+ Criar nova carreira</AppLink>
+        )}
         <button className="button success" type="button" onClick={() => fileInput.current?.click()}>Importar carreira</button>
-        {careers.length > 0 && <button className="button secondary" type="button" onClick={() => { setSelectingForExport(true); setSelectedCareerIds([]) }}>Exportar carreiras</button>}
+        {careers.length > 0 && (
+          <PremiumGate feature="BATCH_EXPORT" variant="control">
+            <button className="button secondary" type="button" onClick={() => { setSelectingForExport(true); setSelectedCareerIds([]) }}>Exportar carreiras</button>
+          </PremiumGate>
+        )}
         <button className="button secondary" type="button" onClick={() => setShowCsvHelp((value) => !value)}>Como importar uma carreira</button>
         <input ref={fileInput} type="file" accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onChange={importBackup} />
       </div>
@@ -207,7 +226,9 @@ function CareersPage() {
           </div>
           <div className="career-export-actions">
             <button className="button secondary compact" type="button" onClick={() => setSelectedCareerIds(allCareersSelected ? [] : careers.map((career) => career.id))}>{allCareersSelected ? 'Limpar seleção' : 'Selecionar todas'}</button>
-            <button className="button success compact" type="button" disabled={selectedCareers.length === 0} onClick={exportSelectedCareers}>Exportar selecionadas</button>
+            <PremiumGate feature="BATCH_EXPORT" variant="control">
+              <button className="button success compact" type="button" disabled={selectedCareers.length === 0} onClick={exportSelectedCareers}>Exportar selecionadas</button>
+            </PremiumGate>
             <button className="button secondary compact" type="button" onClick={closeExportSelection}>Cancelar</button>
           </div>
         </section>
