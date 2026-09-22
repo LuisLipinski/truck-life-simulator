@@ -85,6 +85,28 @@ export function serverTripToPhase1Trip(trip, gameId = 'ats') {
   return mapped
 }
 
+export function registerCreatedServerCareer(gameId, career) {
+  if (!career?.id) return false
+  const game = String(gameId || '').toLowerCase()
+  const id = String(career.id)
+  const key = cacheKey(game, id)
+  bindings.set(key, {
+    gameId: game,
+    sourceCareerId: id,
+    serverCareerId: id,
+  })
+  snapshots.set(key, {
+    career,
+    events: [],
+    trips: [],
+    tripsStatus: 'ready',
+    tripDraft: null,
+    tripDraftStatus: 'ready',
+    unavailable: false,
+  })
+  return true
+}
+
 export function replaceServerCareerBindings(records = []) {
   const next = new Map()
   for (const record of records) {
