@@ -6,11 +6,13 @@ import {
 } from '../../lib/careerMigration.js'
 import {
   clearServerCareerState,
+  markServerCareerTripDraftUnavailable,
   markServerCareerTripsUnavailable,
   markServerCareerUnavailable,
   replaceServerCareerBindings,
   setServerCareerEvents,
   setServerCareerSnapshot,
+  setServerCareerTripDraft,
   setServerCareerTrips,
 } from '../../lib/careerServerState.js'
 import { tripApi } from '../../lib/tripApi.js'
@@ -105,6 +107,13 @@ export default function CareerServerProvider({ children }) {
           setServerCareerTrips(association.gameId, association.sourceCareerId, trips)
         } catch {
           markServerCareerTripsUnavailable(association.gameId, association.sourceCareerId)
+        }
+
+        try {
+          const draft = await tripApi.getDraft(association.gameId, association.serverCareerId)
+          setServerCareerTripDraft(association.gameId, association.sourceCareerId, draft)
+        } catch {
+          markServerCareerTripDraftUnavailable(association.gameId, association.sourceCareerId)
         }
 
         try {

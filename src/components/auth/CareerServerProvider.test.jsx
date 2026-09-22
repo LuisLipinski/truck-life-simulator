@@ -4,7 +4,7 @@ import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { markCareerImported } from '../../lib/careerMigration.js'
-import { clearServerCareerState, getServerCareerOverlay, getServerCareerTrips } from '../../lib/careerServerState.js'
+import { clearServerCareerState, getServerCareerOverlay, getServerCareerTripDraft, getServerCareerTrips } from '../../lib/careerServerState.js'
 
 const mocks = vi.hoisted(() => ({
   auth: { isAuthenticated: true, user: { id: 'user-1' } },
@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   get: vi.fn(),
   events: vi.fn(),
   trips: vi.fn(),
+  draft: vi.fn(),
 }))
 
 vi.mock('./AuthProvider.jsx', () => ({
@@ -29,6 +30,7 @@ vi.mock('../../lib/careerApi.js', () => ({
 vi.mock('../../lib/tripApi.js', () => ({
   tripApi: {
     list: mocks.trips,
+    getDraft: mocks.draft,
   },
 }))
 
@@ -52,8 +54,10 @@ beforeEach(() => {
   mocks.list.mockReset()
   mocks.events.mockReset()
   mocks.trips.mockReset()
+  mocks.draft.mockReset()
   mocks.events.mockResolvedValue([])
   mocks.trips.mockResolvedValue([])
+  mocks.draft.mockResolvedValue({ operationalWeek: 1, data: {}, updatedAt: null })
   mocks.list.mockResolvedValue([])
 })
 
@@ -178,6 +182,11 @@ describe('CareerServerProvider', () => {
       source: 'IMPORT', version: 1,
     }])
     mocks.events.mockResolvedValue([{ id: 'event-1', type: 'PROFILE_UPDATED', operationalWeek: 2 }])
+    mocks.draft.mockResolvedValue({
+      operationalWeek: 2,
+      data: { departureDay: 'monday', departureTime: '08:15', origin: 'Los Angeles, CA' },
+      updatedAt: '2026-09-22T02:00:00Z',
+    })
 
     container = document.createElement('div')
     document.body.appendChild(container)
@@ -189,6 +198,7 @@ describe('CareerServerProvider', () => {
 
     expect(mocks.get).toHaveBeenCalledWith('ats', 'server-1')
     expect(mocks.trips).toHaveBeenCalledWith('ats', 'server-1')
+    expect(mocks.draft).toHaveBeenCalledWith('ats', 'server-1')
     expect(mocks.events).toHaveBeenCalledWith('ats', 'server-1')
     expect(getServerCareerOverlay({ id: 'local-1', driverName: 'Local Backup', events: [] }, 'ats')).toMatchObject({
       driverName: 'Server Driver',
@@ -200,6 +210,10 @@ describe('CareerServerProvider', () => {
     expect(getServerCareerTrips('ats', 'local-1')).toMatchObject({
       status: 'ready',
       trips: [expect.objectContaining({ id: 'trip-1', week: 2, miles: 120, serverBacked: true })],
+    })
+    expect(getServerCareerTripDraft('ats', 'local-1')).toMatchObject({
+      status: 'ready',
+      draft: { departureDay: 'monday', departureTime: '08:15', origin: 'Los Angeles, CA' },
     })
   })
 

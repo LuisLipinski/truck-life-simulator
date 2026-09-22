@@ -47,6 +47,7 @@ export default function TripForm({ career, state, onAdd, onSaveDraft, onSaveDefa
   const [odometerStart, setOdometerStart] = useState(() => draftValue(draft, 'odometerStart', lastOdometerEnd))
   const [odometerEnd, setOdometerEnd] = useState(() => draftValue(draft, 'odometerEnd'))
   const [submitting, setSubmitting] = useState(false)
+  const [savingDraft, setSavingDraft] = useState(false)
 
   const categories = validPayCategories(state, game.id)
   const effectiveCategory = type === 'Deadhead' ? 'deadhead' : (categories.includes(payCategory) ? payCategory : 'normal')
@@ -90,9 +91,14 @@ export default function TripForm({ career, state, onAdd, onSaveDraft, onSaveDefa
     }
   }
 
-  function saveDraft() {
-    if (submitting) return
-    onSaveDraft(currentDraft())
+  async function saveDraft() {
+    if (submitting || savingDraft) return
+    setSavingDraft(true)
+    try {
+      await onSaveDraft(currentDraft())
+    } finally {
+      setSavingDraft(false)
+    }
   }
 
   async function submit(event) {
@@ -291,8 +297,8 @@ export default function TripForm({ career, state, onAdd, onSaveDraft, onSaveDefa
       </div>}
 
       {state.tripDraft && <small className="trip-field-help">Há um rascunho salvo para esta viagem. Salvar novamente atualiza o mesmo rascunho; enviar a viagem o remove.</small>}
-      <button className="button secondary submit-button" type="button" onClick={saveDraft} disabled={submitting}>Salvar rascunho</button>
-      <button className="button primary submit-button" type="submit" disabled={submitting}>{submitting ? 'Enviando...' : 'Enviar viagem'}</button>
+      <button className="button secondary submit-button" type="button" onClick={saveDraft} disabled={submitting || savingDraft}>{savingDraft ? 'Salvando...' : 'Salvar rascunho'}</button>
+      <button className="button primary submit-button" type="submit" disabled={submitting || savingDraft}>{submitting ? 'Enviando...' : 'Enviar viagem'}</button>
     </form>
   )
 }
