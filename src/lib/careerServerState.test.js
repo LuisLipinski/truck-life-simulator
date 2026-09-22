@@ -8,6 +8,7 @@ import {
   getServerCareerOverlay,
   getServerCareerTripDraft,
   markServerCareerUnavailable,
+  registerCreatedServerCareer,
   replaceServerCareerBindings,
   setActiveServerCareerForLocal,
   setServerCareerSnapshot,
@@ -73,6 +74,34 @@ describe('server career state', () => {
     expect(overlay.events.find((event) => event.id === 'legacy-event')).toBeUndefined()
     expect(local.driverName).toBe('Nome antigo')
     expect(local.company).toBe('Empresa antiga')
+  })
+
+  it('registers a newly created server career without creating a local backup', () => {
+    const created = {
+      id: 'server-new',
+      driverName: 'Novo Motorista',
+      companyName: 'Cloud Transportes',
+      baseCity: 'Phoenix, AZ',
+      stateCode: 'AZ',
+      currentLevel: 1,
+      balance: 2000,
+      baseCurrency: 'USD',
+      displayCurrency: 'USD',
+      exchangeRate: 1,
+      currentOperationalWeek: 1,
+      version: 0,
+    }
+
+    expect(registerCreatedServerCareer('ats', created)).toBe(true)
+    expect(getServerCareerOverlay({ id: 'server-new', serverOnly: true }, 'ats')).toMatchObject({
+      id: 'server-new',
+      driverName: 'Novo Motorista',
+      company: 'Cloud Transportes',
+      serverBacked: true,
+      serverCareerId: 'server-new',
+      serverSyncStatus: 'ready',
+      serverTripsStatus: 'ready',
+    })
   })
 
   it('keeps ATS and ETS2 bindings isolated even when local ids are equal', () => {

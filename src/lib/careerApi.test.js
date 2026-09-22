@@ -27,6 +27,42 @@ afterEach(() => {
 })
 
 describe('career API client', () => {
+  it('creates authenticated careers directly on the backend', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(response(201, { id: 'server-career', game: 'ATS' }))
+
+    const payload = {
+      game: 'ATS',
+      driverName: 'Ana',
+      companyName: 'Road Logistics',
+      biography: '',
+      initialBalance: 2500,
+      baseCurrency: 'USD',
+      displayCurrency: 'USD',
+      exchangeRate: 1,
+      exchangeRateAsOf: '2026-08-01',
+      stateCode: 'AZ',
+      countryCode: null,
+      baseCity: 'Phoenix, AZ',
+      defaultTruckMake: null,
+      defaultTruckModel: null,
+      cityMarketVersion: 'v1',
+      cityMarketLabel: 'Phoenix',
+      cityCostFactor: 1,
+      citySalaryFactor: 1,
+    }
+
+    await careerApi.create(payload)
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      `${API_BASE_URL}/api/v1/careers`,
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify(payload),
+        headers: expect.objectContaining({ Authorization: 'Bearer career-token' }),
+      }),
+    )
+  })
+
   it('reads owner careers, one career and its events with authenticated no-store requests', async () => {
     globalThis.fetch = vi.fn()
       .mockResolvedValueOnce(response(200, []))

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  createCareer,
+  createCareer as createLocalCareer,
   CAREER_UPDATED_EVENT,
   deleteCareer,
   getActiveCareerId,
@@ -12,9 +12,12 @@ import { downloadCSVTemplate, downloadExcelTemplate, exportCareersCSV, importCar
 import { formatMoney, gameIdFromPath, getGame, getGameForCareer, GAMES } from './config/games.js'
 import { convertAtsCurrency } from './config/atsCurrencies.js'
 import { convertEts2Currency, roundCurrency } from './config/ets2Currencies.js'
+import { careerApi } from './lib/careerApi.js'
+import { registerCreatedServerCareer } from './lib/careerServerState.js'
 import Phase1Page from './components/Phase1Page.jsx'
 import CityAutocomplete from './components/CityAutocomplete.jsx'
 import PublicAuthPage, { PUBLIC_AUTH_PATHS } from './components/auth/AuthPages.jsx'
+import { useAuth } from './components/auth/AuthProvider.jsx'
 import { GameProvider, useGame } from './components/GameContext.jsx'
 import { useConfirm } from './components/ConfirmProvider.jsx'
 import { useTutorial } from './components/GuidedTutorial.jsx'
@@ -271,6 +274,7 @@ function CareersPage() {
 
 function NewCareerPage() {
   const game = useGame()
+  const auth = useAuth()
   const isEts2 = game.id === 'ets2'
   const toast = useToast()
   const confirm = useConfirm()
@@ -287,6 +291,7 @@ function NewCareerPage() {
   const [bio, setBio] = useState('')
   const [costs, setCosts] = useState({})
   const [showTutorial, setShowTutorial] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const locationCode = isEts2 ? countryCode : stateCode
   const selectedGame = useMemo(
     () => locationCode ? getGame(game.id, locationCode, currencyCode, null, null, city) : game,
@@ -367,7 +372,7 @@ function NewCareerPage() {
       if (!confirmed) return
     }
 
-    const career = createCareer({
+    const localCareerInput = {
       driverName: driverName.trim(), city: city.trim(), company: company.trim(), currency: selectedGame.currency,
       countryCode: isEts2 ? countryCode : undefined, countryName: isEts2 ? selectedGame.countryName : undefined,
       stateCode: !isEts2 ? stateCode : undefined, stateName: !isEts2 ? selectedGame.stateName : undefined,
@@ -382,8 +387,62 @@ function NewCareerPage() {
       defaultTruckModel: defaultTruckModel.trim(),
       arrivalBalance: Number(arrivalBalance) || 0, setupCosts: costs, setupCostsTotal: totalCosts,
       initialBalance: remaining, currentBalance: remaining, bio: bio.trim(),
-    }, game.id)
-    toast.success(`Carreira de ${career.driverName} criada em ${game.shortName}.`, { title: 'Carreira criada' })
+    }
+
+    if (auth.status === 'loading') {
+      toast.info('Aguarde a confirmação da sua sessão antes de criar a carreira.')
+      return
+    }
+    if (auth.status === 'error') {
+      toast.error('Não foi possível confirmar sua conta. A carreira não será criada localmente para evitar duplicidade.')
+      return
+    }
+
+    if (auth.isAuthenticated) {
+      setSubmitting(true)
+      try {
+        const career = await careerApi.create({
+          game: game.id.toUpperCase(),
+          driverName: localCareerInput.driverName,
+          companyName: localCareerInput.company,
+          biography: localCareerInput.bio,
+          initialBalance: Number(Number(remaining).toFixed(2)),
+          baseCurrency: selectedGame.baseCurrency,
+          displayCurrency: selectedGame.currency,
+          exchangeRate: selectedGame.exchangeRate,
+          exchangeRateAsOf: selectedGame.exchangeRateAsOf,
+          stateCode: isEts2 ? null : stateCode,
+          countryCode: isEts2 ? countryCode : null,
+          baseCity: localCareerInput.city,
+          defaultTruckMake: localCareerInput.defaultTruckMake || null,
+          defaultTruckModel: localCareerInput.defaultTruckModel || null,
+          cityMarketVersion: selectedGame.cityMarketVersion,
+          cityMarketLabel: selectedGame.cityMarketLabel,
+          cityCostFactor: selectedGame.cityCostFactor,
+          citySalaryFactor: selectedGame.citySalaryFactor,
+        })
+        registerCreatedServerCareer(game.id, career)
+        setActiveCareer(String(career.id), game.id)
+        window.dispatchEvent(new CustomEvent(CAREER_UPDATED_EVENT, {
+          detail: { careerId: String(career.id), gameId: game.id, source: 'server-career-created' },
+        }))
+        toast.success(`Carreira de ${career.driverName} criada no servidor em ${game.shortName}.`, { title: 'Carreira criada' })
+        if (showTutorial) startTutorial(String(career.id), game.id)
+        else window.location.hash = `#${game.routes.phases}?career=${encodeURIComponent(String(career.id))}`
+      } catch (error) {
+        if (error?.code === 'CAREER_LIMIT_REACHED') {
+          toast.info('Você atingiu o limite de carreiras do seu plano para este jogo.', { title: 'Limite do plano atingido' })
+        } else {
+          toast.error(error?.message || 'Não foi possível criar a carreira no servidor.', { title: 'Erro ao criar carreira' })
+        }
+      } finally {
+        setSubmitting(false)
+      }
+      return
+    }
+
+    const career = createLocalCareer(localCareerInput, game.id)
+    toast.success(`Carreira local de ${career.driverName} criada em ${game.shortName}.`, { title: 'Carreira criada' })
     if (showTutorial) startTutorial(career.id, game.id)
     else window.location.hash = `#${game.routes.phases}?career=${encodeURIComponent(career.id)}`
   }
@@ -463,7 +522,9 @@ function NewCareerPage() {
           <input type="checkbox" checked={showTutorial} onChange={(event) => setShowTutorial(event.target.checked)} />
           <span><strong>Ver tutorial após criar a carreira</strong><small>O tour usará os textos, unidades e qualificações de {game.shortName} sem alterar seus dados.</small></span>
         </label>
-        <button className="button primary submit-button" type="submit">Criar carreira e continuar</button>
+        <button className="button primary submit-button" type="submit" disabled={submitting || auth.status === 'loading'}>
+          {submitting ? 'Criando no servidor...' : 'Criar carreira e continuar'}
+        </button>
       </form>
     </main>
   )

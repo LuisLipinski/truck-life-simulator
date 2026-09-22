@@ -9,6 +9,12 @@ function careerPath(careerId, gameId, suffix = '') {
 }
 
 export const careerApi = {
+  create: (payload, options = {}) => apiRequest('/api/v1/careers', {
+    auth: true,
+    method: 'POST',
+    body: payload,
+    signal: options.signal,
+  }),
   list: (gameId, options = {}) => apiRequest(`/api/v1/careers?${gameQuery(gameId)}`, {
     auth: true,
     signal: options.signal,
