@@ -125,7 +125,7 @@ function rawCareers(gameId = 'ats') {
   }
 }
 
-function loadLocalCareers(gameId = 'ats') {
+export function loadLocalCareers(gameId = 'ats') {
   const value = rawCareers(gameId)
   const normalized = value.map((career) => normalizeCareer(career, gameId))
   if (JSON.stringify(normalized) !== JSON.stringify(value)) {
