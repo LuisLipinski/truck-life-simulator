@@ -9,6 +9,15 @@ import { ConfirmProvider } from '../ConfirmProvider.jsx'
 import { GameProvider } from '../GameContext.jsx'
 import { ToastProvider } from '../ToastProvider.jsx'
 
+vi.mock('../premium/EntitlementProvider.jsx', () => ({
+  useEntitlements: () => ({
+    status: 'ready',
+    premium: true,
+    hasFeature: () => true,
+    featureLimit: () => null,
+  }),
+}))
+
 let root
 let container
 

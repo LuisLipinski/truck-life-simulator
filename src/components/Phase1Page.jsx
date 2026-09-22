@@ -5,7 +5,7 @@ import { financeApi } from '../lib/financeApi.js'
 import { payrollApi } from '../lib/payrollApi.js'
 import { incidentApi } from '../lib/incidentApi.js'
 import { progressionApi } from '../lib/progressionApi.js'
-import { exportCareerCSV } from '../lib/csv.js'
+import { exportCareerCSV, exportCareerExcel } from '../lib/csv.js'
 import { formatDistance, formatMoney, formatNumber } from '../config/games.js'
 import {
   currentWeekMiles,
@@ -44,6 +44,7 @@ import { useGame } from './GameContext.jsx'
 import { useConfirm } from './ConfirmProvider.jsx'
 import { useTutorial } from './GuidedTutorial.jsx'
 import { useToast } from './ToastProvider.jsx'
+import PremiumGate from './premium/PremiumGate.jsx'
 import FinancesTab from './phase1/FinancesTab.jsx'
 import ServerFinancesTab from './phase1/ServerFinancesTab.jsx'
 import ServerFinancingTab from './phase1/ServerFinancingTab.jsx'
@@ -365,7 +366,15 @@ function OverviewTab({ career, state, setActiveTab }) {
           <h2>Exportar somente esta carreira</h2>
           <p>{career.serverBacked ? 'Durante o cutover, esta exportação continua sendo o backup local legado. Viagens e fechamentos criados somente no servidor não devem ser tratados como parte desse CSV até a etapa final de compatibilidade/backup.' : 'O arquivo tabular inclui esta carreira em uma única linha e preserva perfil, sede fiscal, moeda, viagens, histórico, gastos, ocorrências, holerites e reserva. A importação e a exportação de várias carreiras ficam na tela de Carreiras.'}</p>
         </div>
-        <button className="button success compact" type="button" onClick={() => exportCareerCSV(career, state, game.id)}>Exportar carreira CSV</button>
+        <div className="action-row">
+          <button className="button success compact" type="button" onClick={() => exportCareerCSV(career, state, game.id)}>Exportar carreira CSV</button>
+          <PremiumGate feature="XLSX_EXPORT" variant="control">
+            <button className="button secondary compact" type="button" onClick={() => exportCareerExcel(career, state, 'xlsx', game.id)}>Exportar carreira XLSX</button>
+          </PremiumGate>
+          <PremiumGate feature="XLSX_EXPORT" variant="control">
+            <button className="button secondary compact" type="button" onClick={() => exportCareerExcel(career, state, 'xls', game.id)}>Exportar carreira XLS</button>
+          </PremiumGate>
+        </div>
       </section>
     </>
   )
@@ -389,7 +398,9 @@ function TripsTab({ career, state, onAddTrip, onSaveTripDraft, onSaveDefaultTruc
         <MetricCard label={`${game.perDiemLabel} potencial`} value={state.currentLevel <= 1 ? 'Não se aplica' : `${perDiem.days} dia(s)`} detail={state.currentLevel <= 1 ? 'Disponível a partir do Nível 2' : `${formatMoney(perDiem.days * game.perDiemRate, game)} a ${formatMoney(game.perDiemRate, game)}/dia`} />
       </section>
 
-      <MileageChart trips={state.trips} />
+      <PremiumGate feature="ADVANCED_CHARTS" variant="chart">
+        <MileageChart trips={state.trips} />
+      </PremiumGate>
 
       <div className="phase1-two-panel">
         <TripForm key={career.serverBacked ? `server-trip-form:${JSON.stringify(state.tripDraft || {})}` : 'local-trip-form'} career={career} state={state} onAdd={onAddTrip} onSaveDraft={onSaveTripDraft} onSaveDefaultTruck={onSaveDefaultTruck} />

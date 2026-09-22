@@ -1,18 +1,52 @@
+import { cloneElement, isValidElement } from 'react'
 import { useEntitlements } from './EntitlementProvider.jsx'
 
-export default function PremiumGate({ feature, children, fallback = null }) {
+export const PREMIUM_LOCK_TEXT = 'Disponível apenas no Premium'
+
+function disabledControl(children) {
+  if (!isValidElement(children)) return children
+  return cloneElement(children, {
+    disabled: true,
+    'aria-disabled': true,
+    onClick: undefined,
+    className: `${children.props.className || ''} premium-locked-button`.trim(),
+  })
+}
+
+export default function PremiumGate({
+  feature,
+  children,
+  fallback = null,
+  variant = 'content',
+  locked,
+}) {
   const entitlements = useEntitlements()
 
-  if (entitlements.status === 'loading') return null
-  if (entitlements.hasFeature(feature)) return children
-  if (fallback) return fallback
+  const loading = entitlements.status === 'loading'
+  const denied = locked === undefined
+    ? !entitlements.hasFeature(feature)
+    : Boolean(locked)
+
+  if (!loading && !denied) return children
+  if (!loading && fallback) return fallback
+
+  if (variant === 'control') {
+    return (
+      <div className="premium-lock-control" role="note" aria-label={PREMIUM_LOCK_TEXT}>
+        <div className="premium-lock-copy">
+          <span className="premium-badge">Premium</span>
+          <span>{PREMIUM_LOCK_TEXT}</span>
+        </div>
+        {disabledControl(children)}
+      </div>
+    )
+  }
 
   return (
-    <section className="panel premium-gate" role="note">
+    <section className={`panel premium-gate premium-gate-locked${variant === 'chart' ? ' premium-gate-chart' : ''}`} role="note">
       <span className="premium-badge">Premium</span>
-      <h3>Recurso Premium</h3>
-      <p>Este recurso depende do plano Premium. A autorização final é sempre validada pelo backend.</p>
-      <a className="button secondary compact" href="#/pricing">Ver planos</a>
+      <strong>{PREMIUM_LOCK_TEXT}</strong>
+      <a className="button secondary compact" href="#/pricing">Ver Premium</a>
     </section>
   )
 }

@@ -34,6 +34,15 @@ const mocks = vi.hoisted(() => ({
   payFinancingContract: vi.fn(),
 }))
 
+vi.mock('./premium/EntitlementProvider.jsx', () => ({
+  useEntitlements: () => ({
+    status: 'ready',
+    premium: true,
+    hasFeature: () => true,
+    featureLimit: () => null,
+  }),
+}))
+
 vi.mock('../lib/financeApi.js', () => ({
   financeApi: {
     get: mocks.getFinances,
