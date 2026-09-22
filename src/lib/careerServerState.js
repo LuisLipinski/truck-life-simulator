@@ -158,6 +158,29 @@ export function setServerCareerTrips(gameId, localCareerId, trips) {
   return true
 }
 
+export function setServerCareerTripDraft(gameId, localCareerId, draft) {
+  const key = cacheKey(gameId, localCareerId)
+  if (!bindings.has(key)) return false
+  const data = draft?.data && Object.keys(draft.data).length > 0 ? { ...draft.data } : null
+  snapshots.set(key, {
+    ...(snapshots.get(key) || {}),
+    tripDraft: data,
+    tripDraftStatus: 'ready',
+  })
+  return true
+}
+
+export function markServerCareerTripDraftUnavailable(gameId, localCareerId) {
+  const key = cacheKey(gameId, localCareerId)
+  if (!bindings.has(key)) return false
+  snapshots.set(key, {
+    ...(snapshots.get(key) || {}),
+    tripDraft: null,
+    tripDraftStatus: 'error',
+  })
+  return true
+}
+
 export function markServerCareerTripsUnavailable(gameId, localCareerId) {
   const key = cacheKey(gameId, localCareerId)
   if (!bindings.has(key)) return false
@@ -176,11 +199,23 @@ export function getServerCareerTrips(gameId, localCareerId) {
   }
 }
 
+export function getServerCareerTripDraft(gameId, localCareerId) {
+  const key = cacheKey(gameId, localCareerId)
+  if (!bindings.has(key)) return { status: 'local', draft: null }
+  const snapshot = snapshots.get(key) || {}
+  const status = snapshot.tripDraftStatus || 'loading'
+  return {
+    status,
+    draft: status === 'ready' && snapshot.tripDraft ? { ...snapshot.tripDraft } : null,
+  }
+}
+
 export function applyServerTripsToPhase1State(state, career, gameId = 'ats') {
   if (!career?.serverBacked || !career?.id) return state
   const serverTrips = getServerCareerTrips(gameId, career.id)
   if (serverTrips.status !== 'ready') return state
   const level = Math.max(1, numberOr(career.currentLevel, 1))
+  const serverDraft = getServerCareerTripDraft(gameId, career.id)
   return {
     ...state,
     balance: numberOr(career.currentBalance, 0),
@@ -191,7 +226,7 @@ export function applyServerTripsToPhase1State(state, career, gameId = 'ats') {
       ? Math.max(1, numberOr(state?.currentPayrollMonth, 1))
       : Math.max(1, numberOr(career.currentPayrollMonth, 1)),
     trips: serverTrips.trips,
-    tripDraft: null,
+    tripDraft: serverDraft.status === 'ready' ? serverDraft.draft : null,
     history: [],
     closedWeeks: [],
     closedOperationalWeeks: [],
