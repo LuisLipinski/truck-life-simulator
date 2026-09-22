@@ -1,5 +1,5 @@
 import { loadPhase1State } from './phase1.js'
-import { careersStorageKey, loadCareers } from './storage.js'
+import { careersStorageKey, loadCareers, loadLocalCareers } from './storage.js'
 
 export const CAREER_IMPORT_SOURCE_VERSION = 12
 export const CAREER_IMPORT_ASSOCIATION_UPDATED_EVENT = 'truck-life:career-import-association-updated'
@@ -115,7 +115,7 @@ export function listCompletedCareerImportAssociations(userId) {
 export function listCareerImportCandidates(userId) {
   if (!userId) return []
   const registry = loadRegistry(userId)
-  return GAME_IDS.flatMap((gameId) => loadCareers(gameId).map((career) => {
+  return GAME_IDS.flatMap((gameId) => loadLocalCareers(gameId).map((career) => {
     const state = loadPhase1State(career.id, gameId)
     const key = careerKey(gameId, career.id)
     const record = registry[key] || null
