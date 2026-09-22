@@ -284,6 +284,32 @@ describe('Phase1Page server mutation safety', () => {
     expect(localStorage.getItem(storageKey)).toBe(backupBefore)
   })
 
+  it('restores the authoritative server trip draft into the existing trip form', async () => {
+    mocks.getDraft.mockResolvedValue({
+      operationalWeek: 2,
+      data: {
+        week: 2,
+        departureDay: 'monday',
+        departureTime: '08:15',
+        origin: 'Los Angeles, CA',
+        type: 'Loaded',
+        payCategory: 'normal',
+      },
+      updatedAt: '2026-09-22T02:00:00Z',
+    })
+
+    await renderPage()
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve() })
+    await clickButton('Diário de Bordo')
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+
+    const form = container.querySelector('.trip-form')
+    expect(form.querySelectorAll('select')[0].value).toBe('monday')
+    expect(form.querySelector('input[type="time"]').value).toBe('08:15')
+    expect(form.querySelector('.react-city-autocomplete input').value).toBe('Los Angeles, CA')
+    expect(form.textContent).toContain('Há um rascunho salvo para esta viagem')
+  })
+
   it('hydrates the existing overview and history with server-side finance data', async () => {
     mocks.listLedger.mockResolvedValue([{
       id: 'ledger-1',
