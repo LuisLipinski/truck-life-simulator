@@ -44,6 +44,7 @@ import { useGame } from './GameContext.jsx'
 import { useConfirm } from './ConfirmProvider.jsx'
 import { useTutorial } from './GuidedTutorial.jsx'
 import { useToast } from './ToastProvider.jsx'
+import PremiumGate from './premium/PremiumGate.jsx'
 import FinancesTab from './phase1/FinancesTab.jsx'
 import ServerFinancesTab from './phase1/ServerFinancesTab.jsx'
 import ServerFinancingTab from './phase1/ServerFinancingTab.jsx'
@@ -389,7 +390,9 @@ function TripsTab({ career, state, onAddTrip, onSaveTripDraft, onSaveDefaultTruc
         <MetricCard label={`${game.perDiemLabel} potencial`} value={state.currentLevel <= 1 ? 'Não se aplica' : `${perDiem.days} dia(s)`} detail={state.currentLevel <= 1 ? 'Disponível a partir do Nível 2' : `${formatMoney(perDiem.days * game.perDiemRate, game)} a ${formatMoney(game.perDiemRate, game)}/dia`} />
       </section>
 
-      <MileageChart trips={state.trips} />
+      <PremiumGate feature="ADVANCED_CHARTS" variant="chart">
+        <MileageChart trips={state.trips} />
+      </PremiumGate>
 
       <div className="phase1-two-panel">
         <TripForm key={career.serverBacked ? `server-trip-form:${JSON.stringify(state.tripDraft || {})}` : 'local-trip-form'} career={career} state={state} onAdd={onAddTrip} onSaveDraft={onSaveTripDraft} onSaveDefaultTruck={onSaveDefaultTruck} />
