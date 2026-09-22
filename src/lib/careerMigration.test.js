@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { beforeEach, describe, expect, it } from 'vitest'
+import { clearServerCareerState, registerCreatedServerCareer } from './careerServerState.js'
 import { phase1StorageKey } from './phase1.js'
 import {
   careersStorageKey,
@@ -51,6 +52,7 @@ function ets2Career() {
 
 beforeEach(() => {
   localStorage.clear()
+  clearServerCareerState()
 })
 
 describe('career migration local bridge', () => {
@@ -101,6 +103,27 @@ describe('career migration local bridge', () => {
       state: { balance: 4321.25, currentWeek: 4 },
     })
     expect(countPendingCareerImports('user-1')).toBe(2)
+  })
+
+  it('does not offer server-only careers as local migration candidates', () => {
+    registerCreatedServerCareer('ats', {
+      id: 'server-only-career',
+      driverName: 'Server Driver',
+      companyName: 'Cloud Logistics',
+      baseCity: 'Dallas, TX',
+      stateCode: 'TX',
+      currentLevel: 1,
+      balance: 1000,
+      baseCurrency: 'USD',
+      displayCurrency: 'USD',
+      exchangeRate: 1,
+      currentOperationalWeek: 1,
+      version: 0,
+    })
+
+    expect(loadCareers('ats')).toHaveLength(1)
+    expect(listCareerImportCandidates('user-1')).toHaveLength(0)
+    expect(countPendingCareerImports('user-1')).toBe(0)
   })
 
   it('records only the server association after success and preserves the complete local career snapshot', () => {
