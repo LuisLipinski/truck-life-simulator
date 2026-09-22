@@ -2,13 +2,17 @@
 
 import { afterEach, describe, expect, it } from 'vitest'
 import {
+  applyServerTripsToPhase1State,
   clearServerCareerState,
   getActiveServerCareerId,
   getServerCareerOverlay,
+  getServerCareerTripDraft,
   markServerCareerUnavailable,
   replaceServerCareerBindings,
   setActiveServerCareerForLocal,
   setServerCareerSnapshot,
+  setServerCareerTripDraft,
+  setServerCareerTrips,
 } from './careerServerState.js'
 
 afterEach(() => clearServerCareerState())
@@ -81,6 +85,55 @@ describe('server career state', () => {
 
     expect(getActiveServerCareerId('ats')).toBe('ats-server')
     expect(getActiveServerCareerId('ets2')).toBe('ets-server')
+  })
+
+  it('keeps the authoritative server draft across trip list refreshes', () => {
+    replaceServerCareerBindings([{ gameId: 'ats', sourceCareerId: 'local-1', serverCareerId: 'server-1' }])
+    setServerCareerSnapshot('ats', 'local-1', {
+      id: 'server-1',
+      currentLevel: 1,
+      currentOperationalWeek: 3,
+      balance: 1000,
+    })
+    setServerCareerTrips('ats', 'local-1', [])
+    setServerCareerTripDraft('ats', 'local-1', {
+      operationalWeek: 3,
+      data: { departureDay: 'monday', departureTime: '08:15', origin: 'Phoenix, AZ' },
+    })
+
+    const career = getServerCareerOverlay({ id: 'local-1', currentLevel: 1 }, 'ats')
+    const first = applyServerTripsToPhase1State({
+      currentWeek: 3,
+      trips: [],
+      tripDraft: { origin: 'rascunho-local-antigo' },
+    }, career, 'ats')
+
+    expect(first.tripDraft).toEqual({
+      departureDay: 'monday',
+      departureTime: '08:15',
+      origin: 'Phoenix, AZ',
+    })
+
+    setServerCareerTrips('ats', 'local-1', [{
+      id: 'trip-1',
+      operationalWeek: 3,
+      departureDay: 'MONDAY',
+      departureTime: '09:00:00',
+      arrivalDay: 'MONDAY',
+      arrivalTime: '10:00:00',
+      originCity: 'Phoenix, AZ',
+      destinationCity: 'Tucson, AZ',
+      type: 'LOADED',
+      paymentCategory: 'NORMAL',
+      officialDistance: '120',
+    }])
+
+    const refreshed = applyServerTripsToPhase1State(first, career, 'ats')
+    expect(refreshed.tripDraft).toEqual(first.tripDraft)
+    expect(getServerCareerTripDraft('ats', 'local-1')).toMatchObject({
+      status: 'ready',
+      draft: { origin: 'Phoenix, AZ' },
+    })
   })
 
   it('marks an associated career as server-backed even while the backend is temporarily unavailable', () => {
