@@ -30,6 +30,7 @@ import { tripApi } from '../lib/tripApi.js'
 import {
   markServerCareerTripsUnavailable,
   setServerCareerSnapshot,
+  setServerCareerTripDraft,
   setServerCareerTrips,
   serverTripToPhase1Trip,
 } from '../lib/careerServerState.js'
@@ -547,6 +548,7 @@ export default function Phase1Page({ careerId, onBack }) {
         }
         if (incidentsResult.status === 'fulfilled') next.incidents = Array.isArray(incidentsResult.value) ? incidentsResult.value : []
         if (draftResult.status === 'fulfilled') {
+          setServerCareerTripDraft(game.id, career.id, draftResult.value)
           const data = draftResult.value?.data
           next.tripDraft = data && Object.keys(data).length > 0 ? data : null
         }
@@ -603,6 +605,7 @@ export default function Phase1Page({ careerId, onBack }) {
         career.currentOperationalWeek || state.currentWeek,
         draft,
       )
+      setServerCareerTripDraft(game.id, career.id, response)
       const data = response?.data && Object.keys(response.data).length > 0 ? response.data : null
       setState((current) => ({ ...current, tripDraft: data }))
       toast.success('Rascunho da viagem salvo. Você pode fechar a aplicação e continuar depois.')
@@ -673,6 +676,7 @@ export default function Phase1Page({ careerId, onBack }) {
 
     try {
       const created = await tripApi.create(game.id, career.serverCareerId, trip)
+      setServerCareerTripDraft(game.id, career.id, { data: {} })
       try {
         const refreshed = await refreshServerTrips()
         const withoutDraft = { ...refreshed, tripDraft: null }
