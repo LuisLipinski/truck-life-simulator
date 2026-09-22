@@ -9,6 +9,15 @@ import { TUTORIAL_STEPS, TUTORIAL_STORAGE_KEY, TutorialProvider } from './compon
 import { ToastProvider } from './components/ToastProvider.jsx'
 import { ACTIVE_CAREER_KEY, CAREERS_KEY, createCareer, ETS2_CAREERS_KEY } from './lib/storage.js'
 
+const premiumMocks = vi.hoisted(() => ({
+  entitlements: null,
+}))
+
+vi.mock('./components/premium/EntitlementProvider.jsx', () => ({
+  useEntitlements: () => premiumMocks.entitlements,
+  EntitlementProvider: ({ children }) => children,
+}))
+
 let root
 
 function seedCareer() {
@@ -53,6 +62,13 @@ function setSelectValue(select, value) {
 describe('career card navigation', () => {
   beforeEach(() => {
     globalThis.IS_REACT_ACT_ENVIRONMENT = true
+    premiumMocks.entitlements = {
+      status: 'ready',
+      premium: true,
+      entitlements: { plan: 'PREMIUM', premium: true },
+      hasFeature: () => true,
+      featureLimit: () => null,
+    }
     localStorage.clear()
     sessionStorage.clear()
     document.body.innerHTML = '<div id="root"></div>'
@@ -138,6 +154,31 @@ describe('career card navigation', () => {
     expect(document.querySelector('.career-export-bar')?.textContent).toContain('2 de 2 carreiras selecionadas')
     expect(document.querySelectorAll('.career-card-selected')).toHaveLength(2)
     expect(document.querySelectorAll('.career-select-checkbox:checked')).toHaveLength(2)
+  })
+
+  it('shows the same Premium lock on batch export and career creation after the Free limit', async () => {
+    premiumMocks.entitlements = {
+      status: 'ready',
+      premium: false,
+      entitlements: { plan: 'FREE', premium: false },
+      hasFeature: (feature) => feature === 'MAX_ATS_CAREERS' || feature === 'MAX_ETS2_CAREERS',
+      featureLimit: (feature) => feature === 'MAX_ATS_CAREERS' ? 2 : feature === 'MAX_ETS2_CAREERS' ? 2 : null,
+    }
+
+    const first = { ...seedCareer(), serverBacked: true }
+    const second = { ...first, id: 'career_test_2', driverName: 'Second Driver', serverBacked: true }
+    localStorage.setItem(CAREERS_KEY, JSON.stringify([first, second]))
+    await renderCareers()
+
+    const createButton = [...document.querySelectorAll('button')].find((button) => button.textContent === '+ Criar nova carreira')
+    const exportButton = [...document.querySelectorAll('button')].find((button) => button.textContent === 'Exportar carreiras')
+    const locks = [...document.querySelectorAll('.premium-lock-control')]
+
+    expect(createButton?.disabled).toBe(true)
+    expect(exportButton?.disabled).toBe(true)
+    expect(locks).toHaveLength(2)
+    expect(locks.every((lock) => lock.textContent.includes('Premium'))).toBe(true)
+    expect(locks.every((lock) => lock.textContent.includes('Disponível apenas no Premium'))).toBe(true)
   })
 
   it('starts the guided tutorial when the option is checked during career creation', async () => {
