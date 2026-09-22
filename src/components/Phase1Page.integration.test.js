@@ -283,12 +283,15 @@ describe('weekday trip draft integration', () => {
     expect(restoredForm.querySelector('.react-city-autocomplete input').value).toBe('Los Angeles, CA')
   })
 
-  it('clears the saved draft only after the trip is sent successfully', () => {
+  it('clears the saved draft only after the trip is sent successfully', async () => {
     const careerId = seedCareer({ level: 1, miles: 0 })
     renderCareer(careerId)
     const form = fillRequiredTrip({ distance: 25 })
     const save = [...form.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Salvar rascunho')
-    act(() => save.click())
+    await act(async () => {
+      save.click()
+      await Promise.resolve()
+    })
     expect(loadPhase1State(careerId).tripDraft).not.toBeNull()
 
     act(() => form.querySelector('[type="submit"]').click())
