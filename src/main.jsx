@@ -22,6 +22,7 @@ import './phase1-career.css'
 import './phase1-charts.css'
 import './premium.css'
 import './react-tools.css'
+import './premium.css'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
