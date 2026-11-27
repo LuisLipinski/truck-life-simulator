@@ -7,6 +7,7 @@ const GUEST_ENTITLEMENTS = {
   premium: false,
   subscriptionStatus: null,
   currentPeriodEnd: null,
+  premiumRestrictionsEnabled: null,
   features: {},
 }
 
@@ -16,6 +17,7 @@ const fallback = {
   entitlements: GUEST_ENTITLEMENTS,
   error: null,
   premium: false,
+  premiumRestrictionsEnabled: true,
   hasFeature: () => false,
   featureLimit: () => null,
   refresh: async () => null,
@@ -42,10 +44,16 @@ export function EntitlementProvider({ children }) {
         ? subscriptionApi.entitlements({ signal })
         : Promise.resolve(GUEST_ENTITLEMENTS)
       const [plans, entitlements] = await Promise.all([plansPromise, entitlementsPromise])
+      const normalizedPlans = Array.isArray(plans) ? plans : []
+      const normalizedEntitlements = entitlements || GUEST_ENTITLEMENTS
+      const premiumRestrictionsEnabled = normalizedEntitlements.premiumRestrictionsEnabled
+        ?? normalizedPlans[0]?.premiumRestrictionsEnabled
+        ?? true
       const next = {
         status: 'ready',
-        plans: Array.isArray(plans) ? plans : [],
-        entitlements: entitlements || GUEST_ENTITLEMENTS,
+        plans: normalizedPlans,
+        entitlements: normalizedEntitlements,
+        premiumRestrictionsEnabled,
         error: null,
       }
       setState(next)
@@ -71,13 +79,17 @@ export function EntitlementProvider({ children }) {
 
   const value = useMemo(() => {
     const features = state.entitlements?.features || {}
+    const premiumRestrictionsEnabled = state.premiumRestrictionsEnabled !== false
     return {
       ...state,
       premium: Boolean(state.entitlements?.premium),
+      premiumRestrictionsEnabled,
       hasFeature(featureCode) {
+        if (!premiumRestrictionsEnabled) return true
         return Boolean(features?.[featureCode]?.enabled)
       },
       featureLimit(featureCode) {
+        if (!premiumRestrictionsEnabled) return null
         return features?.[featureCode]?.limit ?? null
       },
       refresh: () => load(),
