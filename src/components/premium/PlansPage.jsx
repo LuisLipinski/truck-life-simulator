@@ -44,6 +44,14 @@ export default function PlansPage() {
         )}
       </section>
 
+      {entitlements.status === 'ready' && entitlements.premiumRestrictionsEnabled === false && (
+        <section className="panel premium-core-free" role="status">
+          <span className="eyebrow">Acesso liberado temporariamente</span>
+          <h2>Recursos Premium estão disponíveis para todos</h2>
+          <p>As restrições Free/Premium estão desligadas por configuração. Nenhum recurso Premium está bloqueado enquanto essa flag permanecer desativada.</p>
+        </section>
+      )}
+
       <section className="panel premium-core-free">
         <span className="eyebrow">Sempre no Free</span>
         <h2>O gameplay principal não fica atrás de pagamento</h2>
