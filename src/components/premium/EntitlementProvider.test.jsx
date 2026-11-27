@@ -33,6 +33,7 @@ function Probe() {
       <span data-status>{value.status}</span>
       <span data-plan>{value.entitlements?.plan}</span>
       <span data-premium>{String(value.premium)}</span>
+      <span data-restrictions>{String(value.premiumRestrictionsEnabled)}</span>
       <span data-limit>{String(value.featureLimit('MAX_ATS_CAREERS'))}</span>
       <span data-batch>{String(value.hasFeature('BATCH_EXPORT'))}</span>
     </div>
@@ -52,10 +53,14 @@ async function render() {
 
 beforeEach(() => {
   mocks.auth = { status: 'authenticated', isAuthenticated: true, user: { id: 'user-1' } }
-  mocks.plans.mockReset().mockResolvedValue([{ code: 'FREE' }, { code: 'PREMIUM' }])
+  mocks.plans.mockReset().mockResolvedValue([
+    { code: 'FREE', premiumRestrictionsEnabled: true },
+    { code: 'PREMIUM', premiumRestrictionsEnabled: true },
+  ])
   mocks.entitlements.mockReset().mockResolvedValue({
     plan: 'FREE',
     premium: false,
+    premiumRestrictionsEnabled: true,
     features: {
       MAX_ATS_CAREERS: { enabled: true, limit: 2 },
       BATCH_EXPORT: { enabled: false, limit: null },
@@ -80,12 +85,39 @@ describe('EntitlementProvider', () => {
     expect(container.querySelector('[data-status]').textContent).toBe('ready')
     expect(container.querySelector('[data-plan]').textContent).toBe('FREE')
     expect(container.querySelector('[data-premium]').textContent).toBe('false')
+    expect(container.querySelector('[data-restrictions]').textContent).toBe('true')
     expect(container.querySelector('[data-limit]').textContent).toBe('2')
     expect(container.querySelector('[data-batch]').textContent).toBe('false')
   })
 
+  it('unlocks every premium feature when the public restrictions toggle is disabled', async () => {
+    mocks.plans.mockResolvedValue([
+      { code: 'FREE', premiumRestrictionsEnabled: false },
+      { code: 'PREMIUM', premiumRestrictionsEnabled: false },
+    ])
+    mocks.entitlements.mockResolvedValue({
+      plan: 'FREE',
+      premium: false,
+      premiumRestrictionsEnabled: false,
+      features: {
+        MAX_ATS_CAREERS: { enabled: true, limit: 2 },
+        BATCH_EXPORT: { enabled: false, limit: null },
+      },
+    })
+
+    await render()
+
+    expect(container.querySelector('[data-restrictions]').textContent).toBe('false')
+    expect(container.querySelector('[data-limit]').textContent).toBe('null')
+    expect(container.querySelector('[data-batch]').textContent).toBe('true')
+  })
+
   it('keeps anonymous users as guest and does not call protected entitlements', async () => {
     mocks.auth = { status: 'anonymous', isAuthenticated: false, user: null }
+    mocks.plans.mockResolvedValue([
+      { code: 'FREE', premiumRestrictionsEnabled: false },
+      { code: 'PREMIUM', premiumRestrictionsEnabled: false },
+    ])
 
     await render()
 
@@ -93,5 +125,7 @@ describe('EntitlementProvider', () => {
     expect(mocks.entitlements).not.toHaveBeenCalled()
     expect(container.querySelector('[data-plan]').textContent).toBe('GUEST')
     expect(container.querySelector('[data-premium]').textContent).toBe('false')
+    expect(container.querySelector('[data-restrictions]').textContent).toBe('false')
+    expect(container.querySelector('[data-batch]').textContent).toBe('true')
   })
 })
