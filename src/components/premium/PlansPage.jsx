@@ -32,6 +32,10 @@ export default function PlansPage() {
   const entitlements = useEntitlements()
   const currentPlan = auth.isAuthenticated ? entitlements.entitlements?.plan : 'GUEST'
 
+  if (entitlements.status === 'ready' && entitlements.premiumRestrictionsEnabled === false) {
+    return null
+  }
+
   return (
     <main className="page-shell wide-shell premium-plans-shell">
       <a className="back-link" href="#/">← Voltar ao simulador</a>
@@ -43,14 +47,6 @@ export default function PlansPage() {
           <span className="premium-current-plan">Seu plano atual: <strong>{currentPlan === 'PREMIUM' ? 'Premium' : 'Free'}</strong></span>
         )}
       </section>
-
-      {entitlements.status === 'ready' && entitlements.premiumRestrictionsEnabled === false && (
-        <section className="panel premium-core-free" role="status">
-          <span className="eyebrow">Acesso liberado temporariamente</span>
-          <h2>Recursos Premium estão disponíveis para todos</h2>
-          <p>As restrições Free/Premium estão desligadas por configuração. Nenhum recurso Premium está bloqueado enquanto essa flag permanecer desativada.</p>
-        </section>
-      )}
 
       <section className="panel premium-core-free">
         <span className="eyebrow">Sempre no Free</span>

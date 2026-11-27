@@ -26,6 +26,7 @@ beforeEach(() => {
   mocks.auth = { isAuthenticated: true }
   mocks.entitlements = {
     status: 'ready',
+    premiumRestrictionsEnabled: true,
     error: null,
     entitlements: { plan: 'FREE', premium: false },
     refresh: vi.fn(),
@@ -94,6 +95,18 @@ describe('PlansPage', () => {
     expect(cards[0].textContent).toContain('Carreiras ETS22')
     expect(cards[1].textContent).toContain('Carreiras ATSIlimitadas')
     expect(cards[1].textContent).toContain('Exportação em loteIncluído')
+  })
+
+  it('renders no Free/Premium structure while the global premium feature is disabled', async () => {
+    mocks.entitlements = {
+      ...mocks.entitlements,
+      premiumRestrictionsEnabled: false,
+    }
+
+    await render()
+
+    expect(container.textContent).toBe('')
+    expect(container.querySelector('.premium-plan-grid')).toBeNull()
   })
 
   it('keeps the gameplay core described as Free', async () => {
