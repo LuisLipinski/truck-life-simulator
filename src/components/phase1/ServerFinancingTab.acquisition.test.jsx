@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   },
   vehicles: {
     list: vi.fn(),
+    financingOffers: vi.fn(),
     acquire: vi.fn(),
   },
   careerGet: vi.fn(),
@@ -51,6 +52,10 @@ vi.mock('../GameContext.jsx', () => ({
     shortName: 'ATS',
     distanceUnit: 'mi',
     routes: { phase2: '/phase2' },
+    stateOptions: [
+      { code: 'AZ', name: 'Arizona' },
+      { code: 'TX', name: 'Texas' },
+    ],
   }),
 }))
 
@@ -74,6 +79,7 @@ const career = {
   displayCurrency: 'USD',
   defaultTruckMake: '',
   defaultTruckModel: '',
+  stateCode: 'AZ',
 }
 
 const cashVehicle = {
@@ -146,6 +152,7 @@ beforeEach(() => {
   mocks.financing.createContract.mockReset()
   mocks.financing.pay.mockReset()
   mocks.vehicles.list.mockReset().mockResolvedValue([])
+  mocks.vehicles.financingOffers.mockReset().mockResolvedValue([])
   mocks.vehicles.acquire.mockReset()
   mocks.careerGet.mockReset().mockResolvedValue(responseCareer())
   mocks.setSnapshot.mockReset()
@@ -192,6 +199,8 @@ describe('ServerFinancingTab truck acquisition', () => {
       'career-server',
       expect.objectContaining({
         acquisitionType: 'CASH',
+        vehicleCondition: 'NEW',
+        purchaseStateCode: 'AZ',
         make: 'Peterbilt',
         model: '579',
         modelYear: 2025,
@@ -204,6 +213,44 @@ describe('ServerFinancingTab truck acquisition', () => {
     expect(mocks.financing.createContract).not.toHaveBeenCalled()
     expect(container.textContent).toContain('Fase 2 desbloqueada')
     expect(container.textContent).toContain('Peterbilt 579')
+  })
+
+  it('forces used truck financing to use the headquarters jurisdiction without a selectable state', async () => {
+    mocks.vehicles.financingOffers.mockResolvedValue([])
+
+    await render()
+
+    const section = [...container.querySelectorAll('section')].find((item) => item.textContent.includes('Adquirir caminhão'))
+    let selects = section.querySelectorAll('select')
+    setSelect(selects[0], 'USED')
+    await flush()
+    selects = section.querySelectorAll('select')
+    setSelect(selects[1], 'FINANCED')
+
+    const inputs = section.querySelectorAll('input')
+    setInput(inputs[1], 'Kenworth')
+    setInput(inputs[2], 'T680')
+    setInput(inputs[3], '2024')
+    setInput(inputs[4], '250000')
+    setInput(inputs[5], '50000')
+
+    await act(async () => {
+      section.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+      await Promise.resolve()
+    })
+    await flush()
+
+    expect(section.textContent).toContain('Caminhão usado usa obrigatoriamente a jurisdição da sede atual da carreira.')
+    expect(mocks.vehicles.financingOffers).toHaveBeenCalledWith(
+      'ats',
+      'career-server',
+      {
+        condition: 'USED',
+        purchasePrice: '50000.00',
+        purchaseCountryCode: undefined,
+        purchaseStateCode: undefined,
+      },
+    )
   })
 
   it('uses server financing offers and acquires the truck without sending client-calculated interest or down payment', async () => {
@@ -239,7 +286,7 @@ describe('ServerFinancingTab truck acquisition', () => {
       currentBalance: 10000,
     }
 
-    mocks.financing.offers.mockResolvedValue([offer])
+    mocks.vehicles.financingOffers.mockResolvedValue([offer])
     mocks.vehicles.list
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([financedVehicle])
@@ -255,7 +302,9 @@ describe('ServerFinancingTab truck acquisition', () => {
     setInput(inputs[2], '2026')
     setInput(inputs[3], '0')
     setInput(inputs[4], '100000')
-    setSelect(section.querySelector('select'), 'FINANCED')
+    const selects = section.querySelectorAll('select')
+    setSelect(selects[1], 'TX')
+    setSelect(selects[2], 'FINANCED')
 
     await act(async () => {
       section.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
@@ -263,11 +312,15 @@ describe('ServerFinancingTab truck acquisition', () => {
     })
     await flush()
 
-    expect(mocks.financing.offers).toHaveBeenCalledWith(
+    expect(mocks.vehicles.financingOffers).toHaveBeenCalledWith(
       'ats',
       'career-server',
-      'VEHICLE_FINANCING',
-      '100000.00',
+      {
+        condition: 'NEW',
+        purchasePrice: '100000.00',
+        purchaseCountryCode: undefined,
+        purchaseStateCode: 'TX',
+      },
     )
 
     const financeButton = [...container.querySelectorAll('button')].find((button) => button.textContent === 'Financiar este caminhão')
@@ -283,6 +336,8 @@ describe('ServerFinancingTab truck acquisition', () => {
     const payload = mocks.vehicles.acquire.mock.calls[0][2]
     expect(payload).toMatchObject({
       acquisitionType: 'FINANCED',
+      vehicleCondition: 'NEW',
+      purchaseStateCode: 'TX',
       make: 'Kenworth',
       model: 'T680',
       purchasePrice: '100000.00',

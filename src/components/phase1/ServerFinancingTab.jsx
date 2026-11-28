@@ -103,8 +103,8 @@ function dueLabel(installment, gameId) {
 }
 
 function jurisdictionLabel(offer, gameId) {
-  if (gameId === 'ats') return `${offer.jurisdictionCity || 'Sede'} · ${offer.jurisdictionStateCode || 'EUA'}`
-  return `${offer.jurisdictionCity || 'Sede'} · ${offer.jurisdictionCountryCode || 'ETS2'}`
+  if (gameId === 'ats') return `${offer.jurisdictionCity || 'Estado da compra'} · ${offer.jurisdictionStateCode || 'EUA'}`
+  return `${offer.jurisdictionCity || 'País da compra'} · ${offer.jurisdictionCountryCode || 'ETS2'}`
 }
 
 export default function ServerFinancingTab({ career }) {
@@ -126,6 +126,10 @@ export default function ServerFinancingTab({ career }) {
   const [vehicles, setVehicles] = useState([])
   const [truckOffers, setTruckOffers] = useState([])
   const [truckAcquisitionType, setTruckAcquisitionType] = useState('CASH')
+  const [truckCondition, setTruckCondition] = useState('NEW')
+  const headquartersCode = game.id === 'ets2' ? career.countryCode : career.stateCode
+  const purchaseLocationOptions = game.id === 'ets2' ? (game.countryOptions || []) : (game.stateOptions || [])
+  const [truckPurchaseLocation, setTruckPurchaseLocation] = useState(headquartersCode || '')
   const [truckMake, setTruckMake] = useState(career.defaultTruckMake || '')
   const [truckModel, setTruckModel] = useState(career.defaultTruckModel || '')
   const [truckYear, setTruckYear] = useState('')
@@ -287,7 +291,15 @@ export default function ServerFinancingTab({ career }) {
       return null
     }
 
+    if (truckCondition === 'NEW' && !truckPurchaseLocation) {
+      toast.error(`Selecione o ${game.id === 'ets2' ? 'país' : 'estado'} onde o caminhão novo foi comprado.`)
+      return null
+    }
+
     return {
+      vehicleCondition: truckCondition,
+      ...(truckCondition === 'NEW' && game.id === 'ets2' ? { purchaseCountryCode: truckPurchaseLocation } : {}),
+      ...(truckCondition === 'NEW' && game.id === 'ats' ? { purchaseStateCode: truckPurchaseLocation } : {}),
       make,
       model,
       modelYear: year,
@@ -303,11 +315,15 @@ export default function ServerFinancingTab({ career }) {
 
     setLoadingTruckOffers(true)
     try {
-      const next = await financingApi.offers(
+      const next = await vehicleApi.financingOffers(
         game.id,
         career.serverCareerId,
-        'VEHICLE_FINANCING',
-        truck.purchasePrice,
+        {
+          condition: truck.vehicleCondition,
+          purchasePrice: truck.purchasePrice,
+          purchaseCountryCode: truck.purchaseCountryCode,
+          purchaseStateCode: truck.purchaseStateCode,
+        },
       )
       setTruckOffers(Array.isArray(next) ? next : [])
       if (!next?.length) toast.info('Nenhuma oferta de financiamento foi disponibilizada para esse caminhão.')
@@ -334,7 +350,7 @@ export default function ServerFinancingTab({ career }) {
     })
     if (!accepted) return
 
-    const key = `truck:${acquisitionType}:${truck.make}:${truck.model}:${truck.purchasePrice}:${financingTermPeriods || '-'}`
+    const key = `truck:${acquisitionType}:${truck.vehicleCondition}:${truck.purchaseCountryCode || truck.purchaseStateCode || headquartersCode}:${truck.make}:${truck.model}:${truck.purchasePrice}:${financingTermPeriods || '-'}`
     setMutation(key)
     try {
       await vehicleApi.acquire(game.id, career.serverCareerId, {
@@ -590,6 +606,8 @@ export default function ServerFinancingTab({ career }) {
         <div className="breakdown-list">
           <div><span>Ano</span><strong>{activeVehicle.modelYear || 'Não informado'}</strong></div>
           <div><span>Preço de aquisição</span><strong>{money(activeVehicle.purchasePrice, activeVehicle.displayCurrency)}</strong></div>
+          <div><span>Condição</span><strong>{activeVehicle.vehicleCondition === 'USED' ? 'Usado' : activeVehicle.vehicleCondition === 'NEW' ? 'Novo' : 'Não informado'}</strong></div>
+          <div><span>Jurisdição da compra</span><strong>{game.id === 'ets2' ? activeVehicle.purchaseCountryCode : activeVehicle.purchaseStateCode}</strong></div>
           <div><span>Forma de aquisição</span><strong>{activeVehicle.acquisitionType === 'FINANCED' ? 'Financiado' : 'À vista'}</strong></div>
           <div><span>Odômetro inicial</span><strong>{Number(activeVehicle.initialOdometer || 0).toLocaleString('pt-BR')} {game.distanceUnit}</strong></div>
           <div><span>Semana operacional</span><strong>{activeVehicle.acquiredOperationalWeek}</strong></div>
@@ -607,6 +625,42 @@ export default function ServerFinancingTab({ career }) {
         <form className="inline-form-grid" onSubmit={truckAcquisitionType === 'CASH'
           ? (event) => { event.preventDefault(); completeTruckAcquisition({ acquisitionType: 'CASH' }) }
           : searchTruckFinancing}>
+          <div>
+            <label>Condição</label>
+            <select value={truckCondition} onChange={(event) => {
+              const nextCondition = event.target.value
+              setTruckCondition(nextCondition)
+              if (nextCondition === 'USED') setTruckPurchaseLocation(headquartersCode || '')
+              setTruckOffers([])
+            }}>
+              <option value="NEW">Novo</option>
+              <option value="USED">Usado</option>
+            </select>
+          </div>
+          {truckCondition === 'NEW' ? (
+            <div>
+              <label>{game.id === 'ets2' ? 'País da compra' : 'Estado da compra'}</label>
+              <select value={truckPurchaseLocation} onChange={(event) => { setTruckPurchaseLocation(event.target.value); setTruckOffers([]) }} required>
+                <option value="">Selecione o {game.id === 'ets2' ? 'país' : 'estado'}</option>
+                {purchaseLocationOptions.map((location) => (
+                  <option value={location.code} key={location.code}>
+                    {game.id === 'ets2' && location.flag ? `${location.flag} ` : ''}{location.name}
+                  </option>
+                ))}
+              </select>
+              <small>Para caminhão novo, a política de financiamento usa a jurisdição onde a compra foi feita.</small>
+            </div>
+          ) : (
+            <div>
+              <label>{game.id === 'ets2' ? 'País da compra' : 'Estado da compra'}</label>
+              <input
+                value={purchaseLocationOptions.find((location) => location.code === headquartersCode)?.name || headquartersCode || 'Sede não definida'}
+                readOnly
+                aria-readonly="true"
+              />
+              <small>Caminhão usado usa obrigatoriamente a jurisdição da sede atual da carreira.</small>
+            </div>
+          )}
           <div>
             <label>Marca</label>
             <input value={truckMake} onChange={(event) => { setTruckMake(event.target.value); setTruckOffers([]) }} placeholder="Ex.: Peterbilt" required />
@@ -652,7 +706,7 @@ export default function ServerFinancingTab({ career }) {
         <div className="section-heading compact-heading">
           <span className="eyebrow">Financiamento do caminhão</span>
           <h2>Escolha o prazo</h2>
-          <p>Entrada, juros, parcela e custo total são calculados pelo backend conforme a jurisdição da carreira.</p>
+          <p>Entrada, juros, parcela e custo total são calculados pelo backend usando a jurisdição da compra para caminhão novo e a sede da carreira para usado.</p>
         </div>
         <div className="phase1-two-panel">{truckOffers.map(renderOffer)}</div>
       </section>
