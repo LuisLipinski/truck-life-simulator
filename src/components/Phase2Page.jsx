@@ -91,7 +91,11 @@ export default function Phase2Page({ career, onBack }) {
             <article className="panel phase1-metric">
               <span className="metric-label">Aquisição</span>
               <strong className="metric-value">{activeVehicle.acquisitionType === 'FINANCED' ? 'Financiado' : 'À vista'}</strong>
-              <span className="metric-detail">{money(activeVehicle.purchasePrice, activeVehicle.displayCurrency)}</span>
+              <span className="metric-detail">
+                {activeVehicle.vehicleCondition === 'USED' ? 'Usado' : activeVehicle.vehicleCondition === 'NEW' ? 'Novo' : 'Condição não informada'}
+                {' · '}
+                {game.id === 'ets2' ? activeVehicle.purchaseCountryCode : activeVehicle.purchaseStateCode}
+              </span>
             </article>
             <article className="panel phase1-metric">
               <span className="metric-label">Odômetro inicial</span>
