@@ -294,6 +294,7 @@ export function getServerCareerOverlay(localCareer, gameId = 'ats') {
     bio: server.biography || '',
     biography: server.biography || '',
     currentLevel: numberOr(server.currentLevel, localCareer.currentLevel || 1),
+    currentPhase: numberOr(server.currentPhase, localCareer.currentPhase || 1),
     currentBalance: numberOr(server.balance, localCareer.currentBalance),
     baseCurrency: server.baseCurrency || localCareer.baseCurrency,
     currency: server.displayCurrency || localCareer.currency,
