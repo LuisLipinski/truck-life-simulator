@@ -221,8 +221,10 @@ describe('ServerFinancingTab truck acquisition', () => {
     await render()
 
     const section = [...container.querySelectorAll('section')].find((item) => item.textContent.includes('Adquirir caminhão'))
-    const selects = section.querySelectorAll('select')
+    let selects = section.querySelectorAll('select')
     setSelect(selects[0], 'USED')
+    await flush()
+    selects = section.querySelectorAll('select')
     setSelect(selects[1], 'FINANCED')
 
     const inputs = section.querySelectorAll('input')
