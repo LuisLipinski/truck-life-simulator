@@ -65,9 +65,9 @@ describe('financing API client', () => {
 
     const createBody = {
       operationId: 'op-create',
-      productType: 'VEHICLE_FINANCING',
-      requestedAmount: '50000.00',
-      termPeriods: 78,
+      productType: 'PERSONAL_LOAN',
+      requestedAmount: '5000.00',
+      termPeriods: 52,
       expectedOperationalWeek: 4,
       expectedBalance: '15000.00',
     }

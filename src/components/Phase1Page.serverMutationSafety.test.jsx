@@ -32,6 +32,8 @@ const mocks = vi.hoisted(() => ({
   getFinancingOffers: vi.fn(),
   createFinancingContract: vi.fn(),
   payFinancingContract: vi.fn(),
+  listVehicles: vi.fn(),
+  acquireVehicle: vi.fn(),
 }))
 
 vi.mock('./premium/EntitlementProvider.jsx', () => ({
@@ -57,6 +59,13 @@ vi.mock('../lib/financingApi.js', () => ({
     createContract: mocks.createFinancingContract,
     pay: mocks.payFinancingContract,
     getContract: vi.fn(),
+  },
+}))
+
+vi.mock('../lib/vehicleApi.js', () => ({
+  vehicleApi: {
+    list: mocks.listVehicles,
+    acquire: mocks.acquireVehicle,
   },
 }))
 
@@ -217,6 +226,8 @@ beforeEach(() => {
   mocks.getFinancingOffers.mockReset().mockResolvedValue([])
   mocks.createFinancingContract.mockReset()
   mocks.payFinancingContract.mockReset()
+  mocks.listVehicles.mockReset().mockResolvedValue([])
+  mocks.acquireVehicle.mockReset()
   mocks.updateDefaultTruck.mockReset().mockResolvedValue({
     id: serverCareerId,
     driverName: 'Server Driver',
