@@ -30,11 +30,14 @@ describe('vehicle API client', () => {
   it('lists and acquires owned trucks only through authenticated career endpoints', async () => {
     globalThis.fetch = vi.fn()
       .mockResolvedValueOnce(response(200, []))
+      .mockResolvedValueOnce(response(200, [{ termPeriods: 78 }]))
       .mockResolvedValueOnce(response(201, { id: 'truck-1', currentPhase: 2 }))
 
     const body = {
       operationId: 'truck-op-1',
       acquisitionType: 'FINANCED',
+      vehicleCondition: 'NEW',
+      purchaseStateCode: 'TX',
       make: 'Kenworth',
       model: 'T680',
       modelYear: 2026,
@@ -46,6 +49,11 @@ describe('vehicle API client', () => {
     }
 
     await vehicleApi.list('ats', 'career/1')
+    await vehicleApi.financingOffers('ats', 'career/1', {
+      condition: 'NEW',
+      purchasePrice: '100000.00',
+      purchaseStateCode: 'TX',
+    })
     await vehicleApi.acquire('ats', 'career/1', body)
 
     expect(globalThis.fetch).toHaveBeenNthCalledWith(
@@ -59,6 +67,15 @@ describe('vehicle API client', () => {
     )
     expect(globalThis.fetch).toHaveBeenNthCalledWith(
       2,
+      `${API_BASE_URL}/api/v1/careers/career%2F1/vehicles/financing-offers?game=ATS&condition=NEW&purchasePrice=100000.00&purchaseStateCode=TX`,
+      expect.objectContaining({
+        method: 'GET',
+        cache: 'no-store',
+        headers: expect.objectContaining({ Authorization: 'Bearer vehicle-token' }),
+      }),
+    )
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      3,
       `${API_BASE_URL}/api/v1/careers/career%2F1/vehicles/acquisitions?game=ATS`,
       expect.objectContaining({
         method: 'POST',
