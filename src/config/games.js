@@ -59,7 +59,7 @@ export const GAMES = {
   ats: {
     id: 'ats', slug: 'ats', shortName: 'ATS', name: 'American Truck Simulator', region: 'Estados Unidos', image: ATS_IMAGE,
     description: 'Carreira nos Estados Unidos, começando como motorista empregado.', cities: ATS_CITIES,
-    routes: { careers: '/ats', new: '/new', phases: '/phases', phase1: '/phase1' },
+    routes: { careers: '/ats', new: '/new', phases: '/phases', phase1: '/phase1', phase2: '/phase2' },
     storagePrefix: 'ats', backupMarker: 'ATS_CAREER_BACKUP', backupStem: 'ats', sheetName: 'Carreira ATS',
     currency: 'USD', baseCurrency: 'USD', locale: 'en-US', currencyLabel: 'US$', distanceUnit: 'mi', distanceName: 'milhas', distanceField: 'miles',
     stateOptions: ATS_STATE_OPTIONS, currencyOptions: ATS_CURRENCY_OPTIONS,
@@ -90,7 +90,7 @@ export const GAMES = {
   ets2: {
     id: 'ets2', slug: 'ets2', shortName: 'ETS2', name: 'Euro Truck Simulator 2', region: 'Europa', image: ETS2_IMAGE,
     description: 'Carreira europeia em quilômetros, país-sede e regras financeiras nacionais.', cities: ETS2_CITIES,
-    routes: { careers: '/ets2', new: '/ets2/new', phases: '/ets2/phases', phase1: '/ets2/phase1' },
+    routes: { careers: '/ets2', new: '/ets2/new', phases: '/ets2/phases', phase1: '/ets2/phase1', phase2: '/ets2/phase2' },
     storagePrefix: 'ets2', backupMarker: 'ETS2_CAREER_BACKUP', backupStem: 'ets2', sheetName: 'Carreira ETS2',
     currency: 'EUR', locale: 'de-DE', currencyLabel: '€', distanceUnit: 'km', distanceName: 'quilômetros', distanceField: 'distance',
     countryOptions: ETS2_COUNTRY_OPTIONS, currencyOptions: ETS2_CURRENCY_OPTIONS, payrollPeriod: 'monthly', payrollPeriodLabel: 'mensal', payrollBenefits: 0, minWeeksPerPayroll: 4, maxWeeksPerPayroll: 5,
