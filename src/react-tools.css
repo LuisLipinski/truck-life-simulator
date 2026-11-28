@@ -13,3 +13,26 @@
 @keyframes guided-spotlight-pulse{0%,100%{border-color:#38bdf8}50%{border-color:#bae6fd}}@keyframes guided-popover-in{from{opacity:0;transform:translateY(7px) scale(.985)}to{opacity:1;transform:none}}.guided-tutorial-popover.centered{animation:guided-popover-centered-in .2s ease-out both}@keyframes guided-popover-centered-in{from{opacity:0;transform:translate(-50%,calc(-50% + 7px)) scale(.985)}to{opacity:1;transform:translate(-50%,-50%)}}
 @media(max-width:760px){.tutorial-opt-in{padding:14px}.guided-tutorial-spotlight{border-radius:13px}.guided-tutorial-popover{max-height:min(48vh,430px);padding:17px 15px calc(15px + env(safe-area-inset-bottom));border-radius:15px}.guided-tutorial-popover h2{font-size:19px}.guided-tutorial-popover p{font-size:13px;line-height:1.52}.guided-tutorial-actions{align-items:stretch;flex-direction:column-reverse}.guided-tutorial-actions>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}.guided-tutorial-actions>div .button:only-child{grid-column:1/-1}.guided-tutorial-actions .button{width:100%;padding:9px 8px}.guided-tutorial-exit{width:100%;text-align:center}}
 @media(prefers-reduced-motion:reduce){.guided-tutorial-spotlight,.guided-tutorial-popover,.guided-tutorial-progress span{animation:none;transition:none}}
+
+
+.phase2-transition-backdrop{overflow:auto}
+.phase2-transition-modal{display:block;width:min(100%,780px);max-height:calc(100vh - 40px);overflow:auto}
+.phase2-transition-modal::before{background:#22c55e}
+.phase2-transition-heading{display:grid;grid-template-columns:52px minmax(0,1fr);gap:18px;align-items:start}
+.phase2-transition-settlement,.phase2-transition-form{margin-top:20px;padding-top:18px;border-top:1px solid #334155}
+.phase2-transition-modal h3{margin:4px 0 10px;color:#fff;font-size:18px}
+.phase2-transition-modal .notice-box{margin-top:14px}
+.phase2-transition-modal .notice-box a{color:#7dd3fc;font-weight:700;text-decoration:none}
+.phase2-transition-modal .notice-box a:hover{text-decoration:underline}
+.phase2-transition-form .inline-form-grid{margin-top:12px}
+.phase2-transition-form small{display:block;margin-top:6px;color:#94a3b8;line-height:1.4}
+.phase2-transition-actions{margin-top:18px}
+.phase2-transition-actions .button{min-width:220px}
+.phase2-transition-modal .inline-error{margin-top:14px;padding:11px 13px;border:1px solid rgba(248,113,113,.45);border-radius:10px;background:rgba(127,29,29,.22);color:#fecaca;font-weight:700}
+
+@media(max-width:760px){
+  .phase2-transition-modal{max-height:calc(100vh - 24px);padding:20px 16px 16px}
+  .phase2-transition-heading{grid-template-columns:44px minmax(0,1fr);gap:14px}
+  .phase2-transition-actions{display:block}
+  .phase2-transition-actions .button{width:100%;min-width:0}
+}
