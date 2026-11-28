@@ -178,7 +178,7 @@ export default function Phase2Page({ career, onBack }) {
 
   return (
     <main className="page-shell wide-shell">
-      <button className="back-link" type="button" onClick={onBack}>← Voltar para fases</button>
+      <button className="back-link" type="button" onClick={onBack} disabled={transition?.status === 'PENDING'}>← Voltar para fases</button>
 
       <section className="page-heading centered">
         <span className="eyebrow">Fase 2 • {game.shortName}</span>
