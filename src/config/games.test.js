@@ -48,7 +48,7 @@ describe('American Truck Simulator financial configuration', () => {
 describe('Euro Truck Simulator 2 configuration', () => {
   it('uses European routes, cities, currency, distance and official app links', () => {
     const ets2 = getGame('ets2')
-    expect(ets2.routes).toEqual({ careers: '/ets2', new: '/ets2/new', phases: '/ets2/phases', phase1: '/ets2/phase1' })
+    expect(ets2.routes).toEqual({ careers: '/ets2', new: '/ets2/new', phases: '/ets2/phases', phase1: '/ets2/phase1', phase2: '/ets2/phase2' })
     expect(ets2.cities).toContain('Berlin, Alemanha')
     expect(ets2.cities).toContain('Lisboa, Portugal')
     expect(ets2.cities.length).toBeGreaterThan(200)
