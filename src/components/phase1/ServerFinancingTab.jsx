@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { careerApi } from '../../lib/careerApi.js'
 import { setServerCareerSnapshot } from '../../lib/careerServerState.js'
 import { financingApi } from '../../lib/financingApi.js'
+import { vehicleApi } from '../../lib/vehicleApi.js'
 import { CAREER_UPDATED_EVENT } from '../../lib/storage.js'
 import { useConfirm } from '../ConfirmProvider.jsx'
 import { useGame } from '../GameContext.jsx'
@@ -43,6 +44,14 @@ function parseAmount(value) {
   const number = Number(text.replace(',', '.'))
   if (!Number.isFinite(number) || number <= 0) return null
   return number.toFixed(2)
+}
+
+function parseOdometer(value) {
+  const text = String(value ?? '').trim()
+  if (!/^\d+(?:[.,]\d{1,3})?$/.test(text)) return null
+  const number = Number(text.replace(',', '.'))
+  if (!Number.isFinite(number) || number < 0) return null
+  return number.toFixed(3)
 }
 
 function money(value, currency) {
@@ -110,18 +119,30 @@ export default function ServerFinancingTab({ career }) {
     balance: Number(career.currentBalance ?? career.balance ?? 0),
     displayCurrency: career.displayCurrency || career.currency || (game.id === 'ets2' ? 'EUR' : 'USD'),
   }))
-  const [productType, setProductType] = useState('PERSONAL_LOAN')
+
   const [requestedAmount, setRequestedAmount] = useState('')
   const [offers, setOffers] = useState([])
   const [contracts, setContracts] = useState([])
+  const [vehicles, setVehicles] = useState([])
+  const [truckOffers, setTruckOffers] = useState([])
+  const [truckAcquisitionType, setTruckAcquisitionType] = useState('CASH')
+  const [truckMake, setTruckMake] = useState(career.defaultTruckMake || '')
+  const [truckModel, setTruckModel] = useState(career.defaultTruckModel || '')
+  const [truckYear, setTruckYear] = useState('')
+  const [truckOdometer, setTruckOdometer] = useState('0')
+  const [truckPrice, setTruckPrice] = useState('')
   const [extraPrincipal, setExtraPrincipal] = useState({})
   const [expanded, setExpanded] = useState(null)
   const [loadingContracts, setLoadingContracts] = useState(true)
+  const [loadingVehicles, setLoadingVehicles] = useState(true)
   const [loadingOffers, setLoadingOffers] = useState(false)
+  const [loadingTruckOffers, setLoadingTruckOffers] = useState(false)
   const [contractsError, setContractsError] = useState(null)
+  const [vehicleError, setVehicleError] = useState(null)
   const [mutation, setMutation] = useState(null)
 
-  const currency = offers[0]?.displayCurrency || contracts[0]?.displayCurrency || careerContext.displayCurrency
+  const activeVehicle = useMemo(() => vehicles.find((item) => item.status === 'ACTIVE') || vehicles[0] || null, [vehicles])
+  const currency = truckOffers[0]?.displayCurrency || offers[0]?.displayCurrency || contracts[0]?.displayCurrency || careerContext.displayCurrency
   const activeContracts = useMemo(() => contracts.filter((item) => item.status !== 'PAID_OFF'), [contracts])
   const closedContracts = useMemo(() => contracts.filter((item) => item.status === 'PAID_OFF'), [contracts])
 
@@ -142,9 +163,9 @@ export default function ServerFinancingTab({ career }) {
     delete operationIds.current[key]
   }
 
-  function notifyCareerUpdated() {
+  function notifyCareerUpdated(source = 'server-financing') {
     window.dispatchEvent(new CustomEvent(CAREER_UPDATED_EVENT, {
-      detail: { careerId: career.id, gameId: game.id, source: 'server-financing' },
+      detail: { careerId: career.id, gameId: game.id, source },
     }))
   }
 
@@ -176,13 +197,49 @@ export default function ServerFinancingTab({ career }) {
     }
   }
 
+  async function loadVehicles({ quiet = false } = {}) {
+    if (!quiet) setLoadingVehicles(true)
+    setVehicleError(null)
+    try {
+      const next = await vehicleApi.list(game.id, career.serverCareerId)
+      setVehicles(Array.isArray(next) ? next : [])
+      return next
+    } catch (error) {
+      setVehicleError(error)
+      throw error
+    } finally {
+      if (!quiet) setLoadingVehicles(false)
+    }
+  }
+
   useEffect(() => {
     let active = true
     setLoadingContracts(true)
-    financingApi.listContracts(game.id, career.serverCareerId)
-      .then((next) => { if (active) setContracts(Array.isArray(next) ? next : []) })
-      .catch((error) => { if (active) setContractsError(error) })
-      .finally(() => { if (active) setLoadingContracts(false) })
+    setLoadingVehicles(true)
+
+    Promise.allSettled([
+      financingApi.listContracts(game.id, career.serverCareerId),
+      vehicleApi.list(game.id, career.serverCareerId),
+    ]).then(([contractsResult, vehiclesResult]) => {
+      if (!active) return
+      if (contractsResult.status === 'fulfilled') {
+        setContracts(Array.isArray(contractsResult.value) ? contractsResult.value : [])
+        setContractsError(null)
+      } else {
+        setContractsError(contractsResult.reason)
+      }
+      if (vehiclesResult.status === 'fulfilled') {
+        setVehicles(Array.isArray(vehiclesResult.value) ? vehiclesResult.value : [])
+        setVehicleError(null)
+      } else {
+        setVehicleError(vehiclesResult.reason)
+      }
+    }).finally(() => {
+      if (!active) return
+      setLoadingContracts(false)
+      setLoadingVehicles(false)
+    })
+
     return () => { active = false }
   }, [career.serverCareerId, game.id])
 
@@ -195,7 +252,7 @@ export default function ServerFinancingTab({ career }) {
     }
     setLoadingOffers(true)
     try {
-      const next = await financingApi.offers(game.id, career.serverCareerId, productType, amount)
+      const next = await financingApi.offers(game.id, career.serverCareerId, 'PERSONAL_LOAN', amount)
       setOffers(Array.isArray(next) ? next : [])
       if (!next?.length) toast.info('Nenhuma oferta foi disponibilizada para esse valor e jurisdição.')
     } catch (error) {
@@ -206,9 +263,106 @@ export default function ServerFinancingTab({ career }) {
     }
   }
 
+  function truckPayload() {
+    const make = truckMake.trim()
+    const model = truckModel.trim()
+    const price = parseAmount(truckPrice)
+    const odometer = parseOdometer(truckOdometer)
+    const year = String(truckYear || '').trim() ? Number(truckYear) : null
+
+    if (!make || !model) {
+      toast.error('Informe a marca e o modelo do caminhão.')
+      return null
+    }
+    if (!price) {
+      toast.error('Informe um preço de compra válido maior que zero.')
+      return null
+    }
+    if (odometer == null) {
+      toast.error('Informe um odômetro inicial válido com no máximo três casas decimais.')
+      return null
+    }
+    if (year != null && (!Number.isInteger(year) || year < 1950 || year > 2100)) {
+      toast.error('Informe um ano entre 1950 e 2100 ou deixe o campo vazio.')
+      return null
+    }
+
+    return {
+      make,
+      model,
+      modelYear: year,
+      initialOdometer: odometer,
+      purchasePrice: price,
+    }
+  }
+
+  async function searchTruckFinancing(event) {
+    event.preventDefault()
+    const truck = truckPayload()
+    if (!truck) return
+
+    setLoadingTruckOffers(true)
+    try {
+      const next = await financingApi.offers(
+        game.id,
+        career.serverCareerId,
+        'VEHICLE_FINANCING',
+        truck.purchasePrice,
+      )
+      setTruckOffers(Array.isArray(next) ? next : [])
+      if (!next?.length) toast.info('Nenhuma oferta de financiamento foi disponibilizada para esse caminhão.')
+    } catch (error) {
+      setTruckOffers([])
+      toast.error(error?.message || 'Não foi possível calcular o financiamento do caminhão.')
+    } finally {
+      setLoadingTruckOffers(false)
+    }
+  }
+
+  async function completeTruckAcquisition({ acquisitionType, financingTermPeriods = null, offer = null }) {
+    const truck = truckPayload()
+    if (!truck) return
+
+    const financingText = offer
+      ? ` Entrada: ${money(offer.downPayment, offer.displayCurrency)}. ${offer.termPeriods} parcelas ${FREQUENCY_LABEL[offer.paymentFrequency] || ''}. Taxa anual: ${percentage(offer.annualInterestRate)}.`
+      : ''
+    const accepted = await confirm({
+      title: acquisitionType === 'CASH' ? 'Comprar caminhão à vista?' : 'Financiar este caminhão?',
+      message: `${truck.make} ${truck.model} por ${money(truck.purchasePrice, currency)}.${financingText} Ao concluir, este caminhão será registrado como ativo da carreira e a Fase 2 será desbloqueada.`,
+      confirmLabel: acquisitionType === 'CASH' ? 'Comprar caminhão' : 'Financiar caminhão',
+      tone: 'warning',
+    })
+    if (!accepted) return
+
+    const key = `truck:${acquisitionType}:${truck.make}:${truck.model}:${truck.purchasePrice}:${financingTermPeriods || '-'}`
+    setMutation(key)
+    try {
+      await vehicleApi.acquire(game.id, career.serverCareerId, {
+        operationId: idFor(key),
+        acquisitionType,
+        ...truck,
+        ...(financingTermPeriods ? { financingTermPeriods: Number(financingTermPeriods) } : {}),
+        ...contextPayload(),
+      })
+      confirmOperation(key)
+      setTruckOffers([])
+      await Promise.all([
+        loadContracts({ quiet: true }),
+        loadVehicles({ quiet: true }),
+        refreshCareer(),
+      ])
+      notifyCareerUpdated('truck-acquired')
+      toast.success('Caminhão adquirido e Fase 2 desbloqueada.', { title: 'Primeiro caminhão próprio' })
+    } catch (error) {
+      toast.error(error?.message || 'Não foi possível concluir a aquisição do caminhão.')
+    } finally {
+      setMutation(null)
+    }
+  }
+
   async function createContract(offer) {
     const accepted = await confirm({
-      title: `Contratar ${PRODUCT_LABEL[offer.productType]?.toLowerCase() || 'crédito'}?`,
+      title: 'Contratar empréstimo pessoal?',
       message: `${money(offer.requestedAmount, offer.displayCurrency)} em ${offer.termPeriods} parcelas ${FREQUENCY_LABEL[offer.paymentFrequency] || ''}. Taxa anual: ${percentage(offer.annualInterestRate)}. Custo total previsto: ${money(offer.expectedTotalCost, offer.displayCurrency)}.`,
       confirmLabel: 'Contratar',
       tone: 'warning',
@@ -220,7 +374,7 @@ export default function ServerFinancingTab({ career }) {
     try {
       await financingApi.createContract(game.id, career.serverCareerId, {
         operationId: idFor(key),
-        productType: offer.productType,
+        productType: 'PERSONAL_LOAN',
         requestedAmount: Number(offer.requestedAmount).toFixed(2),
         termPeriods: Number(offer.termPeriods),
         ...contextPayload(),
@@ -229,7 +383,7 @@ export default function ServerFinancingTab({ career }) {
       setOffers([])
       setRequestedAmount('')
       await Promise.all([loadContracts({ quiet: true }), refreshCareer()])
-      toast.success('Contrato financeiro criado no servidor.')
+      toast.success('Empréstimo pessoal criado no servidor.')
     } catch (error) {
       toast.error(error?.message || 'Não foi possível contratar esta oferta.')
     } finally {
@@ -317,7 +471,15 @@ export default function ServerFinancingTab({ career }) {
           <a href={offer.policySource} target="_blank" rel="noreferrer">Fonte da taxa de mercado</a>
           {offer.jurisdictionRuleSource && <a href={offer.jurisdictionRuleSource} target="_blank" rel="noreferrer">Fonte da regra local</a>}
         </div>
-        <button className="button primary full-button" disabled={busy} onClick={() => createContract(offer)}>Contratar esta oferta</button>
+        <button
+          className="button primary full-button"
+          disabled={busy}
+          onClick={() => offer.productType === 'VEHICLE_FINANCING'
+            ? completeTruckAcquisition({ acquisitionType: 'FINANCED', financingTermPeriods: offer.termPeriods, offer })
+            : createContract(offer)}
+        >
+          {offer.productType === 'VEHICLE_FINANCING' ? 'Financiar este caminhão' : 'Contratar esta oferta'}
+        </button>
       </article>
     )
   }
@@ -337,6 +499,7 @@ export default function ServerFinancingTab({ career }) {
           <h2>{money(contract.remainingPrincipal, contract.displayCurrency)} de principal restante</h2>
           <p>{contract.jurisdictionCity} · taxa congelada em {percentage(contract.annualInterestRate)}</p>
         </div>
+        {contract.vehicleId && <div className="notice-box"><strong>Vinculado ao caminhão próprio</strong><span>Este contrato pertence ao caminhão adquirido pela carreira.</span></div>}
         <div className="breakdown-list">
           <div><span>Valor contratado</span><strong>{money(contract.requestedAmount, contract.displayCurrency)}</strong></div>
           <div><span>Entrada</span><strong>{money(contract.downPayment, contract.displayCurrency)}</strong></div>
@@ -403,8 +566,8 @@ export default function ServerFinancingTab({ career }) {
     )
   }
 
-  if (loadingContracts) {
-    return <section className="panel finance-card"><p>Carregando empréstimos e financiamentos do servidor…</p></section>
+  if (loadingContracts || loadingVehicles) {
+    return <section className="panel finance-card"><p>Carregando empréstimos, financiamentos e caminhões do servidor…</p></section>
   }
 
   return <>
@@ -412,30 +575,102 @@ export default function ServerFinancingTab({ career }) {
       <article className="panel phase1-metric"><span className="metric-label">Saldo disponível</span><strong className="metric-value">{money(careerContext.balance, currency)}</strong><span className="metric-detail">Saldo server-side da carreira</span></article>
       <article className="panel phase1-metric"><span className="metric-label">Contratos ativos</span><strong className="metric-value">{activeContracts.length}</strong><span className="metric-detail">Inclui contratos em atraso/default</span></article>
       <article className="panel phase1-metric"><span className="metric-label">Dívida principal</span><strong className="metric-value">{money(activeContracts.reduce((sum, item) => sum + Number(item.remainingPrincipal || 0), 0), currency)}</strong><span className="metric-detail">Principal ainda não amortizado</span></article>
-      <article className="panel phase1-metric"><span className="metric-label">Período atual</span><strong className="metric-value">{game.id === 'ets2' ? `Mês ${careerContext.currentPayrollMonth || 1}` : `Semana ${careerContext.currentOperationalWeek || 1}`}</strong><span className="metric-detail">Referência operacional, sem data fictícia</span></article>
+      <article className="panel phase1-metric"><span className="metric-label">Caminhão próprio</span><strong className="metric-value">{activeVehicle ? `${activeVehicle.make} ${activeVehicle.model}` : 'Ainda não'}</strong><span className="metric-detail">{activeVehicle ? 'Fase 2 desbloqueada' : 'Aquisição libera a Fase 2'}</span></article>
     </section>
+
+    {vehicleError && <section className="panel server-cutover-guard"><h2>Não foi possível carregar o caminhão</h2><p>{vehicleError.message || 'Tente novamente.'}</p><button className="button secondary" onClick={() => loadVehicles()}>Tentar novamente</button></section>}
+
+    {!vehicleError && activeVehicle ? (
+      <section className="panel finance-card">
+        <div className="section-heading compact-heading">
+          <span className="eyebrow">Caminhão próprio</span>
+          <h2>{activeVehicle.make} {activeVehicle.model}</h2>
+          <p>Este ativo já pertence à carreira e desbloqueou a Fase 2.</p>
+        </div>
+        <div className="breakdown-list">
+          <div><span>Ano</span><strong>{activeVehicle.modelYear || 'Não informado'}</strong></div>
+          <div><span>Preço de aquisição</span><strong>{money(activeVehicle.purchasePrice, activeVehicle.displayCurrency)}</strong></div>
+          <div><span>Forma de aquisição</span><strong>{activeVehicle.acquisitionType === 'FINANCED' ? 'Financiado' : 'À vista'}</strong></div>
+          <div><span>Odômetro inicial</span><strong>{Number(activeVehicle.initialOdometer || 0).toLocaleString('pt-BR')} {game.distanceUnit}</strong></div>
+          <div><span>Semana operacional</span><strong>{activeVehicle.acquiredOperationalWeek}</strong></div>
+          {game.id === 'ets2' && <div><span>Mês operacional</span><strong>{activeVehicle.acquiredPayrollMonth}</strong></div>}
+        </div>
+        <a className="button primary" href={`#${game.routes.phase2}?career=${encodeURIComponent(career.id)}`}>Abrir Fase 2</a>
+      </section>
+    ) : !vehicleError && (
+      <section className="panel finance-card">
+        <div className="section-heading compact-heading">
+          <span className="eyebrow">Primeiro caminhão próprio</span>
+          <h2>Adquirir caminhão</h2>
+          <p>Cadastre o caminhão comprado no ATS/ETS2 e informe o valor pago. A aquisição concluída no Truck Life libera a Fase 2.</p>
+        </div>
+        <form className="inline-form-grid" onSubmit={truckAcquisitionType === 'CASH'
+          ? (event) => { event.preventDefault(); completeTruckAcquisition({ acquisitionType: 'CASH' }) }
+          : searchTruckFinancing}>
+          <div>
+            <label>Marca</label>
+            <input value={truckMake} onChange={(event) => { setTruckMake(event.target.value); setTruckOffers([]) }} placeholder="Ex.: Peterbilt" required />
+          </div>
+          <div>
+            <label>Modelo</label>
+            <input value={truckModel} onChange={(event) => { setTruckModel(event.target.value); setTruckOffers([]) }} placeholder="Ex.: 579" required />
+          </div>
+          <div>
+            <label>Ano (opcional)</label>
+            <input value={truckYear} onChange={(event) => setTruckYear(event.target.value)} inputMode="numeric" placeholder="2026" />
+          </div>
+          <div>
+            <label>Odômetro inicial ({game.distanceUnit})</label>
+            <input value={truckOdometer} onChange={(event) => setTruckOdometer(event.target.value)} inputMode="decimal" placeholder="0" required />
+          </div>
+          <div>
+            <label>Preço de compra</label>
+            <input value={truckPrice} onChange={(event) => { setTruckPrice(event.target.value); setTruckOffers([]) }} inputMode="decimal" placeholder="0,00" required />
+          </div>
+          <div>
+            <label>Forma de aquisição</label>
+            <select value={truckAcquisitionType} onChange={(event) => { setTruckAcquisitionType(event.target.value); setTruckOffers([]) }}>
+              <option value="CASH">À vista</option>
+              <option value="FINANCED">Financiado</option>
+            </select>
+          </div>
+          <button className="button primary" disabled={Boolean(mutation) || loadingTruckOffers}>
+            {truckAcquisitionType === 'CASH'
+              ? (mutation ? 'Comprando…' : 'Comprar à vista')
+              : (loadingTruckOffers ? 'Calculando…' : 'Consultar financiamento')}
+          </button>
+        </form>
+        <div className="notice-box">
+          <strong>Regra de progressão</strong>
+          <span>O primeiro caminhão adquirido, à vista ou financiado, torna-se um ativo server-side da carreira e desbloqueia automaticamente a Fase 2.</span>
+        </div>
+      </section>
+    )}
+
+    {truckOffers.length > 0 && !activeVehicle && (
+      <section className="financing-offers">
+        <div className="section-heading compact-heading">
+          <span className="eyebrow">Financiamento do caminhão</span>
+          <h2>Escolha o prazo</h2>
+          <p>Entrada, juros, parcela e custo total são calculados pelo backend conforme a jurisdição da carreira.</p>
+        </div>
+        <div className="phase1-two-panel">{truckOffers.map(renderOffer)}</div>
+      </section>
+    )}
 
     <section className="panel finance-card">
       <div className="section-heading compact-heading">
-        <span className="eyebrow">Nova contratação</span>
+        <span className="eyebrow">Empréstimo pessoal</span>
         <h2>Consultar ofertas da sua jurisdição</h2>
-        <p>Taxas, limites e regras são resolvidos pelo backend usando a sede atual da carreira. O navegador não escolhe juros nem parcela.</p>
+        <p>Empréstimos pessoais continuam separados da aquisição do caminhão.</p>
       </div>
       <form className="inline-form-grid" onSubmit={searchOffers}>
-        <div>
-          <label>Produto</label>
-          <select value={productType} onChange={(event) => { setProductType(event.target.value); setOffers([]) }}>
-            <option value="PERSONAL_LOAN">Empréstimo pessoal</option>
-            <option value="VEHICLE_FINANCING">Financiamento de veículo</option>
-          </select>
-        </div>
         <div>
           <label>Valor desejado</label>
           <input value={requestedAmount} onChange={(event) => setRequestedAmount(event.target.value)} inputMode="decimal" placeholder="0,00" />
         </div>
         <button className="button primary" disabled={loadingOffers || Boolean(mutation)}>{loadingOffers ? 'Calculando…' : 'Consultar ofertas'}</button>
       </form>
-      {productType === 'VEHICLE_FINANCING' && <div className="notice-box"><strong>Sobre o veículo</strong><span>Esta etapa registra entrada, dívida e pagamentos. A aquisição/posse de caminhão continua separada porque o backend ainda não possui um cadastro de ativos do jogador.</span></div>}
     </section>
 
     {offers.length > 0 && <section className="financing-offers">
