@@ -147,8 +147,12 @@ export default function Phase2Page({ career, onBack }) {
 
       transitionOperation.current = null
       setTransition(next)
-      const refreshed = await careerApi.get(game.id, career.serverCareerId)
-      setServerCareerSnapshot(game.id, career.id, refreshed)
+      try {
+        const refreshed = await careerApi.get(game.id, career.serverCareerId)
+        setServerCareerSnapshot(game.id, career.id, refreshed)
+      } catch {
+        // A mutação já foi confirmada pelo backend. O evento abaixo permite nova hidratação sem repetir a operação.
+      }
       window.dispatchEvent(new CustomEvent(CAREER_UPDATED_EVENT, {
         detail: { careerId: career.id, gameId: game.id, source: 'phase2-transition' },
       }))
@@ -163,7 +167,7 @@ export default function Phase2Page({ career, onBack }) {
   if (!unlocked && status !== 'loading') {
     return (
       <main className="page-shell form-shell">
-        <button className="back-link" type="button" onClick={onBack}>← Voltar para fases</button>
+        <button className="back-link" type="button" onClick={onBack} disabled={transition?.status === 'PENDING'}>← Voltar para fases</button>
         <div className="empty-state">
           <h2>Fase 2 ainda bloqueada</h2>
           <p>Adquira o primeiro caminhão próprio, à vista ou financiado, para desbloquear esta etapa.</p>
