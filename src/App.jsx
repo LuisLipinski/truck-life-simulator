@@ -15,6 +15,7 @@ import { convertEts2Currency, roundCurrency } from './config/ets2Currencies.js'
 import { careerApi } from './lib/careerApi.js'
 import { registerCreatedServerCareer } from './lib/careerServerState.js'
 import Phase1Page from './components/Phase1Page.jsx'
+import Phase2Page from './components/Phase2Page.jsx'
 import CityAutocomplete from './components/CityAutocomplete.jsx'
 import PublicAuthPage, { PUBLIC_AUTH_PATHS } from './components/auth/AuthPages.jsx'
 import { useAuth } from './components/auth/AuthProvider.jsx'
@@ -564,6 +565,8 @@ function PhasesPage({ careerId }) {
     return <main className="page-shell form-shell"><AppLink className="back-link" to={game.routes.careers}>← Voltar para carreiras</AppLink><div className="empty-state"><h2>Carreira não encontrada</h2><p>Escolha uma carreira de {game.shortName} salva para continuar.</p></div></main>
   }
 
+  const phase2Unlocked = Number(career.currentPhase || 1) >= 2
+
   return (
     <main className="page-shell phase-shell">
       <AppLink className="back-link" to={game.routes.careers}>← Voltar para carreiras</AppLink>
@@ -571,9 +574,15 @@ function PhasesPage({ careerId }) {
       <div className="profile-strip"><strong>{career.driverName}</strong><span>{career.city}</span><span>{career.company}</span><span>{game.countryFlag ? `${game.countryFlag} ${game.countryName}` : `${game.stateName} (${game.stateCode})`} • {game.cityMarketLabel} • {game.currency} • {game.distanceUnit}</span></div>
       <section className="phase-list" data-tour="career-phases">
         <AppLink className="phase-card interactive" data-tour="phase-one" to={`${game.routes.phase1}?career=${encodeURIComponent(career.id)}`}>
-          <div><span className="eyebrow">Fase ativa</span><h2>Fase 1 — Motorista Empregado</h2><p>{game.levelRoles[0]} • Níveis 1, 2 e 3 • Sem caminhão próprio.</p></div><span className="tag active">Abrir</span>
+          <div><span className="eyebrow">{phase2Unlocked ? 'Fase anterior' : 'Fase ativa'}</span><h2>Fase 1 — Motorista Empregado</h2><p>{game.levelRoles[0]} • Níveis 1, 2 e 3 • Sem caminhão próprio.</p></div><span className={`tag${phase2Unlocked ? '' : ' active'}`}>{phase2Unlocked ? 'Revisitar' : 'Abrir'}</span>
         </AppLink>
-        <article className="phase-card disabled"><div><h2>Fase 2</h2><p>Primeiro caminhão próprio e operação como autônomo.</p></div><span className="tag">Em breve</span></article>
+        {phase2Unlocked ? (
+          <AppLink className="phase-card interactive" to={`${game.routes.phase2}?career=${encodeURIComponent(career.id)}`}>
+            <div><span className="eyebrow">Fase ativa</span><h2>Fase 2 — Caminhão próprio</h2><p>Operação como agregado com caminhão próprio ou financiado.</p></div><span className="tag active">Abrir</span>
+          </AppLink>
+        ) : (
+          <article className="phase-card disabled"><div><h2>Fase 2 — Caminhão próprio</h2><p>Adquira seu primeiro caminhão, à vista ou financiado, para desbloquear.</p></div><span className="tag">Bloqueada</span></article>
+        )}
         <article className="phase-card disabled"><div><h2>Fase 3</h2><p>Reservada para uma etapa futura da simulação.</p></div><span className="tag">Em breve</span></article>
       </section>
     </main>
@@ -600,6 +609,11 @@ export default function App() {
     const careerId = params.get('career') || getActiveCareerId(game.id)
     career = getCareer(careerId, game.id)
     page = <Phase1Page gameId={game.id} careerId={careerId} onBack={() => { window.location.hash = `#${game.routes.phases}?career=${encodeURIComponent(careerId || '')}` }} />
+  }
+  else if (path === game.routes.phase2) {
+    const careerId = params.get('career') || getActiveCareerId(game.id)
+    career = getCareer(careerId, game.id)
+    page = <Phase2Page career={career} onBack={() => { window.location.hash = `#${game.routes.phases}?career=${encodeURIComponent(careerId || '')}` }} />
   }
 
   return page ? (
