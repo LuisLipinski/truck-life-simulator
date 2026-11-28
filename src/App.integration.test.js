@@ -113,6 +113,37 @@ describe('career card navigation', () => {
     expect(window.location.hash).toBe(`#/phases?career=${career.id}`)
   })
 
+  it('keeps Phase 2 blocked before the first owned truck is acquired', async () => {
+    const career = seedCareer()
+    window.location.hash = `#/phases?career=${career.id}`
+    await act(async () => {
+      root.render(createElement(ToastProvider, null, createElement(ConfirmProvider, null, createElement(TutorialProvider, null, createElement(App)))))
+    })
+
+    const phaseCards = [...document.querySelectorAll('.phase-card')]
+    const phase2 = phaseCards.find((card) => card.textContent.includes('Fase 2 — Caminhão próprio'))
+
+    expect(phase2?.classList.contains('disabled')).toBe(true)
+    expect(phase2?.textContent).toContain('Bloqueada')
+    expect(phase2?.textContent).toContain('Adquira seu primeiro caminhão')
+  })
+
+  it('unlocks the Phase 2 navigation when the career has an owned truck progression flag', async () => {
+    const career = { ...seedCareer(), currentPhase: 2 }
+    localStorage.setItem(CAREERS_KEY, JSON.stringify([career]))
+    window.location.hash = `#/phases?career=${career.id}`
+    await act(async () => {
+      root.render(createElement(ToastProvider, null, createElement(ConfirmProvider, null, createElement(TutorialProvider, null, createElement(App)))))
+    })
+
+    const phase2 = [...document.querySelectorAll('.phase-card')].find((card) => card.textContent.includes('Fase 2 — Caminhão próprio'))
+
+    expect(phase2?.tagName).toBe('A')
+    expect(phase2?.getAttribute('href')).toContain(`#/phase2?career=${career.id}`)
+    expect(phase2?.textContent).toContain('Fase ativa')
+    expect(phase2?.textContent).toContain('Abrir')
+  })
+
   it('deletes from the small trash button without opening the career', async () => {
     const career = seedCareer()
     await renderCareers()
